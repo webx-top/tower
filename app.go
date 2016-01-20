@@ -36,6 +36,7 @@ type App struct {
 	LastError       string
 	PortParamName   string //端口参数名称(用于指定应用程序监听的端口，例如：webx.exe -p 8080，这里的-p就是端口参数名)
 	SwitchToNewPort bool
+	DisabledBuild   bool
 
 	BuildStart   *sync.Once
 	startErr     error
@@ -165,7 +166,22 @@ func (this *App) Stop(port string, args ...string) {
 		cmd := this.GetCmd(port)
 		cmd.Process.Kill()
 		cmd = nil
-		os.Remove(this.BinFile(args...))
+		bin := this.BinFile(args...)
+		err := os.Remove(bin)
+		if err != nil {
+			go func() {
+				for i := 0; i < 10; i++ {
+					time.Sleep(time.Second)
+					err = os.Remove(bin)
+					if err != nil {
+						fmt.Println(err)
+					} else {
+						fmt.Printf(`Remove %v: Success.`, bin)
+						return
+					}
+				}
+			}()
+		}
 		delete(this.Cmds, port)
 		delete(this.portBinFiles, port)
 	}
@@ -182,7 +198,18 @@ func (this *App) Clean() {
 		if bin, ok := this.portBinFiles[port]; ok && bin != "" {
 			err := os.Remove(bin)
 			if err != nil {
-				fmt.Sprintln(err)
+				go func() {
+					for i := 0; i < 10; i++ {
+						time.Sleep(time.Second)
+						err = os.Remove(bin)
+						if err != nil {
+							fmt.Println(err)
+						} else {
+							fmt.Printf(`Remove %v: Success.`, bin)
+							return
+						}
+					}
+				}()
 			}
 		}
 		delete(this.Cmds, port)
@@ -217,12 +244,6 @@ func (this *App) Run(port string) (err error) {
 	}
 	this.Port = port //记录被使用的端口，避免下次使用
 	var cmd *exec.Cmd
-	/*
-		cmd = this.GetCmd()
-		if cmd != nil {
-			this.Stop(port)
-		}
-	*/
 	this.portBinFiles[port] = bin
 	if this.SupportMutiPort() {
 		cmd = exec.Command(bin, this.PortParamName, port)
@@ -240,6 +261,9 @@ func (this *App) Run(port string) (err error) {
 }
 
 func (this *App) Build() (err error) {
+	if this.DisabledBuild {
+		return nil
+	}
 	fmt.Println("== Building " + this.Name)
 	AppBin = "tower-app-" + strconv.FormatInt(time.Now().Unix(), 10)
 	out, _ := exec.Command("go", "build", "-o", this.BinFile(), this.MainFile).CombinedOutput()

@@ -89,8 +89,9 @@ func (this *Watcher) Watch() (err error) {
 func (this *Watcher) dirsToWatch() (dirs []string) {
 	ignoredPathReg := regexp.MustCompile(`(public)|(\/\.\w+)|(^\.)|(\.\w+$)`)
 	matchedDirs := make(map[string]bool)
-	matchedDirs["./"] = true
+	//matchedDirs["./"] = true
 	for _, dir := range strings.Split(this.WatchedDir, `|`) {
+		dir, _ := filepath.Abs(dir)
 		f, err := os.Open(dir)
 		if err != nil {
 			fmt.Printf("[ERRO] Fail to open file[ %s ]\n", err)
@@ -105,6 +106,7 @@ func (this *Watcher) dirsToWatch() (dirs []string) {
 		if !fi.IsDir() {
 			continue
 		}
+		fmt.Println("[INFO] Watch directory:", dir)
 		filepath.Walk(dir, func(filePath string, info os.FileInfo, e error) (err error) {
 			if e != nil {
 				return e
@@ -115,7 +117,6 @@ func (this *Watcher) dirsToWatch() (dirs []string) {
 			if mch, _ := matchedDirs[filePath]; mch {
 				return
 			}
-			fmt.Println("[INFO] Watch directory:", filePath)
 			matchedDirs[filePath] = true
 			return
 		})

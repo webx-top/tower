@@ -90,21 +90,36 @@ func (this *Watcher) dirsToWatch() (dirs []string) {
 	ignoredPathReg := regexp.MustCompile(`(public)|(\/\.\w+)|(^\.)|(\.\w+$)`)
 	matchedDirs := make(map[string]bool)
 	matchedDirs["./"] = true
-	filepath.Walk(this.WatchedDir, func(filePath string, info os.FileInfo, e error) (err error) {
-		if e != nil {
-			return e
+	for _, dir := range strings.Split(this.WatchedDir, `|`) {
+		f, err := os.Open(dir)
+		if err != nil {
+			fmt.Printf("[ERRO] Fail to open file[ %s ]\n", err)
+			continue
 		}
-		if !info.IsDir() || ignoredPathReg.Match([]byte(filePath)) {
+		fi, err := f.Stat()
+		f.Close()
+		if err != nil {
+			fmt.Printf("[ERRO] Fail to get file information[ %s ]\n", err)
+			continue
+		}
+		if !fi.IsDir() {
+			continue
+		}
+		filepath.Walk(dir, func(filePath string, info os.FileInfo, e error) (err error) {
+			if e != nil {
+				return e
+			}
+			if !info.IsDir() || ignoredPathReg.Match([]byte(filePath)) {
+				return
+			}
+			if mch, _ := matchedDirs[filePath]; mch {
+				return
+			}
+			fmt.Println("[INFO] Watch directory:", filePath)
+			matchedDirs[filePath] = true
 			return
-		}
-		if mch, _ := matchedDirs[filePath]; mch {
-			return
-		}
-
-		matchedDirs[filePath] = true
-		return
-	})
-
+		})
+	}
 	for dir, _ := range matchedDirs {
 		dirs = append(dirs, dir)
 	}

@@ -50,6 +50,7 @@ func startTower(appMainFile, appPort, pxyPort, appBuildDir, portParamName, confi
 		configFile = ConfigName
 	}
 	watchedFiles := ""
+	watchedOtherDir := ""
 	contents, err := ioutil.ReadFile(configFile)
 	if err != nil {
 		fmt.Println(err)
@@ -65,6 +66,7 @@ func startTower(appMainFile, appPort, pxyPort, appBuildDir, portParamName, confi
 		appBuildDir, _ = newmap["app_buildDir"]
 		portParamName, _ = newmap["app_portParamName"]
 		watchedFiles, _ = newmap["watch"]
+		watchedOtherDir, _ = newmap["watch_otherDir"]
 		if pxyPort == "" {
 			pxyPort = ProxyPort
 		}
@@ -83,7 +85,10 @@ func startTower(appMainFile, appPort, pxyPort, appBuildDir, portParamName, confi
 	}
 
 	app = NewApp(appMainFile, appPort, appBuildDir, portParamName)
-	watcher := NewWatcher(app.Root, watchedFiles)
+	if watchedOtherDir != "" {
+		watchedOtherDir += "|" + app.Root
+	}
+	watcher := NewWatcher(watchedOtherDir, watchedFiles)
 	watcher.OnChanged = func(file string) {
 		if !app.SupportMutiPort() {
 			return

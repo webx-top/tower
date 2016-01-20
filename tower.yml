@@ -15,3 +15,7 @@ pxy_port          : 8080
 
 # file types to watch for changes in. use "|" to separate multiple types, for example, go|html
 watch             : go
+
+# 默认会自动监控上面main参数所指定的文件所在之文件夹，如果你还要监控其它文件夹，请在这里指定。
+# 如要指定多个文件夹路径，请用“|”分隔。
+watch_otherDir    : ""

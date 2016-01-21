@@ -20,6 +20,7 @@ type Proxy struct {
 	ReserveProxy *httputil.ReverseProxy
 	Watcher      *Watcher
 	FirstRequest *sync.Once
+	upgraded     int64
 	Port         string
 }
 
@@ -56,6 +57,7 @@ func (this *Proxy) ServeRequest(w http.ResponseWriter, r *http.Request) {
 			this.FirstRequest.Do(func() {
 				reserveProxy.ServeHTTP(&mwCopy, r)
 				this.ReserveProxy = reserveProxy
+				this.upgraded = time.Now().Unix()
 				this.FirstRequest = &sync.Once{}
 			})
 			this.App.Clean()
@@ -75,6 +77,13 @@ func (this *Proxy) ServeRequest(w http.ResponseWriter, r *http.Request) {
 	}
 
 	this.App.LastError = ""
+	if this.upgraded > 0 {
+		timeout := time.Now().Unix() - this.upgraded
+		if timeout > 3600 {
+			this.upgraded = 0
+		}
+		mw.Header().Set(`X-Server-Upgraded`, fmt.Sprintf("%v", timeout))
+	}
 
 	if !mw.Processed {
 		this.ReserveProxy.ServeHTTP(&mw, r)

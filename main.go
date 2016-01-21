@@ -92,6 +92,7 @@ func startTower() {
 		portParamName, _ = newmap["app_portParamName"]
 		watchedFiles, _ = newmap["watch"]
 		watchedOtherDir, _ = newmap["watch_otherDir"] //编译模式下有效
+		ignoredPathPattern, _ = newmap["watch_ignoredPath"]
 		if pxyPort == "" {
 			pxyPort = ProxyPort
 		}

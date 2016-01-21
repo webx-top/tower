@@ -54,8 +54,17 @@ func (this *Proxy) ServeRequest(w http.ResponseWriter, r *http.Request) {
 			url, _ := url.ParseRequestURI("http://localhost:" + this.App.Port)
 			reserveProxy := httputil.NewSingleHostReverseProxy(url)
 			mwCopy := mw
+
+			//避免重复提交数据
+			mrCopy := *r
+			mrCopy.URL.RawQuery = ""
+			mrCopy.URL.Path = "/"
+			mrCopy.RequestURI = "/"
+			mrCopy.Method = "GET"
+			mrCopy.Body = nil
+
 			this.FirstRequest.Do(func() {
-				reserveProxy.ServeHTTP(&mwCopy, r)
+				reserveProxy.ServeHTTP(&mwCopy, &mrCopy)
 				this.ReserveProxy = reserveProxy
 				this.upgraded = time.Now().Unix()
 				this.FirstRequest = &sync.Once{}

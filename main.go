@@ -60,23 +60,23 @@ func generateExampleConfig() {
 
 func startTower() {
 	var (
-		appMainFile   = *_appMainFile
-		appPort       = *_appPort
-		pxyPort       = *_pxyPort
-		appBuildDir   = *_appBuildDir
-		portParamName = *_portParamName
-		configFile    = *_configFile
-		verbose       = *_verbose
-		allowBuild    = build == "1"
-		prefix        = "tower-app-"
-		suffix        = ".exe"
-		_suffix       = ""
+		appMainFile        = *_appMainFile
+		appPort            = *_appPort
+		pxyPort            = *_pxyPort
+		appBuildDir        = *_appBuildDir
+		portParamName      = *_portParamName
+		configFile         = *_configFile
+		verbose            = *_verbose
+		allowBuild         = build == "1"
+		suffix             = ".exe"
+		_suffix            = ""
+		watchedFiles       string
+		watchedOtherDir    string
+		ignoredPathPattern string
 	)
 	if configFile == "" {
 		configFile = ConfigName
 	}
-	watchedFiles := ""
-	watchedOtherDir := ""
 	contents, err := ioutil.ReadFile(configFile)
 	if err != nil {
 		fmt.Println(err)
@@ -120,16 +120,16 @@ func startTower() {
 				AppBin = strings.TrimSuffix(AppBin, suffix)
 				_suffix = suffix
 			}
-			nameOk := strings.HasPrefix(AppBin, prefix)
+			nameOk := strings.HasPrefix(AppBin, BinPrefix)
 			if nameOk {
-				fileName := strings.TrimPrefix(AppBin, prefix)
+				fileName := strings.TrimPrefix(AppBin, BinPrefix)
 				_, err = strconv.ParseInt(fileName, 10, 64)
 				if err != nil {
 					nameOk = false
 				}
 			}
 			if !nameOk {
-				fmt.Println("exec参数指定的可执行文件名称格式应该为：", prefix+"0"+_suffix, "。")
+				fmt.Println("exec参数指定的可执行文件名称格式应该为：", BinPrefix+"0"+_suffix, "。")
 				fmt.Println("其中的“0”是代表版本号的整数，请修改为此格式。")
 				time.Sleep(time.Second * 300)
 				return
@@ -153,7 +153,7 @@ func startTower() {
 	if watchedOtherDir != "" {
 		watchedOtherDir += "|" + app.Root
 	}
-	watcher := NewWatcher(watchedOtherDir, watchedFiles)
+	watcher := NewWatcher(watchedOtherDir, watchedFiles, ignoredPathPattern)
 	runApp := func(port string) {
 		app.BuildStart.Do(func() {
 			err := app.Build()
@@ -170,6 +170,10 @@ func startTower() {
 	}
 	if allowBuild {
 		watcher.OnChanged = func(file string) {
+			if strings.HasPrefix(file, BinPrefix) {
+				watcher.Reset()
+				return
+			}
 			if !app.SupportMutiPort() {
 				return
 			}
@@ -192,20 +196,20 @@ func startTower() {
 			}
 
 			fileName := filepath.Base(file)
-			if !strings.HasPrefix(fileName, prefix) {
+			if !strings.HasPrefix(fileName, BinPrefix) {
 				return
 			}
 			if _suffix != "" {
 				fileName = strings.TrimSuffix(fileName, _suffix)
 			}
 			newAppBin := fileName
-			fileName = strings.TrimPrefix(fileName, prefix)
+			fileName = strings.TrimPrefix(fileName, BinPrefix)
 			newFileTs, err := strconv.ParseInt(fileName, 10, 64)
 			if err != nil {
 				fmt.Println(err)
 				return
 			}
-			fileName = strings.TrimPrefix(AppBin, prefix)
+			fileName = strings.TrimPrefix(AppBin, BinPrefix)
 			oldFileTs, err := strconv.ParseInt(fileName, 10, 64)
 			if err != nil {
 				fmt.Println(err)
@@ -217,6 +221,7 @@ func startTower() {
 			AppBin = newAppBin
 			runApp(port)
 		}
+		watcher.OnlyWatchBin = true
 		app.DisabledBuild = true
 	}
 	runApp(app.Port)

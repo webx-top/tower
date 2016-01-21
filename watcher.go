@@ -11,7 +11,10 @@ import (
 	"github.com/howeyc/fsnotify"
 )
 
-const DefaultWatchedFiles = "go"
+const (
+	DefaultWatchedFiles = "go"
+	DefaultIngoredPaths = `(\/\.\w+)|(^\.)|(\.\w+$)`
+)
 
 var (
 	eventTime    = make(map[string]int64)
@@ -19,18 +22,24 @@ var (
 )
 
 type Watcher struct {
-	WatchedDir  string
-	Changed     bool
-	OnChanged   func(string)
-	Watcher     *fsnotify.Watcher
-	FilePattern string
+	WatchedDir         string
+	Changed            bool
+	OnChanged          func(string)
+	Watcher            *fsnotify.Watcher
+	FilePattern        string
+	IgnoredPathPattern string
+	OnlyWatchBin       bool
 }
 
-func NewWatcher(dir, filePattern string) (w Watcher) {
+func NewWatcher(dir, filePattern, ignoredPathPattern string) (w Watcher) {
 	w.WatchedDir = dir
 	w.FilePattern = DefaultWatchedFiles
+	w.IgnoredPathPattern = DefaultIngoredPaths
 	if len(filePattern) != 0 {
 		w.FilePattern = filePattern
+	}
+	if len(ignoredPathPattern) != 0 {
+		w.IgnoredPathPattern += "|" + ignoredPathPattern
 	}
 
 	watcher, err := fsnotify.NewWatcher()
@@ -49,45 +58,51 @@ func (this *Watcher) Watch() (err error) {
 			return
 		}
 	}
-
-	expectedFileReg := regexp.MustCompile(`\.(` + this.FilePattern + `)$`)
+	filePattern := `\.(` + this.FilePattern + `)$`
+	if this.OnlyWatchBin {
+		filePattern = `^` + regexp.QuoteMeta(BinPrefix) + `[\d]+(\.exe)?$`
+	}
+	expectedFileReg := regexp.MustCompile(filePattern)
 	for {
 		file := <-this.Watcher.Event
 		// Skip TMP files for Sublime Text.
 		if checkTMPFile(file.Name) {
 			continue
 		}
-		if expectedFileReg.Match([]byte(file.Name)) {
-			mt := getFileModTime(file.Name)
-			if t := eventTime[file.Name]; mt == t {
-				fmt.Printf("[SKIP] # %s #\n", file.String())
-				eventTime[file.Name] = mt
-				continue
-			}
-			eventTime[file.Name] = mt
-			fmt.Println("== Change detected:", file.Name)
-			this.Changed = true
-			if this.OnChanged != nil {
-				go func() {
-					// Wait 1s before autobuild util there is no file change.
-					scheduleTime = time.Now().Add(1 * time.Second)
-					for {
-						time.Sleep(scheduleTime.Sub(time.Now()))
-						if time.Now().After(scheduleTime) {
-							break
-						}
-						return
-					}
-					this.OnChanged(file.Name)
-				}()
-			}
+		if expectedFileReg.Match([]byte(file.Name)) == false {
+			continue
 		}
+		mt := getFileModTime(file.Name)
+		if t := eventTime[file.Name]; mt == t {
+			fmt.Printf("[SKIP] # %s #\n", file.String())
+			eventTime[file.Name] = mt
+			continue
+		}
+		eventTime[file.Name] = mt
+		fmt.Println("== Change detected:", file.Name)
+		if this.OnChanged == nil {
+			this.Changed = true
+			continue
+		}
+		go func() {
+			// Wait 1s before autobuild util there is no file change.
+			scheduleTime = time.Now().Add(1 * time.Second)
+			for {
+				time.Sleep(scheduleTime.Sub(time.Now()))
+				if time.Now().After(scheduleTime) {
+					break
+				}
+				return
+			}
+			this.Changed = true
+			this.OnChanged(file.Name)
+		}()
 	}
 	return nil
 }
 
 func (this *Watcher) dirsToWatch() (dirs []string) {
-	ignoredPathReg := regexp.MustCompile(`(public)|(\/\.\w+)|(^\.)|(\.\w+$)`)
+	ignoredPathReg := regexp.MustCompile(this.IgnoredPathPattern)
 	matchedDirs := make(map[string]bool)
 	dir, _ := filepath.Abs("./")
 	matchedDirs[dir] = true

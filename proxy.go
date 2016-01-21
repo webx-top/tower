@@ -49,13 +49,17 @@ func (this *Proxy) ServeRequest(w http.ResponseWriter, r *http.Request) {
 
 	if this.App.SwitchToNewPort {
 		this.App.SwitchToNewPort = false
-		url, _ := url.ParseRequestURI("http://localhost:" + this.App.Port)
-		this.ReserveProxy = httputil.NewSingleHostReverseProxy(url)
-		this.FirstRequest.Do(func() {
-			this.ReserveProxy.ServeHTTP(&mw, r)
-			this.FirstRequest = &sync.Once{}
-		})
-		this.App.Clean()
+		go func() {
+			url, _ := url.ParseRequestURI("http://localhost:" + this.App.Port)
+			reserveProxy := httputil.NewSingleHostReverseProxy(url)
+			mwCopy := mw
+			this.FirstRequest.Do(func() {
+				reserveProxy.ServeHTTP(&mwCopy, r)
+				this.ReserveProxy = reserveProxy
+				this.FirstRequest = &sync.Once{}
+			})
+			this.App.Clean()
+		}()
 	} else if !this.App.IsRunning() || this.Watcher.Changed {
 		this.Watcher.Reset()
 		err := this.App.Restart()

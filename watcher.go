@@ -39,7 +39,7 @@ func NewWatcher(dir, filePattern, ignoredPathPattern string) (w Watcher) {
 		w.FilePattern = filePattern
 	}
 	if len(ignoredPathPattern) != 0 {
-		w.IgnoredPathPattern += "|" + ignoredPathPattern
+		w.IgnoredPathPattern = ignoredPathPattern
 	}
 
 	watcher, err := fsnotify.NewWatcher()
@@ -106,6 +106,7 @@ func (this *Watcher) dirsToWatch() (dirs []string) {
 	matchedDirs := make(map[string]bool)
 	dir, _ := filepath.Abs("./")
 	matchedDirs[dir] = true
+	fmt.Println("")
 	for _, dir := range strings.Split(this.WatchedDir, `|`) {
 		if dir == "" {
 			continue
@@ -124,20 +125,26 @@ func (this *Watcher) dirsToWatch() (dirs []string) {
 		if !fi.IsDir() {
 			continue
 		}
+		fmt.Println("")
 		fmt.Println("[INFO] Watch directory:", dir)
+		fmt.Println("==================================================================")
 		filepath.Walk(dir, func(filePath string, info os.FileInfo, e error) (err error) {
 			if e != nil {
 				return e
 			}
+			filePath = strings.Replace(filePath, "\\", "/", -1)
 			if !info.IsDir() || ignoredPathReg.Match([]byte(filePath)) {
 				return
 			}
 			if mch, _ := matchedDirs[filePath]; mch {
 				return
 			}
+			fmt.Println("    ->", filePath)
 			matchedDirs[filePath] = true
 			return
 		})
+		fmt.Println("")
+		fmt.Println("")
 	}
 	for dir, _ := range matchedDirs {
 		dirs = append(dirs, dir)

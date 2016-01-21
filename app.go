@@ -110,7 +110,7 @@ func (this *App) UseRandPort() string {
 	return this.Port
 }
 
-func (this *App) Start(build bool) error {
+func (this *App) Start(build bool, args ...string) error {
 	this.BuildStart.Do(func() {
 		if build {
 			this.startErr = this.Build()
@@ -120,8 +120,11 @@ func (this *App) Start(build bool) error {
 				return
 			}
 		}
-
-		this.startErr = this.Run(this.Port)
+		port := this.Port
+		if len(args) > 0 {
+			port = args[0]
+		}
+		this.startErr = this.Run(port)
 		if this.startErr != nil {
 			this.startErr = errors.New("Fail to run " + this.Name)
 			this.BuildStart = &sync.Once{}
@@ -137,6 +140,7 @@ func (this *App) Start(build bool) error {
 
 func (this *App) Restart() error {
 	this.AppRestart.Do(func() {
+		this.Clean()
 		this.Stop(this.Port)
 		this.restartErr = this.Start(true)
 		this.AppRestart = &sync.Once{} // Assign new Once to allow calling Start again.
@@ -169,22 +173,21 @@ func (this *App) Stop(port string, args ...string) {
 		cmd = nil
 		bin := this.BinFile(args...)
 		err := os.Remove(bin)
-		if err != nil {
-			go func() {
-				for i := 0; i < 10; i++ {
-					time.Sleep(time.Second)
-					err = os.Remove(bin)
-					if err != nil {
-						fmt.Println(err)
-					} else {
-						fmt.Printf(`Remove %v: Success.`, bin)
-						return
-					}
-				}
-			}()
+		if err == nil {
+			return
 		}
-		delete(this.Cmds, port)
-		delete(this.portBinFiles, port)
+		go func() {
+			for i := 0; i < 10; i++ {
+				time.Sleep(time.Second)
+				err = os.Remove(bin)
+				if err != nil {
+					fmt.Println(err)
+				} else {
+					fmt.Printf(`Remove %v: Success.`, bin)
+					return
+				}
+			}
+		}()
 	}
 }
 
@@ -198,23 +201,22 @@ func (this *App) Clean() {
 		cmd = nil
 		if bin, ok := this.portBinFiles[port]; ok && bin != "" {
 			err := os.Remove(bin)
-			if err != nil {
-				go func() {
-					for i := 0; i < 10; i++ {
-						time.Sleep(time.Second)
-						err = os.Remove(bin)
-						if err != nil {
-							fmt.Println(err)
-						} else {
-							fmt.Printf(`Remove %v: Success.`, bin)
-							return
-						}
-					}
-				}()
+			if err == nil {
+				continue
 			}
+			go func() {
+				for i := 0; i < 10; i++ {
+					time.Sleep(time.Second)
+					err = os.Remove(bin)
+					if err != nil {
+						fmt.Println(err)
+					} else {
+						fmt.Printf(`Remove %v: Success.`, bin)
+						return
+					}
+				}
+			}()
 		}
-		delete(this.Cmds, port)
-		delete(this.portBinFiles, port)
 	}
 }
 
@@ -240,10 +242,9 @@ func (this *App) Run(port string) (err error) {
 		return
 	}
 	fmt.Println("== Running at port " + port + ": " + this.Name)
-	if this.Port != port {
-		this.SwitchToNewPort = true
-	}
+	ableSwitch := this.Port != port
 	this.Port = port //记录被使用的端口，避免下次使用
+
 	var cmd *exec.Cmd
 	this.portBinFiles[port] = bin
 	if this.SupportMutiPort() {
@@ -258,6 +259,9 @@ func (this *App) Run(port string) (err error) {
 	}()
 	this.SetCmd(this.Port, cmd)
 	err = dialAddress("127.0.0.1:"+this.Port, 60)
+	if err == nil && ableSwitch {
+		this.SwitchToNewPort = true
+	}
 	return
 }
 
@@ -305,7 +309,9 @@ func (this *App) RestartOnReturn() {
 		for {
 			input, _ := in.ReadString('\n')
 			if input == "\n" {
-				this.Restart()
+				if !this.SwitchToNewPort {
+					this.Restart()
+				}
 			}
 		}
 	}()

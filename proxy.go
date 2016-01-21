@@ -20,6 +20,7 @@ type Proxy struct {
 	ReserveProxy *httputil.ReverseProxy
 	Watcher      *Watcher
 	FirstRequest *sync.Once
+	upgraded     int64
 	Port         string
 }
 
@@ -49,13 +50,27 @@ func (this *Proxy) ServeRequest(w http.ResponseWriter, r *http.Request) {
 
 	if this.App.SwitchToNewPort {
 		this.App.SwitchToNewPort = false
-		url, _ := url.ParseRequestURI("http://localhost:" + this.App.Port)
-		this.ReserveProxy = httputil.NewSingleHostReverseProxy(url)
-		this.FirstRequest.Do(func() {
-			this.ReserveProxy.ServeHTTP(&mw, r)
-			this.FirstRequest = &sync.Once{}
-		})
-		this.App.Clean()
+		go func() {
+			url, _ := url.ParseRequestURI("http://localhost:" + this.App.Port)
+			reserveProxy := httputil.NewSingleHostReverseProxy(url)
+			mwCopy := mw
+
+			//避免重复提交数据
+			mrCopy := *r
+			mrCopy.URL.RawQuery = ""
+			mrCopy.URL.Path = "/"
+			mrCopy.RequestURI = "/"
+			mrCopy.Method = "GET"
+			mrCopy.Body = nil
+
+			this.FirstRequest.Do(func() {
+				reserveProxy.ServeHTTP(&mwCopy, &mrCopy)
+				this.ReserveProxy = reserveProxy
+				this.upgraded = time.Now().Unix()
+				this.FirstRequest = &sync.Once{}
+			})
+			this.App.Clean()
+		}()
 	} else if !this.App.IsRunning() || this.Watcher.Changed {
 		this.Watcher.Reset()
 		err := this.App.Restart()
@@ -71,6 +86,13 @@ func (this *Proxy) ServeRequest(w http.ResponseWriter, r *http.Request) {
 	}
 
 	this.App.LastError = ""
+	if this.upgraded > 0 {
+		timeout := time.Now().Unix() - this.upgraded
+		if timeout > 3600 {
+			this.upgraded = 0
+		}
+		mw.Header().Set(`X-Server-Upgraded`, fmt.Sprintf("%v", timeout))
+	}
 
 	if !mw.Processed {
 		this.ReserveProxy.ServeHTTP(&mw, r)

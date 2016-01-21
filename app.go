@@ -21,7 +21,8 @@ const (
 )
 
 var (
-	AppBin = "tower-app-" + strconv.FormatInt(time.Now().Unix(), 10)
+	BinPrefix = "tower-app-"
+	AppBin    = BinPrefix + strconv.FormatInt(time.Now().Unix(), 10)
 )
 
 type App struct {
@@ -265,7 +266,7 @@ func (this *App) Build() (err error) {
 		return nil
 	}
 	fmt.Println("== Building " + this.Name)
-	AppBin = "tower-app-" + strconv.FormatInt(time.Now().Unix(), 10)
+	AppBin = BinPrefix + strconv.FormatInt(time.Now().Unix(), 10)
 	out, _ := exec.Command("go", "build", "-o", this.BinFile(), this.MainFile).CombinedOutput()
 	if len(out) > 0 {
 		msg := strings.Replace(string(out), "# command-line-arguments\n", "", 1)

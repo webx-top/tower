@@ -12,5 +12,6 @@ app_portParamName : "-p"
 pxy_port          : 8080
 
 # file types to watch for changes in. use "|" to separate multiple types, for example, go|html
-watch             : go|exe
+watch             : go
 
+watch_otherDir    : "../|../../webx-top"

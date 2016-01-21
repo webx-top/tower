@@ -12,6 +12,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"time"
 
 	"gopkg.in/yaml.v1"
 )
@@ -28,7 +29,7 @@ var (
 	_configFile    *string
 
 	app   App
-	build string = "1"
+	build string = "0"
 )
 
 func main() {
@@ -67,6 +68,9 @@ func startTower() {
 		configFile    = *_configFile
 		verbose       = *_verbose
 		allowBuild    = build == "1"
+		prefix        = "tower-app-"
+		suffix        = ".exe"
+		_suffix       = ""
 	)
 	if configFile == "" {
 		configFile = ConfigName
@@ -97,6 +101,7 @@ func startTower() {
 			appMainFile, _ = newmap["exec"] //非编译模式下有效
 			if appMainFile == "" {
 				fmt.Println("请设置exec参数用来指定执行文件位置")
+				time.Sleep(time.Second * 10)
 				return
 			}
 			f, err := os.Open(appMainFile)
@@ -106,6 +111,27 @@ func startTower() {
 			f.Close()
 			if err != nil {
 				fmt.Println(err)
+				time.Sleep(time.Second * 10)
+				return
+			}
+			fileName := filepath.Base(appMainFile)
+			AppBin = fileName
+			if strings.HasSuffix(AppBin, suffix) {
+				AppBin = strings.TrimSuffix(AppBin, suffix)
+				_suffix = suffix
+			}
+			nameOk := strings.HasPrefix(AppBin, prefix)
+			if nameOk {
+				fileName := strings.TrimPrefix(AppBin, prefix)
+				_, err = strconv.ParseInt(fileName, 10, 64)
+				if err != nil {
+					nameOk = false
+				}
+			}
+			if !nameOk {
+				fmt.Println("exec参数指定的可执行文件名称格式应该为：", prefix+"0"+_suffix, "。")
+				fmt.Println("其中的“0”是代表版本号的整数，请修改为此格式。")
+				time.Sleep(time.Second * 300)
 				return
 			}
 		}
@@ -166,11 +192,12 @@ func startTower() {
 			}
 
 			fileName := filepath.Base(file)
-			prefix := "tower-app-"
 			if !strings.HasPrefix(fileName, prefix) {
 				return
 			}
-			fileName = strings.TrimSuffix(fileName, ".exe")
+			if _suffix != "" {
+				fileName = strings.TrimSuffix(fileName, _suffix)
+			}
 			newAppBin := fileName
 			fileName = strings.TrimPrefix(fileName, prefix)
 			newFileTs, err := strconv.ParseInt(fileName, 10, 64)

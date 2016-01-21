@@ -1,5 +1,5 @@
 main: test/server1.go
-
+exec: test/tower-app-0.exe
 #你的项目在本机运行端口
 app_port          : "5000-5010"
 
@@ -12,5 +12,5 @@ app_portParamName : "-p"
 pxy_port          : 8080
 
 # file types to watch for changes in. use "|" to separate multiple types, for example, go|html
-watch             : go
+watch             : go|exe
 

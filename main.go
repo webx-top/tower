@@ -11,7 +11,6 @@ import (
 	"runtime"
 	"strconv"
 	"strings"
-	"sync"
 	"time"
 
 	"gopkg.in/yaml.v1"
@@ -155,20 +154,6 @@ func startTower() {
 		watchedOtherDir += "|" + app.Root
 	}
 	watcher := NewWatcher(watchedOtherDir, watchedFiles, ignoredPathPattern)
-	runApp := func(port string) {
-		app.BuildStart.Do(func() {
-			err := app.Build()
-			if err != nil {
-				fmt.Println(err)
-			}
-			app.BuildStart = &sync.Once{}
-		})
-		err := app.Run(port)
-		if err != nil {
-			fmt.Println(err)
-			return
-		}
-	}
 	if allowBuild {
 		watcher.OnChanged = func(file string) {
 			if strings.HasPrefix(file, BinPrefix) {
@@ -183,7 +168,10 @@ func startTower() {
 				return
 			}
 			watcher.Reset()
-			runApp(port)
+			err = app.Start(true, port)
+			if err != nil {
+				fmt.Println(err)
+			}
 		}
 	} else {
 		watcher.OnChanged = func(file string) {
@@ -220,12 +208,18 @@ func startTower() {
 				return
 			}
 			AppBin = newAppBin
-			runApp(port)
+			err = app.Start(true, port)
+			if err != nil {
+				fmt.Println(err)
+			}
 		}
 		watcher.OnlyWatchBin = true
 		app.DisabledBuild = true
 	}
-	runApp(app.Port)
+	err = app.Start(true, app.Port)
+	if err != nil {
+		fmt.Println(err)
+	}
 	proxy := NewProxy(&app, &watcher)
 	proxy.Port = pxyPort
 	go func() {

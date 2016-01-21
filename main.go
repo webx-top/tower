@@ -29,7 +29,7 @@ var (
 	_configFile    *string
 
 	app   App
-	build string = "0"
+	build string = "1"
 )
 
 func main() {

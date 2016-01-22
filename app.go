@@ -171,6 +171,9 @@ func (this *App) Stop(port string, args ...string) {
 		cmd := this.GetCmd(port)
 		cmd.Process.Kill()
 		cmd = nil
+		if port == this.Port && this.DisabledBuild {
+			return
+		}
 		bin := this.BinFile(args...)
 		err := os.Remove(bin)
 		if err == nil {

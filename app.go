@@ -29,7 +29,7 @@ type App struct {
 	Cmds            map[string]*exec.Cmd
 	MainFile        string
 	Port            string
-	Ports           []string
+	Ports           map[string]int64
 	BuildDir        string
 	Name            string
 	Root            string
@@ -82,17 +82,18 @@ func NewApp(mainFile, port, buildDir, portParamName string) (app App) {
 
 func (this *App) ParseMutiPort(port string) {
 	p := strings.Split(port, `,`)
-	this.Ports = make([]string, 0)
+	this.Ports = make(map[string]int64)
 	for _, v := range p {
 		r := strings.Split(v, `-`)
 		if len(r) > 1 {
 			i, _ := strconv.Atoi(r[0])
 			j, _ := strconv.Atoi(r[1])
 			for ; i <= j; i++ {
-				this.Ports = append(this.Ports, fmt.Sprintf("%v", i))
+				port := fmt.Sprintf("%v", i)
+				this.Ports[port] = 0
 			}
 		} else {
-			this.Ports = append(this.Ports, r[0])
+			this.Ports[r[0]] = 0
 		}
 	}
 }
@@ -102,10 +103,18 @@ func (this *App) SupportMutiPort() bool {
 }
 
 func (this *App) UseRandPort() string {
-	for _, port := range this.Ports {
-		if port != this.Port {
+	lastRunTime := make([]int64, 0)
+	lastRunPorts := make(map[int64]string, 0)
+	for port, runningTime := range this.Ports {
+		if runningTime == 0 || this.IsRunning(port) == false || isFreePort(port) {
 			return port
 		}
+		lastRunTime = append(lastRunTime, runningTime)
+		lastRunPorts[runningTime] = port
+	}
+	quickSort(lastRunTime, 0, len(lastRunTime)-1)
+	for _, runningTime := range lastRunTime {
+		return lastRunPorts[runningTime]
 	}
 	return this.Port
 }
@@ -169,14 +178,18 @@ func (this *App) Stop(port string, args ...string) {
 	if this.IsRunning(port) {
 		fmt.Println("== Stopping " + this.Name)
 		cmd := this.GetCmd(port)
-		cmd.Process.Kill()
+		err := cmd.Process.Kill()
+		if err != nil {
+			fmt.Println(err)
+		}
 		cmd = nil
 		if port == this.Port && this.DisabledBuild {
 			return
 		}
 		bin := this.BinFile(args...)
-		err := os.Remove(bin)
+		err = os.Remove(bin)
 		if err == nil {
+			this.Ports[port] = 0
 			return
 		}
 		go func() {
@@ -186,7 +199,8 @@ func (this *App) Stop(port string, args ...string) {
 				if err != nil {
 					fmt.Println(err)
 				} else {
-					fmt.Printf(`Remove %v: Success.`, bin)
+					fmt.Println(`Remove ` + bin + `: Success.`)
+					this.Ports[port] = 0
 					return
 				}
 			}
@@ -200,11 +214,15 @@ func (this *App) Clean() {
 			continue
 		}
 		fmt.Println("== Stopping app at port: " + port)
-		cmd.Process.Kill()
+		err := cmd.Process.Kill()
+		if err != nil {
+			fmt.Println(err)
+		}
 		cmd = nil
 		if bin, ok := this.portBinFiles[port]; ok && bin != "" {
 			err := os.Remove(bin)
 			if err == nil {
+				this.Ports[port] = 0
 				continue
 			}
 			go func() {
@@ -214,7 +232,8 @@ func (this *App) Clean() {
 					if err != nil {
 						fmt.Println(err)
 					} else {
-						fmt.Printf(`Remove %v: Success.`, bin)
+						fmt.Println(`Remove ` + bin + `: Success.`)
+						this.Ports[port] = 0
 						return
 					}
 				}
@@ -250,6 +269,7 @@ func (this *App) Run(port string) (err error) {
 
 	var cmd *exec.Cmd
 	this.portBinFiles[port] = bin
+	this.Ports[port] = time.Now().Unix()
 	if this.SupportMutiPort() {
 		cmd = exec.Command(bin, this.PortParamName, port)
 	} else {

@@ -13,7 +13,7 @@ import (
 	"strings"
 	"time"
 
-	"gopkg.in/yaml.v1"
+	"github.com/admpub/confl"
 )
 
 const ConfigName = ".tower.yml"
@@ -81,7 +81,7 @@ func startTower() {
 		fmt.Println(err)
 	} else {
 		newmap := map[string]string{}
-		yamlErr := yaml.Unmarshal(contents, &newmap)
+		yamlErr := confl.Unmarshal(contents, &newmap)
 		if yamlErr != nil {
 			fmt.Println(yamlErr)
 		}

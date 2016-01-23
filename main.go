@@ -154,6 +154,7 @@ func startTower() {
 		watchedOtherDir += "|" + app.Root
 	}
 	watcher := NewWatcher(watchedOtherDir, watchedFiles, ignoredPathPattern)
+	proxy := NewProxy(&app, &watcher)
 	if allowBuild {
 		watcher.OnChanged = func(file string) {
 			if strings.HasPrefix(file, BinPrefix) {
@@ -216,14 +217,13 @@ func startTower() {
 		watcher.OnlyWatchBin = true
 		app.DisabledBuild = true
 	}
-	err = app.Start(true, app.Port)
-	if err != nil {
-		fmt.Println(err)
-	}
-	proxy := NewProxy(&app, &watcher)
 	proxy.Port = pxyPort
 	go func() {
 		mustSuccess(watcher.Watch())
 	}()
+	err = app.Start(true, app.Port)
+	if err != nil {
+		fmt.Println(err)
+	}
 	mustSuccess(proxy.Listen())
 }

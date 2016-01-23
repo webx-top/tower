@@ -32,15 +32,19 @@ func NewProxy(app *App, watcher *Watcher) (proxy Proxy) {
 }
 
 func (this *Proxy) Listen() (err error) {
-	fmt.Println("== Listening to http://localhost:" + this.Port)
-	url, _ := url.ParseRequestURI("http://localhost:" + this.App.Port)
-	this.ReserveProxy = httputil.NewSingleHostReverseProxy(url)
+	this.SetReserveProxy()
 	this.FirstRequest = &sync.Once{}
 
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		this.ServeRequest(w, r)
 	})
 	return http.ListenAndServe(":"+this.Port, nil)
+}
+
+func (this *Proxy) SetReserveProxy() {
+	fmt.Println("== Listening to http://localhost:" + this.Port)
+	url, _ := url.ParseRequestURI("http://localhost:" + this.App.Port)
+	this.ReserveProxy = httputil.NewSingleHostReverseProxy(url)
 }
 
 func (this *Proxy) ServeRequest(w http.ResponseWriter, r *http.Request) {
@@ -50,8 +54,7 @@ func (this *Proxy) ServeRequest(w http.ResponseWriter, r *http.Request) {
 
 	if this.App.SwitchToNewPort {
 		this.App.SwitchToNewPort = false
-		url, _ := url.ParseRequestURI("http://localhost:" + this.App.Port)
-		this.ReserveProxy = httputil.NewSingleHostReverseProxy(url)
+		this.SetReserveProxy()
 		this.FirstRequest.Do(func() {
 			this.ReserveProxy.ServeHTTP(&mw, r)
 			this.upgraded = time.Now().Unix()

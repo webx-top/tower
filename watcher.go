@@ -75,7 +75,6 @@ func (this *Watcher) Watch() (err error) {
 		mt := getFileModTime(file.Name)
 		if t := eventTime[file.Name]; mt == t {
 			fmt.Printf("[SKIP] # %s #\n", file.String())
-			eventTime[file.Name] = mt
 			continue
 		}
 		eventTime[file.Name] = mt

@@ -64,38 +64,41 @@ func (this *Watcher) Watch() (err error) {
 	}
 	expectedFileReg := regexp.MustCompile(filePattern)
 	for {
-		file := <-this.Watcher.Event
-		// Skip TMP files for Sublime Text.
-		if checkTMPFile(file.Name) {
-			continue
-		}
-		if expectedFileReg.Match([]byte(file.Name)) == false {
-			continue
-		}
-		mt := getFileModTime(file.Name)
-		if t := eventTime[file.Name]; mt == t {
-			fmt.Printf("[SKIP] # %s #\n", file.String())
-			continue
-		}
-		eventTime[file.Name] = mt
-		fmt.Println("== Change detected:", file.Name)
-		if this.OnChanged == nil {
-			this.Changed = true
-			continue
-		}
-		go func() {
-			// Wait 1s before autobuild util there is no file change.
-			scheduleTime = time.Now().Add(1 * time.Second)
-			for {
-				time.Sleep(scheduleTime.Sub(time.Now()))
-				if time.Now().After(scheduleTime) {
-					break
-				}
-				return
+		select {
+		case file := <-this.Watcher.Event:
+
+			// Skip TMP files for Sublime Text.
+			if checkTMPFile(file.Name) {
+				continue
 			}
-			this.Changed = true
-			this.OnChanged(file.Name)
-		}()
+			if expectedFileReg.Match([]byte(file.Name)) == false {
+				continue
+			}
+			mt := getFileModTime(file.Name)
+			if t := eventTime[file.Name]; mt == t {
+				fmt.Printf("[SKIP] # %s #\n", file.String())
+				continue
+			}
+			fmt.Printf("[EVEN] %s\n", file)
+			go func() {
+				// Wait 1s before autobuild util there is no file change.
+				scheduleTime = time.Now().Add(1 * time.Second)
+				for {
+					time.Sleep(scheduleTime.Sub(time.Now()))
+					if time.Now().After(scheduleTime) {
+						break
+					}
+					return
+				}
+				fmt.Println("== Change detected:", file.Name)
+				this.Changed = true
+				if this.OnChanged == nil {
+					this.OnChanged(file.Name)
+				}
+			}()
+		case err := <-this.Watcher.Error:
+			fmt.Printf("[WARN] %s\n", err.Error()) // No need to exit here
+		}
 	}
 	return nil
 }

@@ -167,6 +167,11 @@ func startTower() {
 				return
 			}
 			port := app.UseRandPort()
+			for i := 0; i < 3 && port == app.Port; i++ {
+				app.Clean()
+				time.Sleep(time.Second)
+				port = app.UseRandPort()
+			}
 			if port == app.Port {
 				fmt.Println(`取得的端口与当前端口相同，无法编译切换`)
 				return

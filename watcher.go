@@ -170,11 +170,11 @@ func checkTMPFile(name string) bool {
 func getFileModTime(path string) int64 {
 	path = strings.Replace(path, "\\", "/", -1)
 	f, err := os.Open(path)
+	defer f.Close()
 	if err != nil {
 		fmt.Printf("[ERRO] Fail to open file[ %s ]\n", err)
 		return time.Now().Unix()
 	}
-	defer f.Close()
 
 	fi, err := f.Stat()
 	if err != nil {

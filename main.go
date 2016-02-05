@@ -157,15 +157,18 @@ func startTower() {
 	proxy := NewProxy(&app, &watcher)
 	if allowBuild {
 		watcher.OnChanged = func(file string) {
-			if strings.HasPrefix(file, BinPrefix) {
+			fileName := filepath.Base(file)
+			if strings.HasPrefix(fileName, BinPrefix) {
 				watcher.Reset()
 				return
 			}
 			if !app.SupportMutiPort() {
+				fmt.Println(`Unspecified switchable other ports.`)
 				return
 			}
 			port := app.UseRandPort()
 			if port == app.Port {
+				fmt.Println(`取得的端口与当前端口相同，无法编译切换`)
 				return
 			}
 			watcher.Reset()
@@ -178,10 +181,12 @@ func startTower() {
 		watcher.OnChanged = func(file string) {
 			watcher.Reset()
 			if !app.SupportMutiPort() {
+				fmt.Println(`Unspecified switchable other ports.`)
 				return
 			}
 			port := app.UseRandPort()
 			if port == app.Port {
+				fmt.Println(`取得的端口与当前端口相同，无法编译切换`)
 				return
 			}
 

@@ -66,7 +66,6 @@ func (this *Watcher) Watch() (err error) {
 	for {
 		select {
 		case file := <-this.Watcher.Event:
-
 			// Skip TMP files for Sublime Text.
 			if checkTMPFile(file.Name) {
 				continue
@@ -80,6 +79,7 @@ func (this *Watcher) Watch() (err error) {
 				continue
 			}
 			fmt.Printf("[EVEN] %s\n", file)
+			eventTime[file.Name] = mt
 			go func() {
 				// Wait 1s before autobuild util there is no file change.
 				scheduleTime = time.Now().Add(1 * time.Second)
@@ -92,7 +92,7 @@ func (this *Watcher) Watch() (err error) {
 				}
 				fmt.Println("== Change detected:", file.Name)
 				this.Changed = true
-				if this.OnChanged == nil {
+				if this.OnChanged != nil {
 					this.OnChanged(file.Name)
 				}
 			}()

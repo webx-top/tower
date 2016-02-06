@@ -175,37 +175,38 @@ func (this *App) BinFile(args ...string) (f string) {
 }
 
 func (this *App) Stop(port string, args ...string) {
-	if this.IsRunning(port) {
-		fmt.Println("== Stopping " + this.Name)
-		cmd := this.GetCmd(port)
-		err := cmd.Process.Kill()
-		if err != nil {
-			fmt.Println(err)
-		}
-		cmd = nil
-		if port == this.Port && this.DisabledBuild {
-			return
-		}
-		bin := this.BinFile(args...)
-		err = os.Remove(bin)
-		if err == nil {
-			this.Ports[port] = 0
-			return
-		}
-		go func() {
-			for i := 0; i < 10; i++ {
-				time.Sleep(time.Second)
-				err = os.Remove(bin)
-				if err != nil {
-					fmt.Println(err)
-				} else {
-					fmt.Println(`Remove ` + bin + `: Success.`)
-					this.Ports[port] = 0
-					return
-				}
-			}
-		}()
+	if !this.IsRunning(port) {
+		return
 	}
+	fmt.Println("== Stopping " + this.Name)
+	cmd := this.GetCmd(port)
+	err := cmd.Process.Kill()
+	if err != nil {
+		fmt.Println(err)
+	}
+	cmd = nil
+	if port == this.Port && this.DisabledBuild {
+		return
+	}
+	bin := this.BinFile(args...)
+	err = os.Remove(bin)
+	if err == nil {
+		this.Ports[port] = 0
+		return
+	}
+	go func() {
+		for i := 0; i < 10; i++ {
+			time.Sleep(time.Second)
+			err = os.Remove(bin)
+			if err != nil {
+				fmt.Println(err)
+			} else {
+				fmt.Println(`Remove ` + bin + `: Success.`)
+				this.Ports[port] = 0
+				return
+			}
+		}
+	}()
 }
 
 func (this *App) Clean() {
@@ -275,12 +276,15 @@ func (this *App) Run(port string) (err error) {
 	} else {
 		cmd = exec.Command(bin)
 	}
+	this.SetCmd(this.Port, cmd)
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = StderrCapturer{this}
 	go func() {
-		cmd.Run()
+		err := cmd.Run()
+		if err == nil {
+			fmt.Println(err)
+		}
 	}()
-	this.SetCmd(this.Port, cmd)
 	err = dialAddress("127.0.0.1:"+this.Port, 60)
 	if err == nil && ableSwitch {
 		this.SwitchToNewPort = true

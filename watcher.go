@@ -135,7 +135,7 @@ func (this *Watcher) dirsToWatch() (dirs []string) {
 				return e
 			}
 			filePath = strings.Replace(filePath, "\\", "/", -1)
-			if !info.IsDir() || ignoredPathReg.Match([]byte(filePath)) {
+			if !info.IsDir() || ignoredPathReg.Match([]byte(filePath)) || ignoredPathReg.Match([]byte(filePath+`/`)) {
 				return
 			}
 			if mch, _ := matchedDirs[filePath]; mch {

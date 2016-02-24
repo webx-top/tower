@@ -23,3 +23,5 @@ watch_otherDir    : ""
 
 # 忽略的路径(正则表达式)，不填则不限制(排除某个完整的文件夹名请用“/文件夹名/”的格式)
 watch_ignoredPath : ""
+
+offline_mode : "false"

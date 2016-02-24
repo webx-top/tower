@@ -72,6 +72,7 @@ func startTower() {
 		watchedFiles       string
 		watchedOtherDir    string
 		ignoredPathPattern string
+		offlineMode        bool
 	)
 	if configFile == "" {
 		configFile = ConfigName
@@ -92,6 +93,10 @@ func startTower() {
 		watchedFiles, _ = newmap["watch"]
 		watchedOtherDir, _ = newmap["watch_otherDir"] //编译模式下有效
 		ignoredPathPattern, _ = newmap["watch_ignoredPath"]
+		offlineModeStr, _ := newmap["offline_mode"]
+		if offlineModeStr == `1` || offlineModeStr == `true` || offlineModeStr == `on` || offlineModeStr == `yes` {
+			offlineMode = true
+		}
 		if pxyPort == "" {
 			pxyPort = ProxyPort
 		}
@@ -150,6 +155,7 @@ func startTower() {
 	}
 
 	app = NewApp(appMainFile, appPort, appBuildDir, portParamName)
+	app.OfflineMode = offlineMode
 	if watchedOtherDir != "" {
 		watchedOtherDir += "|" + app.Root
 	}

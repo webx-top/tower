@@ -26,6 +26,7 @@ var (
 )
 
 type App struct {
+	OfflineMode     bool
 	Cmds            map[string]*exec.Cmd
 	MainFile        string
 	Port            string
@@ -288,6 +289,9 @@ func (this *App) Run(port string) (err error) {
 	err = dialAddress("127.0.0.1:"+this.Port, 60)
 	if err == nil && ableSwitch {
 		this.SwitchToNewPort = true
+		if this.OfflineMode {
+			this.Clean()
+		}
 	}
 	return
 }

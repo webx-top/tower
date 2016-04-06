@@ -28,6 +28,7 @@ var (
 type App struct {
 	OfflineMode     bool
 	Cmds            map[string]*exec.Cmd
+	RunParams       []string
 	MainFile        string
 	Port            string
 	Ports           map[string]int64
@@ -78,6 +79,7 @@ func NewApp(mainFile, port, buildDir, portParamName string) (app App) {
 	app.BuildStart = &sync.Once{}
 	app.AppRestart = &sync.Once{}
 	app.portBinFiles = make(map[string]string)
+	app.RunParams = []string{}
 	return
 }
 
@@ -272,11 +274,13 @@ func (this *App) Run(port string) (err error) {
 	var cmd *exec.Cmd
 	this.portBinFiles[port] = bin
 	this.Ports[port] = time.Now().Unix()
+	params := []string{}
 	if this.SupportMutiPort() {
-		cmd = exec.Command(bin, this.PortParamName, port)
-	} else {
-		cmd = exec.Command(bin)
+		params = append(params, this.PortParamName)
+		params = append(params, port)
 	}
+	params = append(params, app.RunParams...)
+	cmd = exec.Command(bin, params...)
 	this.SetCmd(this.Port, cmd)
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = StderrCapturer{this}

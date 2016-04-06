@@ -24,6 +24,7 @@ var (
 	_pxyPort       *string
 	_appBuildDir   *string
 	_portParamName *string
+	_runParams     *string
 	_verbose       *bool
 	_configFile    *string
 
@@ -37,6 +38,7 @@ func main() {
 	_pxyPort = flag.String("r", "8080", "proxy port of your app.")
 	_appBuildDir = flag.String("o", "", "save the executable file the folder.")
 	_portParamName = flag.String("n", "", "app's port param name.")
+	_runParams = flag.String("s", "", "app's run params.")
 	_verbose = flag.Bool("v", false, "show more stuff.")
 	_configFile = flag.String("c", ConfigName, "yaml configuration file location.")
 
@@ -64,6 +66,7 @@ func startTower() {
 		pxyPort            = *_pxyPort
 		appBuildDir        = *_appBuildDir
 		portParamName      = *_portParamName
+		runParams          = *_runParams
 		configFile         = *_configFile
 		verbose            = *_verbose
 		allowBuild         = build == "1"
@@ -90,6 +93,7 @@ func startTower() {
 		pxyPort, _ = newmap["pxy_port"]
 		appBuildDir, _ = newmap["app_buildDir"] //编译模式下有效
 		portParamName, _ = newmap["app_portParamName"]
+		runParams, _ = newmap["app_runParams"]
 		watchedFiles, _ = newmap["watch"]
 		watchedOtherDir, _ = newmap["watch_otherDir"] //编译模式下有效
 		ignoredPathPattern, _ = newmap["watch_ignoredPath"]
@@ -156,6 +160,9 @@ func startTower() {
 
 	app = NewApp(appMainFile, appPort, appBuildDir, portParamName)
 	app.OfflineMode = offlineMode
+	if runParams != `` {
+		app.RunParams = strings.Split(runParams, ` `)
+	}
 	if watchedOtherDir != "" {
 		watchedOtherDir += "|" + app.Root
 	}

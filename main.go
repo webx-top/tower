@@ -54,7 +54,7 @@ func main() {
 
 func generateExampleConfig() {
 	_, file, _, _ := runtime.Caller(0)
-	exampleConfig := path.Dir(file) + "/tower.yml"
+	exampleConfig := filepath.Join(filepath.Dir(file), "tower.yml")
 	exec.Command("cp", exampleConfig, ConfigName).Run()
 	fmt.Println("== Generated config file " + ConfigName)
 }

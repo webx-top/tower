@@ -6,7 +6,6 @@ import (
 	"io/ioutil"
 	"os"
 	"os/exec"
-	"path"
 	"path/filepath"
 	"runtime"
 	"strconv"
@@ -170,9 +169,9 @@ func startTower() {
 	proxy := NewProxy(&app, &watcher)
 	if allowBuild {
 		watcher.OnChanged = func(file string) {
+			watcher.Reset()
 			fileName := filepath.Base(file)
 			if strings.HasPrefix(fileName, BinPrefix) {
-				watcher.Reset()
 				return
 			}
 			if !app.SupportMutiPort() {
@@ -189,7 +188,6 @@ func startTower() {
 				fmt.Println(`取得的端口与当前端口相同，无法编译切换`)
 				return
 			}
-			watcher.Reset()
 			err = app.Start(true, port)
 			if err != nil {
 				fmt.Println(err)

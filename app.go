@@ -142,9 +142,8 @@ func (this *App) Start(build bool, args ...string) error {
 			this.BuildStart = &sync.Once{}
 			return
 		}
-
-		this.RestartOnReturn()
 		this.BuildStart = &sync.Once{}
+		this.RestartOnReturn()
 	})
 
 	return this.startErr
@@ -284,13 +283,17 @@ func (this *App) Run(port string) (err error) {
 	this.SetCmd(this.Port, cmd)
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = StderrCapturer{this}
+	var hasError bool
 	go func() {
 		err := cmd.Run()
-		if err == nil {
-			fmt.Println(err)
+		if err != nil {
+			fmt.Println(`== cmd.Run Error:`, err)
+			hasError = true
 		}
 	}()
-	err = dialAddress("127.0.0.1:"+this.Port, 60)
+	err = dialAddress("127.0.0.1:"+this.Port, 60, func() bool {
+		return !hasError
+	})
 	if err == nil && ableSwitch {
 		this.SwitchToNewPort = true
 		if this.OfflineMode {
@@ -344,9 +347,7 @@ func (this *App) RestartOnReturn() {
 		for {
 			input, _ := in.ReadString('\n')
 			if input == "\n" {
-				if !this.SwitchToNewPort {
-					this.Restart()
-				}
+				this.Restart()
 			}
 		}
 	}()

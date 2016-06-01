@@ -93,6 +93,7 @@ func (this *Watcher) Watch() (err error) {
 				fmt.Println("== Change detected:", file.Name)
 				this.Changed = true
 				if this.OnChanged != nil {
+					fmt.Println("== Executive change event.")
 					this.OnChanged(file.Name)
 				}
 			}()

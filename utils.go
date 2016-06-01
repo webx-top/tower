@@ -7,16 +7,37 @@ import (
 	"time"
 )
 
-func dialAddress(address string, timeOut int) (err error) {
+func dialAddress(address string, timeOut int, args ...func() bool) (err error) {
+	seconds := 0
+	var fn func() bool
+	if len(args) > 0 {
+		fn = args[0]
+	}
 	for {
 		select {
 		case <-time.After(1 * time.Second):
-			_, err = net.Dial("tcp", address)
+			conn, err := net.Dial("tcp", address)
 			if err == nil {
-				return
+				conn.Close()
+				return err
+			}
+			//fmt.Println(`[`, seconds, `]`, err)
+			if seconds > timeOut {
+				return errors.New("Time out")
+			}
+			seconds++
+			if fn != nil && !fn() {
+				return nil
 			}
 		case <-time.After(5 * time.Second):
 			fmt.Println("== Waiting for " + address)
+			if seconds > timeOut {
+				return errors.New("Time out")
+			}
+			seconds += 5
+			if fn != nil && !fn() {
+				return
+			}
 		case <-time.After(time.Duration(timeOut) * time.Second):
 			return errors.New("Time out")
 		}

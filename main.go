@@ -169,9 +169,11 @@ func startTower() {
 	proxy := NewProxy(&app, &watcher)
 	if allowBuild {
 		watcher.OnChanged = func(file string) {
+			fmt.Println(`== Build Mode.`)
 			watcher.Reset()
 			fileName := filepath.Base(file)
 			if strings.HasPrefix(fileName, BinPrefix) {
+				fmt.Println(`忽略`, fileName, `更改`)
 				return
 			}
 			if !app.SupportMutiPort() {
@@ -195,6 +197,7 @@ func startTower() {
 		}
 	} else {
 		watcher.OnChanged = func(file string) {
+			fmt.Println(`== Switch Mode.`)
 			watcher.Reset()
 			if !app.SupportMutiPort() {
 				fmt.Println(`Unspecified switchable other ports.`)
@@ -213,6 +216,7 @@ func startTower() {
 
 			fileName := filepath.Base(file)
 			if !strings.HasPrefix(fileName, BinPrefix) {
+				fmt.Println(`忽略非`, BinPrefix, `前缀文件更改`)
 				return
 			}
 			if _suffix != "" {
@@ -232,6 +236,7 @@ func startTower() {
 				return
 			}
 			if newFileTs <= oldFileTs {
+				fmt.Println(`新文件时间戳小于旧文件，忽略`)
 				return
 			}
 			AppBin = newAppBin

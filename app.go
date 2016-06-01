@@ -142,8 +142,8 @@ func (this *App) Start(build bool, args ...string) error {
 			this.BuildStart = &sync.Once{}
 			return
 		}
-		this.BuildStart = &sync.Once{}
 		this.RestartOnReturn()
+		this.BuildStart = &sync.Once{}
 	})
 
 	return this.startErr

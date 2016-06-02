@@ -29,6 +29,7 @@ type Watcher struct {
 	FilePattern        string
 	IgnoredPathPattern string
 	OnlyWatchBin       bool
+	Paused             bool
 }
 
 func NewWatcher(dir, filePattern, ignoredPathPattern string) (w Watcher) {
@@ -66,6 +67,10 @@ func (this *Watcher) Watch() (err error) {
 	for {
 		select {
 		case file := <-this.Watcher.Event:
+			if this.Paused {
+				fmt.Println(`Pause monitoring file changes.`)
+				continue
+			}
 			// Skip TMP files for Sublime Text.
 			if checkTMPFile(file.Name) {
 				continue

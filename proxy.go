@@ -23,19 +23,82 @@ type Proxy struct {
 	FirstRequest *sync.Once
 	upgraded     int64
 	Port         string
+	AdminPwd     string
+	AdminIPs     []string
 }
 
 func NewProxy(app *App, watcher *Watcher) (proxy Proxy) {
 	proxy.App = app
 	proxy.Watcher = watcher
 	proxy.Port = ProxyPort
+	proxy.AdminIPs = []string{`127.0.0.1`, `::1`}
 	return
+}
+
+func (this *Proxy) authAdmin(r *http.Request) bool {
+	query := r.URL.Query()
+	pwd := query.Get(`pwd`)
+	valid := false
+	if pwd != `` || pwd == this.AdminPwd {
+		valid = true
+	} else {
+		clientIP := r.RemoteAddr
+		if p := strings.LastIndex(clientIP, `]:`); p > -1 {
+			clientIP = clientIP[0:p]
+			clientIP = strings.TrimPrefix(clientIP, `[`)
+		} else if p := strings.LastIndex(clientIP, `:`); p > -1 {
+			clientIP = clientIP[0:p]
+		}
+		for _, ip := range this.AdminIPs {
+			if ip == clientIP {
+				valid = true
+				break
+			}
+		}
+	}
+	return valid
+}
+
+func (this *Proxy) SetBody(code int, body []byte, w http.ResponseWriter) {
+	if code == 0 {
+		code = http.StatusOK
+	}
+	w.WriteHeader(code)
+	w.Write(body)
 }
 
 func (this *Proxy) Listen() (err error) {
 	fmt.Println("== Listening to http://localhost:" + this.Port)
 	this.SetReserveProxy()
 	this.FirstRequest = &sync.Once{}
+
+	http.HandleFunc("/tower-proxy/watch/pause", func(w http.ResponseWriter, r *http.Request) {
+		status := `done`
+		if !this.authAdmin(r) {
+			status = `Authentication failed`
+		} else {
+			this.Watcher.Paused = true
+		}
+		this.SetBody(0, []byte(status), w)
+	})
+
+	http.HandleFunc("/tower-proxy/watch/begin", func(w http.ResponseWriter, r *http.Request) {
+		status := `done`
+		if !this.authAdmin(r) {
+			status = `Authentication failed`
+		} else {
+			this.Watcher.Paused = false
+		}
+		this.SetBody(0, []byte(status), w)
+	})
+
+	http.HandleFunc("/tower-proxy/watch", func(w http.ResponseWriter, r *http.Request) {
+		status := `OK`
+		if this.Watcher.Paused {
+			status = `Pause`
+		}
+		this.SetBody(0, []byte(`watch status: `+status), w)
+	})
 
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		this.ServeRequest(w, r)

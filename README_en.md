@@ -13,7 +13,7 @@ go get github.com/admpub/tower
 
 ```bash
 cd your/project
-tower # now visit localhost:8000
+tower # now visit localhost:8080
 ```
 
 Tower will, by default, assume your web app's main file is _main.go_ and the port is _5000-5050_. These can be changed by:
@@ -43,14 +43,14 @@ ulimit -S -n 2048 # OSX
 ## How it works?
 
 ```
-browser: http://localhost:8000
+browser: http://localhost:8080
       \/
-tower (listening 8000)
+tower (listening 8080)
       \/ (reverse proxy)
 your web app (listening 5000)
 ```
 
-Any request comes from localhost:8000 will be handled by Tower and then be redirected to your app. The redirection is
+Any request comes from localhost:8080 will be handled by Tower and then be redirected to your app. The redirection is
 done by using _[httputil.ReverseProxy](http://golang.org/pkg/net/http/httputil/#ReverseProxy)_. Before redirecting the request, Tower will compile and run your app in
 another process if your app hasn't been run or file has been changed; Tower is using
 _[howeyc/fsnotify](https://github.com/howeyc/fsnotify)_ to monitor file changes.

@@ -26,6 +26,8 @@ var (
 	_runParams     *string
 	_verbose       *bool
 	_configFile    *string
+	_adminPwd      *string
+	_adminIPs      *string
 
 	app   App
 	build string = "1"
@@ -40,6 +42,8 @@ func main() {
 	_runParams = flag.String("s", "", "app's run params.")
 	_verbose = flag.Bool("v", false, "show more stuff.")
 	_configFile = flag.String("c", ConfigName, "yaml configuration file location.")
+	_adminPwd = flag.String("w", "", "admin password.")
+	_adminIPs = flag.String("i", "127.0.0.1,::1", "admin allow IP.")
 
 	flag.Parse()
 
@@ -68,6 +72,8 @@ func startTower() {
 		runParams          = *_runParams
 		configFile         = *_configFile
 		verbose            = *_verbose
+		adminPwd           = *_adminPwd
+		adminIPs           = *_adminIPs
 		allowBuild         = build == "1"
 		suffix             = ".exe"
 		_suffix            = ""
@@ -97,6 +103,15 @@ func startTower() {
 		watchedOtherDir, _ = newmap["watch_otherDir"] //编译模式下有效
 		ignoredPathPattern, _ = newmap["watch_ignoredPath"]
 		offlineModeStr, _ := newmap["offline_mode"]
+
+		if v, ok := newmap["admin_pwd"]; ok {
+			adminPwd = v
+		}
+
+		if v, ok := newmap["admin_ip"]; ok {
+			adminIPs = v
+		}
+
 		if offlineModeStr == `1` || offlineModeStr == `true` || offlineModeStr == `on` || offlineModeStr == `yes` {
 			offlineMode = true
 		}
@@ -167,6 +182,10 @@ func startTower() {
 	}
 	watcher := NewWatcher(watchedOtherDir, watchedFiles, ignoredPathPattern)
 	proxy := NewProxy(&app, &watcher)
+	proxy.AdminPwd = adminPwd
+	if adminIPs != `` {
+		proxy.AdminIPs = strings.Split(adminIPs, `,`)
+	}
 	if allowBuild {
 		watcher.OnChanged = func(file string) {
 			fmt.Println(`== Build Mode.`)

@@ -13,7 +13,7 @@ go get github.com/admpub/tower
 
 ```bash
 cd your/project
-tower # 现在访问 localhost:8000
+tower # 现在访问 localhost:8080
 ```
 
 Tower 在默认情况下假设你golang应用的main文件为 _main.go_，端口为 _5000-5050_。你可以按如下方式更改它:
@@ -43,14 +43,14 @@ ulimit -S -n 2048 # OSX
 ## 工作原理
 
 ```
-浏览器访问: http://localhost:8000
+浏览器访问: http://localhost:8080
       \/
-tower (监听 8000 端口)
+tower (监听 8080 端口)
       \/ (反向代理)
 你的golang应用 (监听 5000 至 5050 中的任意一个端口)
 ```
 
-所有来自localhost:8000的提交Tower都会转发给你的应用。
+所有来自localhost:8080的提交Tower都会转发给你的应用。
 转发使用的是 _[httputil.ReverseProxy](http://golang.org/pkg/net/http/httputil/#ReverseProxy)_。
 在转发之前，如果您的应用没有运行或文件被更改，Tower将在其它进程中自动编译并运行你的应用; 
 Tower 使用了 _[howeyc/fsnotify](https://github.com/howeyc/fsnotify)_ 来监控文件更改。
@@ -60,11 +60,11 @@ Tower 使用了 _[howeyc/fsnotify](https://github.com/howeyc/fsnotify)_ 来监�
 
       默认情况下，只有本地可以访问管理接口，您可以通过在配置文件中设置`admin_pwd`(指定访问密码，通过在网址中增加“?pwd=<你的密码>”来访问)或`admin_ip`(指定允许访问的IP地址，多个用半角逗号隔开)来灵活设置。
 
-要临时关闭自动编译功能只需要访问：http://localhost:8000/tower-proxy/watch/pause
+要临时关闭自动编译功能只需要访问：http://localhost:8080/tower-proxy/watch/pause
 
-重新开启自动编译：http://localhost:8000/tower-proxy/watch/begin
+重新开启自动编译：http://localhost:8080/tower-proxy/watch/begin
 
-查看是否开启自动编译：http://localhost:8000/tower-proxy/watch
+查看是否开启自动编译：http://localhost:8080/tower-proxy/watch
 
 ## License
 

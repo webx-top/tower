@@ -16,7 +16,14 @@ cd your/project
 tower # 现在访问 localhost:8080
 ```
 
-Tower 在默认情况下假设你golang应用的main文件为 _main.go_，端口为 _5000-5050_。你可以按如下方式更改它:
+Tower 在默认情况下假设你golang应用的端口为 _5000-5050_。你可以按如下方式更改它:
+
+```bash
+tower -p 3000-4000
+```
+
+
+当需要编译单个go文件时，您可以通过`-m`来指定:
 
 ```bash
 tower -m app.go -p 3000-4000

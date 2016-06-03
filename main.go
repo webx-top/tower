@@ -34,7 +34,7 @@ var (
 )
 
 func main() {
-	_appMainFile = flag.String("m", "main.go", "path to your app's main file.")
+	_appMainFile = flag.String("m", "", "path to your app's main file.")
 	_appPort = flag.String("p", "5000-5050", "port range of your app.")
 	_pxyPort = flag.String("r", "8080", "proxy port of your app.")
 	_appBuildDir = flag.String("o", "", "save the executable file the folder.")

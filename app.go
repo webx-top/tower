@@ -7,7 +7,6 @@ import (
 	"os"
 	"os/exec"
 	"os/signal"
-	"path"
 	"path/filepath"
 	"runtime"
 	"strconv"
@@ -74,8 +73,8 @@ func NewApp(mainFile, port, buildDir, portParamName string) (app App) {
 	app.ParseMutiPort(port)
 	app.Port = app.UseRandPort()
 	wd, _ := os.Getwd()
-	app.Name = path.Base(wd)
-	app.Root = path.Dir(mainFile)
+	app.Name = filepath.Base(wd)
+	app.Root = filepath.Dir(mainFile)
 	app.BuildStart = &sync.Once{}
 	app.AppRestart = &sync.Once{}
 	app.portBinFiles = make(map[string]string)

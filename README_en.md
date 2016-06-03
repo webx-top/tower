@@ -16,10 +16,10 @@ cd your/project
 tower # now visit localhost:8080
 ```
 
-Tower will, by default, assume your web app's main file is _main.go_ and the port is _5000-5050_. These can be changed by:
+Tower will, by default, assume your web app's port is _5000-5050_. These can be changed by:
 
 ```bash
-tower -m app.go -p 3000-4000
+tower -p 3000-4000
 ```
 
 Or put them in a config file:

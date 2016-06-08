@@ -157,9 +157,7 @@ func (this *Proxy) ServeRequest(w http.ResponseWriter, r *http.Request) {
 
 	if len(this.App.LastError) != 0 {
 		RenderAppError(&mw, this.App, this.App.LastError)
-	}
-
-	if this.App.IsQuit() {
+	} else if this.App.IsQuit() {
 		fmt.Println("== App quit unexpetedly")
 		this.App.Start(false)
 		RenderError(&mw, this.App, "App quit unexpetedly.")

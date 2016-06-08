@@ -52,10 +52,11 @@ type StderrCapturer struct {
 }
 
 func (this StderrCapturer) Write(p []byte) (n int, err error) {
-	httpError := strings.Contains(string(p), HttpPanicMessage)
+	s := string(p)
+	httpError := strings.Contains(s, HttpPanicMessage)
 
 	if httpError {
-		this.app.LastError = string(p)
+		this.app.LastError = s
 		os.Stdout.Write([]byte("----------- Application Error -----------\n"))
 		n, err = os.Stdout.Write(p)
 		os.Stdout.Write([]byte("-----------------------------------------\n"))
@@ -164,8 +165,8 @@ func (this *App) BinFile(args ...string) (f string) {
 	if len(args) > 0 {
 		binFileName = args[0]
 	}
-	if app.BuildDir != "" {
-		f = filepath.Join(app.BuildDir, binFileName)
+	if this.BuildDir != "" {
+		f = filepath.Join(this.BuildDir, binFileName)
 	} else {
 		f = binFileName
 	}
@@ -277,7 +278,7 @@ func (this *App) Run(port string) (err error) {
 		params = append(params, this.PortParamName)
 		params = append(params, port)
 	}
-	params = append(params, app.RunParams...)
+	params = append(params, this.RunParams...)
 	cmd = exec.Command(bin, params...)
 	this.SetCmd(this.Port, cmd)
 	cmd.Stdout = os.Stdout

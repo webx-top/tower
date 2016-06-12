@@ -73,6 +73,16 @@ Tower 使用了 _[howeyc/fsnotify](https://github.com/howeyc/fsnotify)_ 来监�
 
 查看是否开启自动编译：http://localhost:8080/tower-proxy/watch
 
+## Tower在生产环境中的应用
+在生产环境中，我们一般都是放一个编译好的可执行文件上去，并执行此文件来启动web服务。
+
+当需要更新此程序时，我们就需要停止服务，这样就会导致web服务中断，体验不佳。
+
+而这时，使用Tower就可以避免这个问题，只要可执行文件名称符合这样的格式`tower-app-<纯数字版本编号>.exe`或`tower-app-<纯数字版本编号>`，
+并且将该文件放到被监控的目录中，Tower就会自动发现它，并自动提取出`<纯数字版本编号>`来和已经运行的版本编号进行比较，
+当前者大于后者时，Tower会自动启动大版本程序，并将所有访问转发给它，
+然后关闭并删除小版本程序，在此过程中服务不会中断。
+
 ## License
 
 Tower is released under the [MIT License](http://www.opensource.org/licenses/MIT).

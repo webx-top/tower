@@ -78,7 +78,7 @@ func startTower() {
 		verbose            = *_verbose
 		adminPwd           = *_adminPwd
 		adminIPs           = *_adminIPs
-		allowBuild         = build == "1"
+		allowBuild         = atob(build)
 		suffix             = ".exe"
 		_suffix            = ""
 		watchedFiles       string

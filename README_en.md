@@ -16,7 +16,7 @@ cd your/project
 tower # now visit localhost:8080
 ```
 
-Tower will, by default, assume your web app's port is _5000-5050_. These can be changed by:
+Tower will, by default, assume your web app's port is _5001-5050_. These can be changed by:
 
 ```bash
 tower -p 3000-4000
@@ -47,7 +47,7 @@ browser: http://localhost:8080
       \/
 tower (listening 8080)
       \/ (reverse proxy)
-your web app (listening 5000)
+your web app (listening port range 5001-5050)
 ```
 
 Any request comes from localhost:8080 will be handled by Tower and then be redirected to your app. The redirection is

@@ -127,7 +127,7 @@ func (this *App) Start(build bool, args ...string) error {
 		if build {
 			this.startErr = this.Build()
 			if this.startErr != nil {
-				fmt.Println("== Fail to build " + this.Name)
+				fmt.Println("== Fail to build " + this.Name + ": " + this.startErr.Error())
 				this.BuildStart = &sync.Once{}
 				return
 			}
@@ -138,7 +138,7 @@ func (this *App) Start(build bool, args ...string) error {
 		}
 		this.startErr = this.Run(port)
 		if this.startErr != nil {
-			this.startErr = errors.New("Fail to run " + this.Name)
+			this.startErr = errors.New("Fail to run " + this.Name + ": " + this.startErr.Error())
 			this.BuildStart = &sync.Once{}
 			return
 		}
@@ -230,7 +230,7 @@ func (this *App) Clean() {
 			}
 			go func() {
 				for i := 0; i < 10; i++ {
-					time.Sleep(time.Second)
+					time.Sleep(time.Second * time.Duration(i+1))
 					err = os.Remove(bin)
 					if err != nil {
 						fmt.Println(err)

@@ -61,7 +61,7 @@ func (this *Watcher) Watch() (err error) {
 	}
 	filePattern := `\.(` + this.FilePattern + `)$`
 	if this.OnlyWatchBin {
-		filePattern = `^` + regexp.QuoteMeta(BinPrefix) + `[\d]+(\.exe)?$`
+		filePattern = regexp.QuoteMeta(BinPrefix) + `[\d]+(\.exe)?$`
 	}
 	expectedFileReg := regexp.MustCompile(filePattern)
 	for {
@@ -76,6 +76,7 @@ func (this *Watcher) Watch() (err error) {
 				continue
 			}
 			if expectedFileReg.Match([]byte(file.Name)) == false {
+				fmt.Println("[IGNORE]", file.Name)
 				continue
 			}
 			mt := getFileModTime(file.Name)

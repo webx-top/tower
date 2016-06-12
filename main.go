@@ -35,7 +35,7 @@ var (
 
 func main() {
 	_appMainFile = flag.String("m", "", "path to your app's main file.")
-	_appPort = flag.String("p", "5000-5050", "port range of your app.")
+	_appPort = flag.String("p", "5001-5050", "port range of your app.")
 	_pxyPort = flag.String("r", "8080", "proxy port of your app.")
 	_appBuildDir = flag.String("o", "", "save the executable file the folder.")
 	_portParamName = flag.String("n", "", "app's port param name.")
@@ -64,6 +64,67 @@ func generateExampleConfig() {
 
 func atob(a string) bool {
 	return a == `1` || a == `true` || a == `on` || a == `yes`
+}
+
+func findBinFile(f string) string {
+	var prefix, suffix string
+	tg := strings.Split(filepath.Base(f), `*`)
+	switch len(tg) {
+	case 2:
+		prefix = tg[0]
+		suffix = tg[1]
+	default:
+		panic(`error format.`)
+	}
+
+	var file string
+	err := filepath.Walk(filepath.Dir(f), func(filePath string, info os.FileInfo, e error) (err error) {
+		if e != nil {
+			return e
+		}
+		if info.IsDir() {
+			return
+		}
+		name := info.Name()
+		if strings.HasPrefix(name, prefix) && strings.HasSuffix(name, suffix) {
+			file = filePath
+			return filepath.SkipDir
+		}
+		return
+	})
+	if err != nil && err != filepath.SkipDir {
+		panic(err)
+	}
+	return file
+}
+
+func checkBinFile(appMainFile string, suffix string, _suffix *string) error {
+	f, err := os.Open(appMainFile)
+	if err == nil {
+		_, err = f.Stat()
+	}
+	f.Close()
+	if err != nil {
+		return err
+	}
+	fileName := filepath.Base(appMainFile)
+	AppBin = fileName
+	if strings.HasSuffix(AppBin, suffix) {
+		AppBin = strings.TrimSuffix(AppBin, suffix)
+		*_suffix = suffix
+	}
+	nameOk := strings.HasPrefix(AppBin, BinPrefix)
+	if nameOk {
+		fileName := strings.TrimPrefix(AppBin, BinPrefix)
+		_, err := strconv.ParseInt(fileName, 10, 64)
+		if err != nil {
+			nameOk = false
+		}
+	}
+	if !nameOk {
+		return fmt.Errorf("exec参数指定的可执行文件名称格式应该为：%v0%v。\n其中的“0”是代表版本号的整数，请修改为此格式。", BinPrefix, *_suffix)
+	}
+	return nil
 }
 
 func startTower() {
@@ -133,42 +194,12 @@ func startTower() {
 				time.Sleep(time.Second * 10)
 				return
 			}
-			f, err := os.Open(appMainFile)
-			if err == nil {
-				_, err = f.Stat()
-			}
-			f.Close()
-			if err != nil {
-				fmt.Println(err)
-				time.Sleep(time.Second * 10)
-				return
-			}
-			fileName := filepath.Base(appMainFile)
-			AppBin = fileName
-			if strings.HasSuffix(AppBin, suffix) {
-				AppBin = strings.TrimSuffix(AppBin, suffix)
-				_suffix = suffix
-			}
-			nameOk := strings.HasPrefix(AppBin, BinPrefix)
-			if nameOk {
-				fileName := strings.TrimPrefix(AppBin, BinPrefix)
-				_, err = strconv.ParseInt(fileName, 10, 64)
-				if err != nil {
-					nameOk = false
-				}
-			}
-			if !nameOk {
-				fmt.Println("exec参数指定的可执行文件名称格式应该为：", BinPrefix+"0"+_suffix, "。")
-				fmt.Println("其中的“0”是代表版本号的整数，请修改为此格式。")
-				time.Sleep(time.Second * 300)
-				return
-			}
 		}
 	}
 
-	err = dialAddress("127.0.0.1:"+appPort, 1)
+	err = dialAddress("127.0.0.1:"+pxyPort, 1)
 	if err == nil {
-		fmt.Println("Error: port (" + appPort + ") already in used.")
+		fmt.Println("Error: port (" + pxyPort + ") already in used.")
 		os.Exit(1)
 	}
 
@@ -177,7 +208,16 @@ func startTower() {
 		fmt.Printf("  build app with: %s\n", appMainFile)
 		fmt.Printf("  redirect requests from localhost:%s to localhost:%s\n\n", ProxyPort, appPort)
 	}
-
+	if !allowBuild {
+		if strings.Contains(appMainFile, `*`) {
+			appMainFile = findBinFile(appMainFile)
+		}
+		if err := checkBinFile(appMainFile, suffix, &_suffix); err != nil {
+			fmt.Println(err)
+			time.Sleep(time.Second * 300)
+			return
+		}
+	}
 	app = NewApp(appMainFile, appPort, appBuildDir, portParamName)
 	app.OfflineMode = offlineMode
 	app.DisabledLogRequest = disabledLogRequest

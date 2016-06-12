@@ -1,7 +1,7 @@
-main: "test/server1.go"
-exec: "test/tower-app-0.exe"
+main: "test/dev/server1.go"
+exec: "test/dev/tower-app-0.exe"
 #你的项目在本机运行端口
-app_port          : "5000-5010"
+app_port          : "5001-5010"
 
 #go build -o 命令生成的二进制文件保存位置
 app_buildDir      : "test"

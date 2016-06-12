@@ -25,26 +25,26 @@ var (
 )
 
 type App struct {
-	OfflineMode     bool
-	Cmds            map[string]*exec.Cmd
-	RunParams       []string
-	MainFile        string
-	Port            string
-	Ports           map[string]int64
-	BuildDir        string
-	Name            string
-	Root            string
-	KeyPress        bool
-	LastError       string
-	PortParamName   string //端口参数名称(用于指定应用程序监听的端口，例如：webx.exe -p 8080，这里的-p就是端口参数名)
-	SwitchToNewPort bool
-	DisabledBuild   bool
-
-	BuildStart   *sync.Once
-	startErr     error
-	AppRestart   *sync.Once
-	restartErr   error
-	portBinFiles map[string]string
+	OfflineMode        bool
+	Cmds               map[string]*exec.Cmd
+	RunParams          []string
+	MainFile           string
+	Port               string
+	Ports              map[string]int64
+	BuildDir           string
+	Name               string
+	Root               string
+	KeyPress           bool
+	LastError          string
+	PortParamName      string //端口参数名称(用于指定应用程序监听的端口，例如：webx.exe -p 8080，这里的-p就是端口参数名)
+	SwitchToNewPort    bool
+	DisabledBuild      bool
+	BuildStart         *sync.Once
+	startErr           error
+	AppRestart         *sync.Once
+	restartErr         error
+	portBinFiles       map[string]string
+	DisabledLogRequest bool
 }
 
 type StderrCapturer struct {

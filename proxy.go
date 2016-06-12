@@ -115,8 +115,10 @@ func (this *Proxy) SetReserveProxy() {
 
 func (this *Proxy) ServeRequest(w http.ResponseWriter, r *http.Request) {
 	mw := ResponseWriterWrapper{ResponseWriter: w}
-	this.logStartRequest(r)
-	defer this.logEndRequest(&mw, r, time.Now())
+	if !this.App.DisabledLogRequest {
+		this.logStartRequest(r)
+		defer this.logEndRequest(&mw, r, time.Now())
+	}
 
 	if this.App.SwitchToNewPort {
 		fmt.Println(`== Switch port:`, this.appOldPort, `=>`, this.App.Port)

@@ -19,4 +19,8 @@ watch_otherDir    : "../|../../webx-top"
 # 忽略的路径(正则表达式)，不填则不限制(排除某个完整的文件夹名请用“/文件夹名/”的格式)
 watch_ignoredPath : "(/configs/|/nowatch/)"
 
+# 是否离线模式(即开发模式)
 offline_mode : "false"
+
+# 是否在控制台显示request信息
+log_request : "true"

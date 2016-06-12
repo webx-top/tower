@@ -62,6 +62,10 @@ func generateExampleConfig() {
 	fmt.Println("== Generated config file " + ConfigName)
 }
 
+func atob(a string) bool {
+	return a == `1` || a == `true` || a == `on` || a == `yes`
+}
+
 func startTower() {
 	var (
 		appMainFile        = *_appMainFile
@@ -81,6 +85,7 @@ func startTower() {
 		watchedOtherDir    string
 		ignoredPathPattern string
 		offlineMode        bool
+		disabledLogRequest bool
 	)
 	if configFile == "" {
 		configFile = ConfigName
@@ -107,13 +112,14 @@ func startTower() {
 		if v, ok := newmap["admin_pwd"]; ok {
 			adminPwd = v
 		}
-
 		if v, ok := newmap["admin_ip"]; ok {
 			adminIPs = v
 		}
-
-		if offlineModeStr == `1` || offlineModeStr == `true` || offlineModeStr == `on` || offlineModeStr == `yes` {
+		if atob(offlineModeStr) {
 			offlineMode = true
+		}
+		if logRequestStr, ok := newmap["log_request"]; ok {
+			disabledLogRequest = atob(logRequestStr) == false
 		}
 		if pxyPort == "" {
 			pxyPort = ProxyPort
@@ -174,6 +180,7 @@ func startTower() {
 
 	app = NewApp(appMainFile, appPort, appBuildDir, portParamName)
 	app.OfflineMode = offlineMode
+	app.DisabledLogRequest = disabledLogRequest
 	if runParams != `` {
 		app.RunParams = strings.Split(runParams, ` `)
 	}

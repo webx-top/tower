@@ -76,7 +76,9 @@ func (this *Watcher) Watch() (err error) {
 				continue
 			}
 			if expectedFileReg.Match([]byte(file.Name)) == false {
-				fmt.Println("[IGNORE]", file.Name)
+				if this.OnlyWatchBin {
+					fmt.Println("[IGNORE]", file.Name)
+				}
 				continue
 			}
 			mt := getFileModTime(file.Name)

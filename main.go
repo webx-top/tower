@@ -13,7 +13,12 @@ import (
 	"time"
 
 	"github.com/admpub/confl"
+	"github.com/admpub/log"
 )
+
+func init() {
+	log.DefaultLog.Category = `tower`
+}
 
 const ConfigName = ".tower.yml"
 
@@ -59,7 +64,7 @@ func generateExampleConfig() {
 	_, file, _, _ := runtime.Caller(0)
 	exampleConfig := filepath.Join(filepath.Dir(file), "tower.yml")
 	exec.Command("cp", exampleConfig, ConfigName).Run()
-	fmt.Println("== Generated config file " + ConfigName)
+	log.Info("== Generated config file " + ConfigName)
 }
 
 func atob(a string) bool {
@@ -190,7 +195,7 @@ func startTower() {
 		} else {
 			appMainFile, _ = newmap["exec"] //非编译模式下有效
 			if appMainFile == "" {
-				fmt.Println("请设置exec参数用来指定执行文件位置")
+				log.Error("请设置exec参数用来指定执行文件位置")
 				time.Sleep(time.Second * 10)
 				return
 			}
@@ -199,7 +204,7 @@ func startTower() {
 
 	err = dialAddress("127.0.0.1:"+pxyPort, 1)
 	if err == nil {
-		fmt.Println("Error: port (" + pxyPort + ") already in used.")
+		log.Error("Error: port (" + pxyPort + ") already in used.")
 		os.Exit(1)
 	}
 
@@ -235,15 +240,15 @@ func startTower() {
 	}
 	if allowBuild {
 		watcher.OnChanged = func(file string) {
-			fmt.Println(`== Build Mode.`)
+			log.Info(`== Build Mode.`)
 			watcher.Reset()
 			fileName := filepath.Base(file)
 			if strings.HasPrefix(fileName, BinPrefix) {
-				fmt.Println(`忽略`, fileName, `更改`)
+				log.Info(`忽略`, fileName, `更改`)
 				return
 			}
 			if !app.SupportMutiPort() {
-				fmt.Println(`Unspecified switchable other ports.`)
+				log.Error(`Unspecified switchable other ports.`)
 				return
 			}
 			port := app.UseRandPort()
@@ -253,20 +258,20 @@ func startTower() {
 				port = app.UseRandPort()
 			}
 			if port == app.Port {
-				fmt.Println(`取得的端口与当前端口相同，无法编译切换`)
+				log.Error(`取得的端口与当前端口相同，无法编译切换`)
 				return
 			}
 			err = app.Start(true, port)
 			if err != nil {
-				fmt.Println(err)
+				log.Error(err)
 			}
 		}
 	} else {
 		watcher.OnChanged = func(file string) {
-			fmt.Println(`== Switch Mode.`)
+			log.Info(`== Switch Mode.`)
 			watcher.Reset()
 			if !app.SupportMutiPort() {
-				fmt.Println(`Unspecified switchable other ports.`)
+				log.Error(`Unspecified switchable other ports.`)
 				return
 			}
 			port := app.UseRandPort()
@@ -276,13 +281,13 @@ func startTower() {
 				port = app.UseRandPort()
 			}
 			if port == app.Port {
-				fmt.Println(`取得的端口与当前端口相同，无法切换`)
+				log.Error(`取得的端口与当前端口相同，无法切换`)
 				return
 			}
 
 			fileName := filepath.Base(file)
 			if !strings.HasPrefix(fileName, BinPrefix) {
-				fmt.Println(`忽略非`, BinPrefix, `前缀文件更改`)
+				log.Info(`忽略非`, BinPrefix, `前缀文件更改`)
 				return
 			}
 			if _suffix != "" {
@@ -292,23 +297,23 @@ func startTower() {
 			fileName = strings.TrimPrefix(fileName, BinPrefix)
 			newFileTs, err := strconv.ParseInt(fileName, 10, 64)
 			if err != nil {
-				fmt.Println(err)
+				log.Error(err)
 				return
 			}
 			fileName = strings.TrimPrefix(AppBin, BinPrefix)
 			oldFileTs, err := strconv.ParseInt(fileName, 10, 64)
 			if err != nil {
-				fmt.Println(err)
+				log.Error(err)
 				return
 			}
 			if newFileTs <= oldFileTs {
-				fmt.Println(`新文件时间戳小于旧文件，忽略`)
+				log.Info(`新文件时间戳小于旧文件，忽略`)
 				return
 			}
 			AppBin = newAppBin
 			err = app.Start(true, port)
 			if err != nil {
-				fmt.Println(err)
+				log.Error(err)
 			}
 		}
 		watcher.OnlyWatchBin = true
@@ -320,7 +325,7 @@ func startTower() {
 	}()
 	err = app.Start(true, app.Port)
 	if err != nil {
-		fmt.Println(err)
+		log.Error(err)
 	}
 	mustSuccess(proxy.Listen())
 }

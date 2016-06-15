@@ -13,6 +13,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/admpub/log"
 )
 
 const (
@@ -127,7 +129,7 @@ func (this *App) Start(build bool, args ...string) error {
 		if build {
 			this.startErr = this.Build()
 			if this.startErr != nil {
-				fmt.Println("== Fail to build " + this.Name + ": " + this.startErr.Error())
+				log.Error("== Fail to build " + this.Name + ": " + this.startErr.Error())
 				this.BuildStart = &sync.Once{}
 				return
 			}
@@ -138,7 +140,7 @@ func (this *App) Start(build bool, args ...string) error {
 		}
 		this.startErr = this.Run(port)
 		if this.startErr != nil {
-			this.startErr = errors.New("Fail to run " + this.Name + ": " + this.startErr.Error())
+			this.startErr = errors.New("== Fail to run " + this.Name + ": " + this.startErr.Error())
 			this.BuildStart = &sync.Once{}
 			return
 		}
@@ -180,11 +182,11 @@ func (this *App) Stop(port string, args ...string) {
 	if !this.IsRunning(port) {
 		return
 	}
-	fmt.Println("== Stopping " + this.Name)
+	log.Info("== Stopping " + this.Name)
 	cmd := this.GetCmd(port)
 	err := cmd.Process.Kill()
 	if err != nil {
-		fmt.Println(err)
+		log.Error(err)
 	}
 	cmd = nil
 	if port == this.Port && this.DisabledBuild {
@@ -201,9 +203,9 @@ func (this *App) Stop(port string, args ...string) {
 			time.Sleep(time.Second)
 			err = os.Remove(bin)
 			if err != nil {
-				fmt.Println(err)
+				log.Error(err)
 			} else {
-				fmt.Println(`Remove ` + bin + `: Success.`)
+				log.Info(`== Remove ` + bin + `: Success.`)
 				this.Ports[port] = 0
 				return
 			}
@@ -216,10 +218,10 @@ func (this *App) Clean() {
 		if port == this.Port || !CmdIsRunning(cmd) {
 			continue
 		}
-		fmt.Println("== Stopping app at port: " + port)
+		log.Info("== Stopping app at port: " + port)
 		err := cmd.Process.Kill()
 		if err != nil {
-			fmt.Println(err)
+			log.Error(err)
 		}
 		cmd = nil
 		if bin, ok := this.portBinFiles[port]; ok && bin != "" {
@@ -233,9 +235,9 @@ func (this *App) Clean() {
 					time.Sleep(time.Second * time.Duration(i+1))
 					err = os.Remove(bin)
 					if err != nil {
-						fmt.Println(err)
+						log.Error(err)
 					} else {
-						fmt.Println(`Remove ` + bin + `: Success.`)
+						log.Info(`== Remove ` + bin + `: Success.`)
 						this.Ports[port] = 0
 						return
 					}
@@ -266,7 +268,7 @@ func (this *App) Run(port string) (err error) {
 	if err != nil {
 		return
 	}
-	fmt.Println("== Running at port " + port + ": " + this.Name)
+	log.Info("== Running at port " + port + ": " + this.Name)
 	ableSwitch := this.Port != port
 	this.Port = port //记录被使用的端口，避免下次使用
 
@@ -287,7 +289,7 @@ func (this *App) Run(port string) (err error) {
 	go func() {
 		err := cmd.Run()
 		if err != nil {
-			fmt.Println(`== cmd.Run Error:`, err)
+			log.Error(`== cmd.Run Error:`, err)
 			hasError = true
 		}
 	}()
@@ -307,15 +309,15 @@ func (this *App) Build() (err error) {
 	if this.DisabledBuild {
 		return nil
 	}
-	fmt.Println("== Building " + this.Name)
+	log.Info("== Building " + this.Name)
 	AppBin = BinPrefix + strconv.FormatInt(time.Now().Unix(), 10)
 	out, _ := exec.Command("go", "build", "-o", this.BinFile(), this.MainFile).CombinedOutput()
 	if len(out) > 0 {
 		msg := strings.Replace(string(out), "# command-line-arguments\n", "", 1)
-		fmt.Printf("----------- Build Error -----------\n%s-----------------------------------\n", msg)
+		log.Errorf("----------- Build Error -----------\n%s-----------------------------------", msg)
 		return errors.New(msg)
 	}
-	fmt.Println("== Build completed.")
+	log.Info("== Build completed.")
 	return nil
 }
 

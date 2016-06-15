@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/admpub/log"
 	"github.com/howeyc/fsnotify"
 )
 
@@ -68,7 +69,7 @@ func (this *Watcher) Watch() (err error) {
 		select {
 		case file := <-this.Watcher.Event:
 			if this.Paused {
-				fmt.Println(`Pause monitoring file changes.`)
+				log.Info(`Pause monitoring file changes.`)
 				continue
 			}
 			// Skip TMP files for Sublime Text.
@@ -77,16 +78,16 @@ func (this *Watcher) Watch() (err error) {
 			}
 			if expectedFileReg.Match([]byte(file.Name)) == false {
 				if this.OnlyWatchBin {
-					fmt.Println("[IGNORE]", file.Name)
+					log.Info("[IGNORE]", file.Name)
 				}
 				continue
 			}
 			mt := getFileModTime(file.Name)
 			if t := eventTime[file.Name]; mt == t {
-				fmt.Printf("[SKIP] # %s #\n", file.String())
+				log.Infof("[SKIP] # %s #", file.String())
 				continue
 			}
-			fmt.Printf("[EVEN] %s\n", file)
+			log.Infof("[EVEN] %s", file)
 			eventTime[file.Name] = mt
 			go func() {
 				// Wait 1s before autobuild util there is no file change.
@@ -98,15 +99,15 @@ func (this *Watcher) Watch() (err error) {
 					}
 					return
 				}
-				fmt.Println("== Change detected:", file.Name)
+				log.Warn("== Change detected:", file.Name)
 				this.Changed = true
 				if this.OnChanged != nil {
-					fmt.Println("== Executive change event.")
+					log.Info("== Executive change event.")
 					this.OnChanged(file.Name)
 				}
 			}()
 		case err := <-this.Watcher.Error:
-			fmt.Printf("[WARN] %s\n", err.Error()) // No need to exit here
+			log.Warn(err) // No need to exit here
 		}
 	}
 	return nil
@@ -130,15 +131,15 @@ func (this *Watcher) dirsToWatch() (dirs []string) {
 		fi, err := f.Stat()
 		f.Close()
 		if err != nil {
-			fmt.Printf("[ERRO] Fail to get file information[ %s ]\n", err)
+			log.Errorf("Fail to get file information[ %s ]", err)
 			continue
 		}
 		if !fi.IsDir() {
 			continue
 		}
-		fmt.Println("")
-		fmt.Println("[INFO] Watch directory:", dir)
-		fmt.Println("==================================================================")
+		log.Debug("")
+		log.Debug("Watch directory:", dir)
+		log.Debug("==================================================================")
 		filepath.Walk(dir, func(filePath string, info os.FileInfo, e error) (err error) {
 			if e != nil {
 				return e
@@ -150,12 +151,12 @@ func (this *Watcher) dirsToWatch() (dirs []string) {
 			if mch, _ := matchedDirs[filePath]; mch {
 				return
 			}
-			fmt.Println("    ->", filePath)
+			log.Debug("    ->", filePath)
 			matchedDirs[filePath] = true
 			return
 		})
-		fmt.Println("")
-		fmt.Println("")
+		log.Debug("")
+		log.Debug("")
 	}
 	for dir, _ := range matchedDirs {
 		dirs = append(dirs, dir)
@@ -181,13 +182,13 @@ func getFileModTime(path string) int64 {
 	f, err := os.Open(path)
 	defer f.Close()
 	if err != nil {
-		fmt.Printf("[ERRO] Fail to open file[ %s ]\n", err)
+		log.Errorf("Fail to open file[ %s ]", err)
 		return time.Now().Unix()
 	}
 
 	fi, err := f.Stat()
 	if err != nil {
-		fmt.Printf("[ERRO] Fail to get file information[ %s ]\n", err)
+		log.Errorf("Fail to get file information[ %s ]", err)
 		return time.Now().Unix()
 	}
 

@@ -11,6 +11,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/admpub/log"
 )
 
 const ProxyPort = "8080"
@@ -68,7 +70,7 @@ func (this *Proxy) SetBody(code int, body []byte, w http.ResponseWriter) {
 }
 
 func (this *Proxy) Listen() (err error) {
-	fmt.Println("== Listening to http://localhost:" + this.Port)
+	log.Info("== Listening to http://localhost:" + this.Port)
 	this.SetReserveProxy()
 	this.FirstRequest = &sync.Once{}
 
@@ -107,7 +109,7 @@ func (this *Proxy) Listen() (err error) {
 }
 
 func (this *Proxy) SetReserveProxy() {
-	fmt.Println("== Proxy to http://localhost:" + this.App.Port)
+	log.Info("== Proxy to http://localhost:" + this.App.Port)
 	this.appOldPort = this.App.Port
 	url, _ := url.ParseRequestURI("http://localhost:" + this.App.Port)
 	this.ReserveProxy = httputil.NewSingleHostReverseProxy(url)
@@ -121,7 +123,7 @@ func (this *Proxy) ServeRequest(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if this.App.SwitchToNewPort {
-		fmt.Println(`== Switch port:`, this.appOldPort, `=>`, this.App.Port)
+		log.Info(`== Switch port:`, this.appOldPort, `=>`, this.App.Port)
 		this.App.SwitchToNewPort = false
 		this.SetReserveProxy()
 		this.FirstRequest.Do(func() {
@@ -160,7 +162,7 @@ func (this *Proxy) ServeRequest(w http.ResponseWriter, r *http.Request) {
 	if len(this.App.LastError) != 0 {
 		RenderAppError(&mw, this.App, this.App.LastError)
 	} else if this.App.IsQuit() {
-		fmt.Println("== App quit unexpetedly")
+		log.Warn("== App quit unexpetedly")
 		this.App.Start(false)
 		RenderError(&mw, this.App, "App quit unexpetedly.")
 	}
@@ -174,10 +176,10 @@ func (this *Proxy) isStaticRequest(uri string) bool {
 
 func (this *Proxy) logStartRequest(r *http.Request) {
 	if !this.isStaticRequest(r.RequestURI) {
-		fmt.Printf("\n\n\nStarted %s \"%s\" at %s\n", r.Method, r.RequestURI, time.Now().Format("2006-01-02 15:04:05 +700"))
+		log.Infof("\n\n\nStarted %s \"%s\" at %s", r.Method, r.RequestURI, time.Now().Format("2006-01-02 15:04:05 +700"))
 		params := this.formatRequestParams(r)
 		if len(params) > 0 {
-			fmt.Printf("  Parameters: %s\n", params)
+			log.Info("  Parameters:", params)
 		}
 	}
 }
@@ -216,7 +218,7 @@ func (this *Proxy) formatRequestParams(r *http.Request) string {
 
 func (this *Proxy) logEndRequest(mw *ResponseWriterWrapper, r *http.Request, startTime time.Time) {
 	if !this.isStaticRequest(r.RequestURI) {
-		fmt.Printf("Completed %d in %dms\n", mw.Status, time.Since(startTime)/time.Millisecond)
+		log.Infof("Completed %d in %dms", mw.Status, time.Since(startTime)/time.Millisecond)
 	}
 }
 

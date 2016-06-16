@@ -82,7 +82,6 @@ func findBinFile(f string) string {
 	default:
 		panic(`error format.`)
 	}
-
 	var file string
 	err := filepath.Walk(filepath.Dir(f), func(filePath string, info os.FileInfo, e error) (err error) {
 		if e != nil {
@@ -104,14 +103,17 @@ func findBinFile(f string) string {
 	return file
 }
 
-func checkBinFile(appMainFile string, suffix string, _suffix *string) error {
-	f, err := os.Open(appMainFile)
-	if err == nil {
-		_, err = f.Stat()
-	}
-	f.Close()
+func checkBinFile(appMainFile string, suffix string, _suffix *string, appBuildDir string) error {
+	_, err := os.Stat(appMainFile)
 	if err != nil {
-		return err
+		if appBuildDir == `` {
+			return err
+		}
+		appMainFile = filepath.Join(appBuildDir, appMainFile)
+		_, err = os.Stat(appMainFile)
+		if err != nil {
+			return err
+		}
 	}
 	fileName := filepath.Base(appMainFile)
 	AppBin = fileName
@@ -128,7 +130,7 @@ func checkBinFile(appMainFile string, suffix string, _suffix *string) error {
 		}
 	}
 	if !nameOk {
-		return fmt.Errorf("exec参数指定的可执行文件名称格式应该为：%v0%v。\n其中的“0”是代表版本号的整数，请修改为此格式。", BinPrefix, *_suffix)
+		return fmt.Errorf("exec参数指定的可执行文件名称格式应该为：%v0%v(当前为：%v)。\n其中的“0”是代表版本号的整数，请修改为此格式。", BinPrefix, *_suffix, fileName)
 	}
 	return nil
 }
@@ -216,9 +218,16 @@ func startTower() {
 	}
 	if !allowBuild {
 		if strings.Contains(appMainFile, `*`) {
+			orgiMainFile := appMainFile
 			appMainFile = findBinFile(appMainFile)
+			if appMainFile == `` {
+				if appBuildDir != `` {
+					appMainFile = filepath.Join(appBuildDir, orgiMainFile)
+					appMainFile = findBinFile(appMainFile)
+				}
+			}
 		}
-		if err := checkBinFile(appMainFile, suffix, &_suffix); err != nil {
+		if err := checkBinFile(appMainFile, suffix, &_suffix, appBuildDir); err != nil {
 			fmt.Println(err)
 			time.Sleep(time.Second * 300)
 			return
@@ -230,10 +239,16 @@ func startTower() {
 	if runParams != `` {
 		app.RunParams = strings.Split(runParams, ` `)
 	}
-	if watchedOtherDir != "" {
-		watchedOtherDir += "|" + app.Root
+	watchedDir := app.Root
+	if !allowBuild {
+		if app.BuildDir != `` {
+			watchedDir = app.BuildDir
+		}
 	}
-	watcher := NewWatcher(watchedOtherDir, watchedFiles, ignoredPathPattern)
+	if watchedOtherDir != "" {
+		watchedDir = watchedOtherDir + "|" + watchedDir
+	}
+	watcher := NewWatcher(watchedDir, watchedFiles, ignoredPathPattern)
 	proxy := NewProxy(&app, &watcher)
 	proxy.AdminPwd = adminPwd
 	if adminIPs != `` {

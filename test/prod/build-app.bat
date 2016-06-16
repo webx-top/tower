@@ -1,2 +1,2 @@
-go build -o ../tower-app-3.exe ../dev/
+go build -o ../tower-app-5.exe ../dev/
 pause

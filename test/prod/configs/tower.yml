@@ -1,5 +1,5 @@
 main: ""
-exec: "../tower-app-*.exe"
+exec: "tower-app-*.exe"
 #你的项目在本机运行端口
 app_port          : "5001-5010"
 
@@ -14,7 +14,7 @@ pxy_port          : "8080"
 # file types to watch for changes in. use "|" to separate multiple types, for example, go|html
 watch             : "go"
 
-watch_otherDir    : "../"
+watch_otherDir    : ""
 
 # 忽略的路径(正则表达式)，不填则不限制(排除某个完整的文件夹名请用“/文件夹名/”的格式)
 watch_ignoredPath : "(/configs/|/nowatch/|/\.git)"

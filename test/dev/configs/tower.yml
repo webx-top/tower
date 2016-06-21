@@ -1,0 +1,26 @@
+main: "test/dev/server1.go"
+exec: "test/dev/tower-app-0.exe"
+#你的项目在本机运行端口
+app_port          : "5001-5010"
+
+#go build -o 命令生成的二进制文件保存位置
+app_buildDir      : "test"
+#指定app端口的参数名，例如：webx.exe -p 8080 其中的“-p”就是。
+app_portParamName : "-p"
+
+#你的项目对外公开访问的端口
+pxy_port          : "8080"
+
+# file types to watch for changes in. use "|" to separate multiple types, for example, go|html
+watch             : "go"
+
+watch_otherDir    : "../|../../webx-top"
+
+# 忽略的路径(正则表达式)，不填则不限制(排除某个完整的文件夹名请用“/文件夹名/”的格式)
+watch_ignoredPath : "(/configs/|/nowatch/)"
+
+# 是否离线模式(即开发模式)
+offline_mode : "false"
+
+# 是否在控制台显示request信息
+log_request : "true"

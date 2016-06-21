@@ -1,0 +1,5 @@
+language: go
+install:
+  - go get github.com/shaoshing/gotest
+  - go get github.com/howeyc/fsnotify
+  - go get github.com/admpub/confl

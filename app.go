@@ -153,6 +153,7 @@ func (this *App) Start(build bool, args ...string) error {
 
 func (this *App) Restart() error {
 	this.AppRestart.Do(func() {
+		log.Warn(`== Restart the application.`)
 		this.Clean()
 		this.Stop(this.Port)
 		this.restartErr = this.Start(true)

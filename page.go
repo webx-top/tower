@@ -4,7 +4,6 @@ import (
 	"html"
 	"html/template"
 	"io/ioutil"
-	"net/http"
 	"os"
 	"path"
 	"regexp"
@@ -12,6 +11,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/webx-top/reverseproxy"
 )
 
 var errorTemplate *template.Template
@@ -28,23 +29,23 @@ func init() {
 	}
 }
 
-func RenderError(w http.ResponseWriter, app *App, message string) {
+func RenderError(ctx reverseproxy.Context, app *App, message string) {
 	info := ErrorInfo{Title: "Error", Message: template.HTML(message)}
 	info.Prepare()
 
-	renderPage(w, info)
+	renderPage(ctx, info)
 }
 
-func RenderBuildError(w http.ResponseWriter, app *App, message string) {
+func RenderBuildError(ctx reverseproxy.Context, app *App, message string) {
 	info := ErrorInfo{Title: "Build Error", Message: template.HTML(message)}
 	info.Prepare()
 
-	renderPage(w, info)
+	renderPage(ctx, info)
 }
 
 const SnippetLineNumbers = 13
 
-func RenderAppError(w http.ResponseWriter, app *App, errMessage string) {
+func RenderAppError(ctx reverseproxy.Context, app *App, errMessage string) {
 	info := ErrorInfo{Title: "Application Error"}
 	message, trace, appIndex := extractAppErrorInfo(errMessage)
 
@@ -68,11 +69,11 @@ func RenderAppError(w http.ResponseWriter, app *App, errMessage string) {
 	info.Snippet = extractAppSnippet(appFileInfo[0], int(curLineNum))
 
 	info.Prepare()
-	renderPage(w, info)
+	renderPage(ctx, info)
 }
 
-func renderPage(w http.ResponseWriter, info ErrorInfo) {
-	err := errorTemplate.Execute(w, info)
+func renderPage(ctx reverseproxy.Context, info ErrorInfo) {
+	err := errorTemplate.Execute(ctx.RespWriter(), info)
 	if err != nil {
 		panic(err)
 	}

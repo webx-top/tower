@@ -19,6 +19,9 @@ import (
 func init() {
 	log.DefaultLog.Category = `tower`
 	log.DefaultLog.SyncMode = true
+	log.DefaultLog.Formatter = func(_ *log.Logger, e *log.Entry) string {
+		return e.Message
+	}
 }
 
 const ConfigName = ".tower.yml"

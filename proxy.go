@@ -1,9 +1,12 @@
 package main
 
 import (
+	"fmt"
 	"strings"
 	"sync"
+	"time"
 
+	"github.com/admpub/log"
 	"github.com/webx-top/reverseproxy"
 )
 
@@ -50,4 +53,84 @@ func (this *Proxy) authAdmin(ctx reverseproxy.Context) bool {
 		}
 	}
 	return valid
+}
+
+func (this *Proxy) Listen() error {
+	this.FirstRequest = &sync.Once{}
+	router := &ProxyRouter{Proxy: this}
+	router.dst = "http://localhost:" + app.Port
+	this.ReserveProxy = &reverseproxy.FastReverseProxy{}
+	config := reverseproxy.ReverseProxyConfig{
+		Listen:          `:` + this.Port,
+		Router:          router,
+		RequestIDHeader: "X-Request-ID",
+		ResponseBefore: func(ctx reverseproxy.Context) bool {
+			switch ctx.RequestPath() {
+			case "/tower-proxy/watch/pause":
+				status := `done`
+				if !this.authAdmin(ctx) {
+					status = `Authentication failed`
+				} else {
+					this.Watcher.Paused = true
+				}
+				ctx.SetStatusCode(200)
+				ctx.SetBody([]byte(status))
+				return true
+
+			case "/tower-proxy/watch/begin":
+				status := `done`
+				if !this.authAdmin(ctx) {
+					status = `Authentication failed`
+				} else {
+					this.Watcher.Paused = false
+				}
+				ctx.SetStatusCode(200)
+				ctx.SetBody([]byte(status))
+				return true
+
+			case "/tower-proxy/watch":
+				status := `OK`
+				if this.Watcher.Paused {
+					status = `Pause`
+				}
+				ctx.SetStatusCode(200)
+				ctx.SetBody([]byte(`watch status: ` + status))
+				return true
+			}
+
+			this.App.LastError = ""
+			if this.upgraded > 0 {
+				timeout := time.Now().Unix() - this.upgraded
+				if timeout > 3600 {
+					this.upgraded = 0
+				}
+				ctx.SetHeader(`X-Server-Upgraded`, fmt.Sprintf("%v", timeout))
+			}
+
+			return false
+		},
+		ResponseAfter: func(ctx reverseproxy.Context) bool {
+			if len(this.App.LastError) != 0 {
+				RenderAppError(ctx, this.App, this.App.LastError)
+				return true
+			}
+			if this.App.IsQuit() {
+				log.Warn("== App quit unexpetedly")
+				this.App.Start(false)
+				RenderError(ctx, this.App, "App quit unexpetedly.")
+				return true
+			}
+			return false
+		},
+	}
+	this.appOldPort = app.Port
+	addr, err := this.ReserveProxy.Initialize(config)
+	if err != nil {
+		return err
+	}
+	log.Info("== Listening to " + router.dst)
+	log.Info(`== Server Address:`, addr)
+	this.ReserveProxy.Listen()
+	this.ReserveProxy.Stop()
+	return nil
 }

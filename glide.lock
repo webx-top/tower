@@ -1,0 +1,43 @@
+hash: 9ff267743dd3923f43c185507427955d25d6cd958398348e6fbeebe7dc75cac8
+updated: 2016-06-23T22:03:21.8852083+08:00
+imports:
+- name: github.com/admpub/confl
+  version: 5bd4f8e1a84e547e43ba99e23ae51e7d67591fe4
+- name: github.com/admpub/go-colortext
+  version: 511bcaf42ccd42c38aba7427b6673277bf19e2a1
+- name: github.com/admpub/log
+  version: 8ebfbafd0f46a2bbaa152b2fa8c07b2b5c139b3a
+- name: github.com/admpub/manners
+  version: 72097fd728f7b61a5454fd5bc4a7fa5c73176e85
+- name: github.com/admpub/queueChan
+  version: 79908f7a499f379d32d1b1eabe1bf653129bb154
+- name: github.com/araddon/gou
+  version: 50a94aa4a3fb69e8fbde05df290fcb49fa685e07
+- name: github.com/howeyc/fsnotify
+  version: f0c08ee9c60704c1879025f2ae0ff3e000082c13
+- name: github.com/klauspost/compress
+  version: 14eb9c4951195779ecfbec34431a976de7335b0a
+  subpackages:
+  - flate
+  - gzip
+  - zlib
+- name: github.com/klauspost/cpuid
+  version: 09cded8978dc9e80714c4d85b0322337b0a1e5e0
+- name: github.com/klauspost/crc32
+  version: 19b0b332c9e4516a6370a0456e6182c3b5036720
+- name: github.com/nu7hatch/gouuid
+  version: 179d4d0c4d8d407a32af483c2354df1d2c91e6c3
+- name: github.com/valyala/bytebufferpool
+  version: 7e712dfeb68c142b4f4cb1c6e864afa757342780
+- name: github.com/valyala/fasthttp
+  version: 3148999d1e352f576e3798d5c924d1957ed46ecb
+  subpackages:
+  - fasthttputil
+- name: github.com/webx-top/reverseproxy
+  version: 5c449c56f800d2efcc1dd85cccda0926fd104754
+  vcs: git
+  subpackages:
+  - log
+testImports:
+- name: github.com/shaoshing/gotest
+  version: 9301b15eda78bec810b41f631ba48e898e0ee30e

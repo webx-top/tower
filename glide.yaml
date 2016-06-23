@@ -1,0 +1,11 @@
+package: github.com/webx-top/tower
+import:
+- package: github.com/admpub/confl
+- package: github.com/admpub/log
+- package: github.com/howeyc/fsnotify
+- package: github.com/webx-top/reverseproxy
+  vcs: git
+  subpackages:
+  - log
+testImport:
+- package: github.com/shaoshing/gotest

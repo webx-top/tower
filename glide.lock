@@ -1,5 +1,5 @@
 hash: 9ff267743dd3923f43c185507427955d25d6cd958398348e6fbeebe7dc75cac8
-updated: 2016-06-23T22:03:21.8852083+08:00
+updated: 2016-06-24T00:04:53.2274223+08:00
 imports:
 - name: github.com/admpub/confl
   version: 5bd4f8e1a84e547e43ba99e23ae51e7d67591fe4
@@ -34,7 +34,7 @@ imports:
   subpackages:
   - fasthttputil
 - name: github.com/webx-top/reverseproxy
-  version: 5c449c56f800d2efcc1dd85cccda0926fd104754
+  version: 93706fc011c69da3f60de25e1e57df4492c7d7b9
   vcs: git
   subpackages:
   - log

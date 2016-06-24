@@ -73,6 +73,7 @@ func RenderAppError(ctx reverseproxy.Context, app *App, errMessage string) {
 }
 
 func renderPage(ctx reverseproxy.Context, info ErrorInfo) {
+	ctx.SetHeader(`Content-Type`, `text/html;charset=utf-8`)
 	err := errorTemplate.Execute(ctx.RespWriter(), info)
 	if err != nil {
 		panic(err)

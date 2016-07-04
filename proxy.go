@@ -106,18 +106,18 @@ func (this *Proxy) Listen() error {
 				}
 				ctx.SetHeader(`X-Server-Upgraded`, fmt.Sprintf("%v", timeout))
 			}
-
+			if this.App.IsQuit() {
+				log.Warn("== App quit unexpetedly")
+				if err := this.App.Start(false); err != nil {
+					RenderError(ctx, this.App, "App quit unexpetedly.")
+					return true
+				}
+			}
 			return false
 		},
 		ResponseAfter: func(ctx reverseproxy.Context) bool {
 			if len(this.App.LastError) != 0 {
 				RenderAppError(ctx, this.App, this.App.LastError)
-				return true
-			}
-			if this.App.IsQuit() {
-				log.Warn("== App quit unexpetedly")
-				this.App.Start(false)
-				RenderError(ctx, this.App, "App quit unexpetedly.")
 				return true
 			}
 			return false

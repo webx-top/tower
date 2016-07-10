@@ -176,7 +176,11 @@ func startTower() {
 		}
 		appPort, _ = newmap["app_port"]
 		pxyPort, _ = newmap["pxy_port"]
-		pxyEngine, _ = newmap["pxy_engine"]
+
+		if v, ok := newmap["pxy_engine"]; ok {
+			pxyEngine = v
+		}
+
 		appBuildDir, _ = newmap["app_buildDir"] //编译模式下有效
 		portParamName, _ = newmap["app_portParamName"]
 		runParams, _ = newmap["app_runParams"]

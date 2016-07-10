@@ -60,11 +60,13 @@ func (this *Proxy) Listen() error {
 	this.FirstRequest = &sync.Once{}
 	router := &ProxyRouter{Proxy: this}
 	router.dst = "http://localhost:" + app.Port
-
+	engine := ``
 	if strings.ToLower(this.Engine) == `fast` {
 		this.ReserveProxy = &reverseproxy.FastReverseProxy{PassingBrowsingURL: true}
+		engine = `FastHTTP`
 	} else {
 		this.ReserveProxy = &reverseproxy.NativeReverseProxy{PassingBrowsingURL: true}
+		engine = `Standard`
 	}
 
 	config := reverseproxy.ReverseProxyConfig{
@@ -136,7 +138,7 @@ func (this *Proxy) Listen() error {
 		return err
 	}
 	log.Info("== Listening to " + router.dst)
-	log.Info(`== Server Address:`, addr)
+	log.Info(`== Server(`+engine+`) Address:`, addr)
 	this.ReserveProxy.Listen()
 	this.ReserveProxy.Stop()
 	return nil

@@ -22,6 +22,7 @@ type Proxy struct {
 	Port         string
 	AdminPwd     string
 	AdminIPs     []string
+	Engine       string
 }
 
 func NewProxy(app *App, watcher *Watcher) (proxy Proxy) {
@@ -59,7 +60,13 @@ func (this *Proxy) Listen() error {
 	this.FirstRequest = &sync.Once{}
 	router := &ProxyRouter{Proxy: this}
 	router.dst = "http://localhost:" + app.Port
-	this.ReserveProxy = &reverseproxy.FastReverseProxy{}
+
+	if strings.ToLower(this.Engine) == `fast` {
+		this.ReserveProxy = &reverseproxy.FastReverseProxy{PassingBrowsingURL: true}
+	} else {
+		this.ReserveProxy = &reverseproxy.NativeReverseProxy{PassingBrowsingURL: true}
+	}
+
 	config := reverseproxy.ReverseProxyConfig{
 		Listen:          `:` + this.Port,
 		Router:          router,

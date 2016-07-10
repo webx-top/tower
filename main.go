@@ -37,6 +37,7 @@ var (
 	_configFile    *string
 	_adminPwd      *string
 	_adminIPs      *string
+	_pxyEngine     *string
 
 	app   App
 	build string = "1"
@@ -46,6 +47,7 @@ func main() {
 	_appMainFile = flag.String("m", "", "path to your app's main file.")
 	_appPort = flag.String("p", "5001-5050", "port range of your app.")
 	_pxyPort = flag.String("r", "8080", "proxy port of your app.")
+	_pxyEngine = flag.String("e", "fast", "fast/standard")
 	_appBuildDir = flag.String("o", "", "save the executable file the folder.")
 	_portParamName = flag.String("n", "", "app's port param name.")
 	_runParams = flag.String("s", "", "app's run params.")
@@ -143,6 +145,7 @@ func startTower() {
 		appMainFile        = *_appMainFile
 		appPort            = *_appPort
 		pxyPort            = *_pxyPort
+		pxyEngine          = *_pxyEngine
 		appBuildDir        = *_appBuildDir
 		portParamName      = *_portParamName
 		runParams          = *_runParams
@@ -173,6 +176,7 @@ func startTower() {
 		}
 		appPort, _ = newmap["app_port"]
 		pxyPort, _ = newmap["pxy_port"]
+		pxyEngine, _ = newmap["pxy_engine"]
 		appBuildDir, _ = newmap["app_buildDir"] //编译模式下有效
 		portParamName, _ = newmap["app_portParamName"]
 		runParams, _ = newmap["app_runParams"]
@@ -254,6 +258,7 @@ func startTower() {
 	watcher := NewWatcher(watchedDir, watchedFiles, ignoredPathPattern)
 	proxy := NewProxy(&app, &watcher)
 	proxy.AdminPwd = adminPwd
+	proxy.Engine = pxyEngine
 	if adminIPs != `` {
 		proxy.AdminIPs = strings.Split(adminIPs, `,`)
 	}

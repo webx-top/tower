@@ -12,7 +12,7 @@ app_port          : "5001-5010"
 # go build -o 命令生成的二进制文件保存位置
 app_buildDir      : ""
 # 指定app端口的参数名，例如：webx.exe -p 8080 其中的“-p”就是。
-app_portParamName : ""
+app_portParamName : "-p"
 
 # 运行app所需的其它参数，例如：webx.exe -p 8080 -e 90 -d 100 其中的“-e 90 -d 100”就是(注意：内部用[单个]半角空格隔开)。
 app_runParams : ""

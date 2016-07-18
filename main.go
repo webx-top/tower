@@ -151,7 +151,6 @@ func checkBinFile(appMainFile string, suffix string, _suffix *string, appBuildDi
 	if *appBuildDir == `` {
 		*appBuildDir = filepath.Dir(appMainFile)
 	}
-	log.Warn(appMainFile)
 	fileName := filepath.Base(appMainFile)
 	AppBin = fileName
 	if strings.HasSuffix(AppBin, suffix) {

@@ -83,7 +83,13 @@ func saveFile(filePath string, b []byte) (int, error) {
 }
 
 func generateExampleConfig() {
-	_, err := saveFile(ConfigName, defaultConfig)
+	var configContent []byte
+	if atob(build) {
+		configContent = defaultDevConfig
+	} else {
+		configContent = defaultProdConfig
+	}
+	_, err := saveFile(ConfigName, configContent)
 	if err != nil {
 		log.Error(err)
 		return
@@ -126,18 +132,26 @@ func findBinFile(f string) string {
 	return file
 }
 
-func checkBinFile(appMainFile string, suffix string, _suffix *string, appBuildDir string) error {
+func checkBinFile(appMainFile string, suffix string, _suffix *string, appBuildDir *string) error {
 	_, err := os.Stat(appMainFile)
 	if err != nil {
-		if appBuildDir == `` {
+		if *appBuildDir == `` {
 			return err
 		}
-		appMainFile = filepath.Join(appBuildDir, appMainFile)
+		appMainFile = filepath.Join(*appBuildDir, appMainFile)
 		_, err = os.Stat(appMainFile)
 		if err != nil {
 			return err
 		}
 	}
+	appMainFile, err = filepath.Abs(appMainFile)
+	if err != nil {
+		return err
+	}
+	if *appBuildDir == `` {
+		*appBuildDir = filepath.Dir(appMainFile)
+	}
+	log.Warn(appMainFile)
 	fileName := filepath.Base(appMainFile)
 	AppBin = fileName
 	if strings.HasSuffix(AppBin, suffix) {
@@ -199,7 +213,7 @@ func startTower() {
 			pxyEngine = v
 		}
 
-		appBuildDir, _ = newmap["app_buildDir"] //编译模式下有效
+		appBuildDir, _ = newmap["app_buildDir"]
 		portParamName, _ = newmap["app_portParamName"]
 		runParams, _ = newmap["app_runParams"]
 		watchedFiles, _ = newmap["watch"]
@@ -256,10 +270,15 @@ func startTower() {
 				}
 			}
 		}
-		if err := checkBinFile(appMainFile, suffix, &_suffix, appBuildDir); err != nil {
+		if err := checkBinFile(appMainFile, suffix, &_suffix, &appBuildDir); err != nil {
 			fmt.Println(err)
 			time.Sleep(time.Second * 300)
 			return
+		}
+	} else {
+		if appBuildDir == `` {
+			appMainFile, _ = filepath.Abs(appMainFile)
+			appBuildDir = filepath.Dir(appMainFile)
 		}
 	}
 	app = NewApp(appMainFile, appPort, appBuildDir, portParamName)

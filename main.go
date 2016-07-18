@@ -83,12 +83,6 @@ func saveFile(filePath string, b []byte) (int, error) {
 }
 
 func generateExampleConfig() {
-	/*
-		_, file, _, _ := runtime.Caller(0)
-		exampleConfig := filepath.Join(filepath.Dir(file), "tower.yml.go")
-		log.Debug(exampleConfig)
-		exec.Command("cp", exampleConfig, ConfigName).Run()
-	*/
 	_, err := saveFile(ConfigName, defaultConfig)
 	if err != nil {
 		log.Error(err)

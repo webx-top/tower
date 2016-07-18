@@ -31,7 +31,7 @@ watch_otherDir    : ""
 watch_ignoredPath : ""
 
 # 是否离线模式(即开发模式)
-offline_mode : "false"
+offline_mode : "true"
 
 # 是否在控制台显示request信息
 log_request : "true"

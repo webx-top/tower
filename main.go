@@ -5,9 +5,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
-	"os/exec"
 	"path/filepath"
-	"runtime"
 	"strconv"
 	"strings"
 	"time"
@@ -63,13 +61,39 @@ func main() {
 		generateExampleConfig()
 		return
 	}
+	if !fileExist(*_configFile) {
+		generateExampleConfig()
+	}
 	startTower()
 }
 
+func fileExist(path string) bool {
+	fi, err := os.Stat(path)
+	return (err == nil || os.IsExist(err)) && !fi.IsDir()
+}
+
+func saveFile(filePath string, b []byte) (int, error) {
+	os.MkdirAll(filepath.Dir(filePath), os.ModePerm)
+	fw, err := os.Create(filePath)
+	if err != nil {
+		return 0, err
+	}
+	defer fw.Close()
+	return fw.Write(b)
+}
+
 func generateExampleConfig() {
-	_, file, _, _ := runtime.Caller(0)
-	exampleConfig := filepath.Join(filepath.Dir(file), "tower.yml")
-	exec.Command("cp", exampleConfig, ConfigName).Run()
+	/*
+		_, file, _, _ := runtime.Caller(0)
+		exampleConfig := filepath.Join(filepath.Dir(file), "tower.yml.go")
+		log.Debug(exampleConfig)
+		exec.Command("cp", exampleConfig, ConfigName).Run()
+	*/
+	_, err := saveFile(ConfigName, defaultConfig)
+	if err != nil {
+		log.Error(err)
+		return
+	}
 	log.Info("== Generated config file " + ConfigName)
 }
 

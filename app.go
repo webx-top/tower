@@ -290,7 +290,9 @@ func (this *App) Run(port string) (err error) {
 	go func() {
 		err := cmd.Run()
 		if err != nil {
-			log.Error(`== cmd.Run Error:`, err)
+			if this.Port == port {
+				log.Error(`== cmd.Run Error:`, err)
+			}
 			hasError = true
 		}
 	}()

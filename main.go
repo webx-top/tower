@@ -279,6 +279,27 @@ func startTower() {
 			appMainFile, _ = filepath.Abs(appMainFile)
 			appBuildDir = filepath.Dir(appMainFile)
 		}
+
+		err := filepath.Walk(appBuildDir, func(filePath string, info os.FileInfo, e error) (err error) {
+			if e != nil {
+				return e
+			}
+			if info.IsDir() {
+				return
+			}
+			name := info.Name()
+			if strings.HasPrefix(name, BinPrefix) {
+				err = os.Remove(filePath)
+				if err != nil {
+					return
+				}
+			}
+			return
+		})
+		if err != nil {
+			log.Error(err)
+		}
+
 	}
 	app = NewApp(appMainFile, appPort, appBuildDir, portParamName)
 	app.OfflineMode = offlineMode

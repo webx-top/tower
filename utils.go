@@ -52,7 +52,7 @@ func isFreePort(port string) bool {
 
 func mustSuccess(err error) {
 	if err != nil {
-		panic(err)
+		panic(err.Error())
 	}
 }
 

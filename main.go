@@ -36,6 +36,7 @@ var (
 	_adminPwd      *string
 	_adminIPs      *string
 	_pxyEngine     *string
+	_autoClear     *bool
 
 	app   App
 	build string = "1"
@@ -53,6 +54,7 @@ func main() {
 	_configFile = flag.String("c", ConfigName, "yaml configuration file location.")
 	_adminPwd = flag.String("w", "", "admin password.")
 	_adminIPs = flag.String("i", "127.0.0.1,::1", "admin allow IP.")
+	_autoClear = flag.Bool("a", true, "automatically deletes previously compiled files when you startup Tower in the compile mode")
 
 	flag.Parse()
 
@@ -184,6 +186,7 @@ func startTower() {
 		verbose            = *_verbose
 		adminPwd           = *_adminPwd
 		adminIPs           = *_adminIPs
+		autoClear          = *_autoClear
 		allowBuild         = atob(build)
 		suffix             = ".exe"
 		_suffix            = ""
@@ -207,11 +210,12 @@ func startTower() {
 		}
 		appPort, _ = newmap["app_port"]
 		pxyPort, _ = newmap["pxy_port"]
-
 		if v, ok := newmap["pxy_engine"]; ok {
 			pxyEngine = v
 		}
-
+		if v, ok := newmap["auto_clear"]; ok {
+			autoClear = atob(v)
+		}
 		appBuildDir, _ = newmap["app_buildDir"]
 		portParamName, _ = newmap["app_portParamName"]
 		runParams, _ = newmap["app_runParams"]
@@ -279,27 +283,27 @@ func startTower() {
 			appMainFile, _ = filepath.Abs(appMainFile)
 			appBuildDir = filepath.Dir(appMainFile)
 		}
-
-		err := filepath.Walk(appBuildDir, func(filePath string, info os.FileInfo, e error) (err error) {
-			if e != nil {
-				return e
-			}
-			if info.IsDir() {
-				return
-			}
-			name := info.Name()
-			if strings.HasPrefix(name, BinPrefix) {
-				err = os.Remove(filePath)
-				if err != nil {
+		if autoClear {
+			err := filepath.Walk(appBuildDir, func(filePath string, info os.FileInfo, e error) (err error) {
+				if e != nil {
+					return e
+				}
+				if info.IsDir() {
 					return
 				}
+				name := info.Name()
+				if strings.HasPrefix(name, BinPrefix) {
+					err = os.Remove(filePath)
+					if err != nil {
+						return
+					}
+				}
+				return
+			})
+			if err != nil {
+				log.Error(err)
 			}
-			return
-		})
-		if err != nil {
-			log.Error(err)
 		}
-
 	}
 	app = NewApp(appMainFile, appPort, appBuildDir, portParamName)
 	app.OfflineMode = offlineMode

@@ -56,7 +56,7 @@ func (r *ProxyRouter) EndRequest(reqData *reverseproxy.RequestData, isDead bool,
 	r.logEntry = fn()
 	r.resultIsDead = isDead
 	if !r.Proxy.App.DisabledLogRequest {
-		log.Infof("%7s %s => Completed %d in %vs", r.logEntry.Method, r.logEntry.Path, r.logEntry.StatusCode, r.logEntry.TotalDuration.Seconds())
+		log.Infof("== Request: %7s %s => Completed %d in %vs", r.logEntry.Method, r.logEntry.Path, r.logEntry.StatusCode, r.logEntry.TotalDuration.Seconds())
 	}
 	return nil
 }

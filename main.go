@@ -37,6 +37,7 @@ var (
 	_adminIPs      *string
 	_pxyEngine     *string
 	_autoClear     *bool
+	_logLevel      *string
 
 	app   App
 	build string = "1"
@@ -55,6 +56,7 @@ func main() {
 	_adminPwd = flag.String("w", "", "admin password.")
 	_adminIPs = flag.String("i", "127.0.0.1,::1", "admin allow IP.")
 	_autoClear = flag.Bool("a", true, "automatically deletes previously compiled files when you startup Tower in the compile mode")
+	_logLevel = flag.String("log", "Info", "logger level(Debug/Info/Warn/Error/Fatal)")
 
 	flag.Parse()
 
@@ -188,6 +190,7 @@ func startTower() {
 		adminIPs           = *_adminIPs
 		autoClear          = *_autoClear
 		allowBuild         = atob(build)
+		logLevel           = *_logLevel
 		suffix             = ".exe"
 		_suffix            = ""
 		watchedFiles       string
@@ -201,12 +204,12 @@ func startTower() {
 	}
 	contents, err := ioutil.ReadFile(configFile)
 	if err != nil {
-		fmt.Println(err)
+		log.Error(err)
 	} else {
 		newmap := map[string]string{}
 		yamlErr := confl.Unmarshal(contents, &newmap)
 		if yamlErr != nil {
-			fmt.Println(yamlErr)
+			log.Error(yamlErr)
 		}
 		appPort, _ = newmap["app_port"]
 		pxyPort, _ = newmap["pxy_port"]
@@ -215,6 +218,9 @@ func startTower() {
 		}
 		if v, ok := newmap["auto_clear"]; ok {
 			autoClear = atob(v)
+		}
+		if v, ok := newmap["log_level"]; ok {
+			logLevel = v
 		}
 		appBuildDir, _ = newmap["app_buildDir"]
 		portParamName, _ = newmap["app_portParamName"]
@@ -251,16 +257,16 @@ func startTower() {
 		}
 	}
 
+	if verbose {
+		logLevel = `Debug`
+	}
+
+	log.DefaultLog.SetLevel(logLevel)
+
 	err = dialAddress("127.0.0.1:"+pxyPort, 1)
 	if err == nil {
 		log.Error("Error: port (" + pxyPort + ") already in used.")
 		os.Exit(1)
-	}
-
-	if verbose {
-		fmt.Println("== Application Info")
-		fmt.Printf("  build app with: %s\n", appMainFile)
-		fmt.Printf("  redirect requests from localhost:%s to localhost:%s\n\n", ProxyPort, appPort)
 	}
 	if !allowBuild {
 		if strings.Contains(appMainFile, `*`) {
@@ -329,7 +335,7 @@ func startTower() {
 	}
 	if allowBuild {
 		watcher.OnChanged = func(file string) {
-			log.Info(`== Build Mode.`)
+			log.Debug(`== Build Mode.`)
 			watcher.Reset()
 			fileName := filepath.Base(file)
 			if strings.HasPrefix(fileName, BinPrefix) {
@@ -357,7 +363,7 @@ func startTower() {
 		}
 	} else {
 		watcher.OnChanged = func(file string) {
-			log.Info(`== Switch Mode.`)
+			log.Debug(`== Switch Mode.`)
 			watcher.Reset()
 			if !app.SupportMutiPort() {
 				log.Error(`Unspecified switchable other ports.`)

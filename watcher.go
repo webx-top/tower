@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -69,7 +68,7 @@ func (this *Watcher) Watch() (err error) {
 		select {
 		case file := <-this.Watcher.Event:
 			if this.Paused {
-				log.Info(`Pause monitoring file changes.`)
+				log.Info(`== Pause monitoring file changes.`)
 				continue
 			}
 			// Skip TMP files for Sublime Text.
@@ -78,16 +77,16 @@ func (this *Watcher) Watch() (err error) {
 			}
 			if expectedFileReg.Match([]byte(file.Name)) == false {
 				if this.OnlyWatchBin {
-					log.Info("[IGNORE]", file.Name)
+					log.Info("== [IGNORE]", file.Name)
 				}
 				continue
 			}
 			mt := getFileModTime(file.Name)
 			if t := eventTime[file.Name]; mt == t {
-				log.Infof("[SKIP] # %s #", file.String())
+				log.Debugf("== [SKIP] # %s #", file.String())
 				continue
 			}
-			log.Infof("[EVEN] %s", file)
+			log.Infof("== [EVEN] %s", file)
 			eventTime[file.Name] = mt
 			go func() {
 				// Wait 1s before autobuild util there is no file change.
@@ -99,10 +98,10 @@ func (this *Watcher) Watch() (err error) {
 					}
 					return
 				}
-				log.Warn("== Change detected:", file.Name)
+				log.Warn("== Change detected: ", file.Name)
 				this.Changed = true
 				if this.OnChanged != nil {
-					log.Info("== Executive change event.")
+					log.Debug("== Executive change event.")
 					this.OnChanged(file.Name)
 				}
 			}()
@@ -118,7 +117,6 @@ func (this *Watcher) dirsToWatch() (dirs []string) {
 	matchedDirs := make(map[string]bool)
 	dir, _ := filepath.Abs("./")
 	matchedDirs[dir] = true
-	fmt.Println("")
 	for _, dir := range strings.Split(this.WatchedDir, `|`) {
 		if dir == "" {
 			continue
@@ -138,7 +136,8 @@ func (this *Watcher) dirsToWatch() (dirs []string) {
 			continue
 		}
 		log.Debug("")
-		log.Debug("Watch directory:", dir)
+		log.Debug("")
+		log.Debug("Watch directory: ", dir)
 		log.Debug("==================================================================")
 		filepath.Walk(dir, func(filePath string, info os.FileInfo, e error) (err error) {
 			if e != nil {

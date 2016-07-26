@@ -22,7 +22,7 @@ func init() {
 	}
 }
 
-const ConfigName = ".tower.yml"
+const ConfigName = "tower.yml"
 
 var (
 	_appMainFile   *string

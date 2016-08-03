@@ -33,7 +33,7 @@ tower -m app.go -p 3000-4000
 
 ```bash
 tower init
-vim .tower.yml
+vim tower.yml
 tower
 ```
 

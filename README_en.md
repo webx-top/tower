@@ -26,7 +26,7 @@ Or put them in a config file:
 
 ```bash
 tower init
-vim .tower.yml
+vim tower.yml
 tower
 ```
 

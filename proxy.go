@@ -36,7 +36,7 @@ func NewProxy(app *App, watcher *Watcher) (proxy Proxy) {
 func (this *Proxy) authAdmin(ctx reverseproxy.Context) bool {
 	pwd := ctx.QueryValue(`pwd`)
 	valid := false
-	if pwd != `` || pwd == this.AdminPwd {
+	if len(pwd) > 0 && pwd == this.AdminPwd {
 		valid = true
 	} else {
 		clientIP := ctx.RemoteAddr()

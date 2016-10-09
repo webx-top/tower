@@ -136,20 +136,20 @@ func findBinFile(f string) string {
 func checkBinFile(appMainFile string, suffix string, _suffix *string, appBuildDir *string) error {
 	_, err := os.Stat(appMainFile)
 	if err != nil {
-		if *c.Conf.App.BuildDir == `` {
-			return err
+		if len(*c.Conf.App.BuildDir) == 0 {
+			return errors.New(err.Error() + `: ` + appMainFile)
 		}
 		appMainFile = filepath.Join(*c.Conf.App.BuildDir, appMainFile)
 		_, err = os.Stat(appMainFile)
 		if err != nil {
-			return err
+			return errors.New(err.Error() + `: ` + appMainFile)
 		}
 	}
 	appMainFile, err = filepath.Abs(appMainFile)
 	if err != nil {
-		return err
+		return errors.New(err.Error() + `: ` + appMainFile)
 	}
-	if *c.Conf.App.BuildDir == `` {
+	if len(*c.Conf.App.BuildDir) == 0 {
 		*c.Conf.App.BuildDir = filepath.Dir(appMainFile)
 	}
 	fileName := filepath.Base(appMainFile)

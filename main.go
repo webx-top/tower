@@ -49,7 +49,7 @@ func main() {
 	c.Conf.LogRequest = flag.Bool("logRequest", true, "")
 	c.Conf.Watch.FileExtension = flag.String("fileExtention", "go", "")
 	c.Conf.Watch.OtherDir = flag.String("watchOtherDir", "", "")
-	c.Conf.Watch.IgnoredPath = flag.String("watchIgnoredPath", "", "")
+	c.Conf.Watch.IgnoredPath = flag.String("watchIgnoredPath", "/\\.git", "")
 
 	flag.Parse()
 
@@ -181,9 +181,35 @@ func startTower() {
 	if len(*c.Conf.ConfigFile) == 0 {
 		*c.Conf.ConfigFile = ConfigName
 	}
-	_, err := confl.DecodeFile(*c.Conf.ConfigFile, c.Conf)
+	configFile := *c.Conf.ConfigFile
+	_, err := confl.DecodeFile(configFile, c.Conf)
 	if err != nil {
-		log.Error(err.Error())
+		if strings.HasSuffix(err.Error(), `. Expected map but found 'string'.`) {
+			err = convertOldConfigFormat(configFile)
+			if err != nil {
+				log.Error(err.Error())
+			} else {
+				os.Rename(configFile, configFile+`.`+time.Now().Format(`20060102150405`))
+				c.Conf.Fixed()
+				configContent, err := confl.Marshal(c.Conf)
+				if err != nil {
+					log.Fatal(err)
+					return
+				}
+				_, err = saveFile(configFile, configContent)
+				if err != nil {
+					log.Error(err)
+					return
+				}
+				log.Info("== Upgrade config file " + ConfigName)
+			}
+		} else {
+			log.Error(err.Error())
+		}
+	} else {
+		if strings.Contains(*c.Conf.Watch.IgnoredPath, `\\`) {
+			*c.Conf.Watch.IgnoredPath = strings.Replace(*c.Conf.Watch.IgnoredPath, `\\`, `\`, -1)
+		}
 	}
 	c.Conf.Fixed()
 	if !allowBuild {

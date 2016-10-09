@@ -57,6 +57,10 @@ func (this *Proxy) authAdmin(ctx reverseproxy.Context) bool {
 }
 
 func (this *Proxy) Listen() error {
+	if this.App.DisabledVisitPort() || len(this.Port) == 0 {
+		<-make(chan int)
+		return nil
+	}
 	this.FirstRequest = &sync.Once{}
 	router := &ProxyRouter{Proxy: this}
 	router.dst = "http://localhost:" + app.Port

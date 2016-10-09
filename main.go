@@ -1,9 +1,9 @@
 package main
 
 import (
+	"errors"
 	"flag"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -12,6 +12,7 @@ import (
 
 	"github.com/admpub/confl"
 	"github.com/admpub/log"
+	c "github.com/webx-top/tower/config"
 )
 
 func init() {
@@ -25,38 +26,30 @@ func init() {
 const ConfigName = "tower.yml"
 
 var (
-	_appMainFile   *string
-	_appPort       *string
-	_pxyPort       *string
-	_appBuildDir   *string
-	_portParamName *string
-	_runParams     *string
-	_verbose       *bool
-	_configFile    *string
-	_adminPwd      *string
-	_adminIPs      *string
-	_pxyEngine     *string
-	_autoClear     *bool
-	_logLevel      *string
-
 	app   App
-	build string = "1"
+	build = "1"
 )
 
 func main() {
-	_appMainFile = flag.String("m", "", "path to your app's main file.")
-	_appPort = flag.String("p", "5001-5050", "port range of your app.")
-	_pxyPort = flag.String("r", "8080", "proxy port of your app.")
-	_pxyEngine = flag.String("e", "fast", "fast/standard")
-	_appBuildDir = flag.String("o", "", "save the executable file the folder.")
-	_portParamName = flag.String("n", "", "app's port param name.")
-	_runParams = flag.String("s", "", "app's run params.")
-	_verbose = flag.Bool("v", false, "show more stuff.")
-	_configFile = flag.String("c", ConfigName, "yaml configuration file location.")
-	_adminPwd = flag.String("w", "", "admin password.")
-	_adminIPs = flag.String("i", "127.0.0.1,::1", "admin allow IP.")
-	_autoClear = flag.Bool("a", true, "automatically deletes previously compiled files when you startup Tower in the compile mode")
-	_logLevel = flag.String("log", "Info", "logger level(Debug/Info/Warn/Error/Fatal)")
+	c.Conf.App.ExecFile = flag.String("f", "tower-app-*.exe", "path to your app's main file.")
+	c.Conf.App.MainFile = flag.String("m", "", "path to your app's main file.")
+	c.Conf.App.Port = flag.String("p", "5001-5050", "port range of your app.")
+	c.Conf.Proxy.Port = flag.String("r", "8080", "proxy port of your app.")
+	c.Conf.Proxy.Engine = flag.String("e", "fast", "fast/standard")
+	c.Conf.App.BuildDir = flag.String("o", "", "save the executable file the folder.")
+	c.Conf.App.PortParamName = flag.String("n", "", "app's port param name.")
+	c.Conf.App.RunParams = flag.String("s", "", "app's run params.")
+	c.Conf.Verbose = flag.Bool("v", false, "show more stuff.")
+	c.Conf.ConfigFile = flag.String("c", ConfigName, "yaml configuration file location.")
+	c.Conf.Admin.Password = flag.String("w", "", "admin password.")
+	c.Conf.Admin.IPs = flag.String("i", "127.0.0.1,::1", "admin allow IP.")
+	c.Conf.AutoClear = flag.Bool("a", true, "automatically deletes previously compiled files when you startup Tower in the compile mode")
+	c.Conf.LogLevel = flag.String("logLevel", "Debug", "logger level(Debug/Info/Warn/Error/Fatal)")
+	c.Conf.Offline = flag.Bool("offline", true, "offline mode")
+	c.Conf.LogRequest = flag.Bool("logRequest", true, "")
+	c.Conf.Watch.FileExtension = flag.String("fileExtention", "go", "")
+	c.Conf.Watch.OtherDir = flag.String("watchOtherDir", "", "")
+	c.Conf.Watch.IgnoredPath = flag.String("watchIgnoredPath", "", "")
 
 	flag.Parse()
 
@@ -65,7 +58,7 @@ func main() {
 		generateExampleConfig()
 		return
 	}
-	if !fileExist(*_configFile) {
+	if !fileExist(*c.Conf.ConfigFile) {
 		generateExampleConfig()
 	}
 	startTower()
@@ -87,13 +80,17 @@ func saveFile(filePath string, b []byte) (int, error) {
 }
 
 func generateExampleConfig() {
-	var configContent []byte
-	if atob(build) {
-		configContent = defaultDevConfig
-	} else {
-		configContent = defaultProdConfig
-	}
-	_, err := saveFile(ConfigName, configContent)
+	configContent := defaultConfig
+	var err error
+	/*
+		c.Conf.Fixed()
+		configContent, err = confl.Marshal(c.Conf)
+		if err != nil {
+			log.Fatal(err)
+			return
+		}
+	*/
+	_, err = saveFile(ConfigName, configContent)
 	if err != nil {
 		log.Error(err)
 		return
@@ -139,10 +136,10 @@ func findBinFile(f string) string {
 func checkBinFile(appMainFile string, suffix string, _suffix *string, appBuildDir *string) error {
 	_, err := os.Stat(appMainFile)
 	if err != nil {
-		if *appBuildDir == `` {
+		if *c.Conf.App.BuildDir == `` {
 			return err
 		}
-		appMainFile = filepath.Join(*appBuildDir, appMainFile)
+		appMainFile = filepath.Join(*c.Conf.App.BuildDir, appMainFile)
 		_, err = os.Stat(appMainFile)
 		if err != nil {
 			return err
@@ -152,8 +149,8 @@ func checkBinFile(appMainFile string, suffix string, _suffix *string, appBuildDi
 	if err != nil {
 		return err
 	}
-	if *appBuildDir == `` {
-		*appBuildDir = filepath.Dir(appMainFile)
+	if *c.Conf.App.BuildDir == `` {
+		*c.Conf.App.BuildDir = filepath.Dir(appMainFile)
 	}
 	fileName := filepath.Base(appMainFile)
 	AppBin = fileName
@@ -177,120 +174,61 @@ func checkBinFile(appMainFile string, suffix string, _suffix *string, appBuildDi
 
 func startTower() {
 	var (
-		appMainFile        = *_appMainFile
-		appPort            = *_appPort
-		pxyPort            = *_pxyPort
-		pxyEngine          = *_pxyEngine
-		appBuildDir        = *_appBuildDir
-		portParamName      = *_portParamName
-		runParams          = *_runParams
-		configFile         = *_configFile
-		verbose            = *_verbose
-		adminPwd           = *_adminPwd
-		adminIPs           = *_adminIPs
-		autoClear          = *_autoClear
-		allowBuild         = atob(build)
-		logLevel           = *_logLevel
-		suffix             = ".exe"
-		_suffix            = ""
-		watchedFiles       string
-		watchedOtherDir    string
-		ignoredPathPattern string
-		offlineMode        bool
-		disabledLogRequest bool
+		allowBuild = atob(build)
+		suffix     = ".exe"
+		_suffix    = ""
 	)
-	if configFile == "" {
-		configFile = ConfigName
+	if len(*c.Conf.ConfigFile) == 0 {
+		*c.Conf.ConfigFile = ConfigName
 	}
-	contents, err := ioutil.ReadFile(configFile)
+	_, err := confl.DecodeFile(*c.Conf.ConfigFile, c.Conf)
 	if err != nil {
-		log.Error(err)
-	} else {
-		newmap := map[string]string{}
-		yamlErr := confl.Unmarshal(contents, &newmap)
-		if yamlErr != nil {
-			log.Error(yamlErr)
-		}
-		appPort, _ = newmap["app_port"]
-		pxyPort, _ = newmap["pxy_port"]
-		if v, ok := newmap["pxy_engine"]; ok {
-			pxyEngine = v
-		}
-		if v, ok := newmap["auto_clear"]; ok {
-			autoClear = atob(v)
-		}
-		if v, ok := newmap["log_level"]; ok {
-			logLevel = v
-		}
-		appBuildDir, _ = newmap["app_buildDir"]
-		portParamName, _ = newmap["app_portParamName"]
-		runParams, _ = newmap["app_runParams"]
-		watchedFiles, _ = newmap["watch"]
-		watchedOtherDir, _ = newmap["watch_otherDir"] //编译模式下有效
-		ignoredPathPattern, _ = newmap["watch_ignoredPath"]
-		offlineModeStr, _ := newmap["offline_mode"]
-
-		if v, ok := newmap["admin_pwd"]; ok {
-			adminPwd = v
-		}
-		if v, ok := newmap["admin_ip"]; ok {
-			adminIPs = v
-		}
-		if atob(offlineModeStr) {
-			offlineMode = true
-		}
-		if logRequestStr, ok := newmap["log_request"]; ok {
-			disabledLogRequest = atob(logRequestStr) == false
-		}
-		if pxyPort == "" {
-			pxyPort = ProxyPort
-		}
-		if allowBuild {
-			appMainFile, _ = newmap["main"] //编译模式下有效
-		} else {
-			appMainFile, _ = newmap["exec"] //非编译模式下有效
-			if appMainFile == "" {
-				log.Error("请设置exec参数用来指定执行文件位置")
-				time.Sleep(time.Second * 10)
-				return
-			}
+		log.Error(err.Error())
+	}
+	c.Conf.Fixed()
+	if !allowBuild {
+		if len(*c.Conf.App.ExecFile) == 0 {
+			log.Error("请设置exec参数用来指定执行文件位置")
+			time.Sleep(time.Second * 10)
+			return
 		}
 	}
-
-	if verbose {
-		logLevel = `Debug`
+	if *c.Conf.Verbose {
+		*c.Conf.LogLevel = `Debug`
 	}
 
-	log.DefaultLog.SetLevel(logLevel)
-
-	err = dialAddress("127.0.0.1:"+pxyPort, 1)
-	if err == nil {
-		log.Error("Error: port (" + pxyPort + ") already in used.")
-		os.Exit(1)
+	log.DefaultLog.SetLevel(*c.Conf.LogLevel)
+	if len(*c.Conf.Proxy.Port) > 0 {
+		err := dialAddress("127.0.0.1:"+*c.Conf.Proxy.Port, 1)
+		if err == nil {
+			log.Error("Error: port (" + *c.Conf.Proxy.Port + ") already in used.")
+			os.Exit(1)
+		}
 	}
 	if !allowBuild {
-		if strings.Contains(appMainFile, `*`) {
-			orgiMainFile := appMainFile
-			appMainFile = findBinFile(appMainFile)
-			if appMainFile == `` {
-				if appBuildDir != `` {
-					appMainFile = filepath.Join(appBuildDir, orgiMainFile)
-					appMainFile = findBinFile(appMainFile)
+		if strings.Contains(*c.Conf.App.ExecFile, `*`) {
+			orgiMainFile := *c.Conf.App.ExecFile
+			*c.Conf.App.ExecFile = findBinFile(*c.Conf.App.ExecFile)
+			if len(*c.Conf.App.ExecFile) == 0 {
+				if len(*c.Conf.App.BuildDir) > 0 {
+					*c.Conf.App.ExecFile = filepath.Join(*c.Conf.App.BuildDir, orgiMainFile)
+					*c.Conf.App.ExecFile = findBinFile(*c.Conf.App.ExecFile)
 				}
 			}
 		}
-		if err := checkBinFile(appMainFile, suffix, &_suffix, &appBuildDir); err != nil {
+		if err := checkBinFile(*c.Conf.App.ExecFile, suffix, &_suffix, c.Conf.App.BuildDir); err != nil {
 			fmt.Println(err)
 			time.Sleep(time.Second * 300)
 			return
 		}
+		app = NewApp(*c.Conf.App.ExecFile, *c.Conf.App.Port, *c.Conf.App.BuildDir, *c.Conf.App.PortParamName)
 	} else {
-		if appBuildDir == `` {
-			appMainFile, _ = filepath.Abs(appMainFile)
-			appBuildDir = filepath.Dir(appMainFile)
+		if len(*c.Conf.App.BuildDir) == 0 {
+			*c.Conf.App.MainFile, _ = filepath.Abs(*c.Conf.App.MainFile)
+			*c.Conf.App.BuildDir = filepath.Dir(*c.Conf.App.MainFile)
 		}
-		if autoClear {
-			err := filepath.Walk(appBuildDir, func(filePath string, info os.FileInfo, e error) (err error) {
+		if *c.Conf.AutoClear {
+			err := filepath.Walk(*c.Conf.App.BuildDir, func(filePath string, info os.FileInfo, e error) (err error) {
 				if e != nil {
 					return e
 				}
@@ -310,28 +248,28 @@ func startTower() {
 				log.Error(err)
 			}
 		}
+		app = NewApp(*c.Conf.App.MainFile, *c.Conf.App.Port, *c.Conf.App.BuildDir, *c.Conf.App.PortParamName)
 	}
-	app = NewApp(appMainFile, appPort, appBuildDir, portParamName)
-	app.OfflineMode = offlineMode
-	app.DisabledLogRequest = disabledLogRequest
-	if runParams != `` {
-		app.RunParams = strings.Split(runParams, ` `)
+	app.OfflineMode = *c.Conf.Offline
+	app.DisabledLogRequest = *c.Conf.LogRequest == false
+	if len(*c.Conf.App.RunParams) > 0 {
+		app.RunParams = strings.Split(*c.Conf.App.RunParams, ` `)
 	}
 	watchedDir := app.Root
 	if !allowBuild {
-		if app.BuildDir != `` {
+		if len(app.BuildDir) > 0 {
 			watchedDir = app.BuildDir
 		}
 	}
-	if watchedOtherDir != "" {
-		watchedDir = watchedOtherDir + "|" + watchedDir
+	if len(*c.Conf.Watch.OtherDir) > 0 {
+		watchedDir = *c.Conf.Watch.OtherDir + "|" + watchedDir
 	}
-	watcher := NewWatcher(watchedDir, watchedFiles, ignoredPathPattern)
+	watcher := NewWatcher(watchedDir, *c.Conf.Watch.FileExtension, *c.Conf.Watch.IgnoredPath)
 	proxy := NewProxy(&app, &watcher)
-	proxy.AdminPwd = adminPwd
-	proxy.Engine = pxyEngine
-	if adminIPs != `` {
-		proxy.AdminIPs = strings.Split(adminIPs, `,`)
+	proxy.AdminPwd = *c.Conf.Admin.Password
+	proxy.Engine = *c.Conf.Proxy.Engine
+	if len(*c.Conf.Admin.IPs) > 0 {
+		proxy.AdminIPs = strings.Split(*c.Conf.Admin.IPs, `,`)
 	}
 	if allowBuild {
 		watcher.OnChanged = func(file string) {
@@ -342,18 +280,9 @@ func startTower() {
 				log.Info(`忽略`, fileName, `更改`)
 				return
 			}
-			if !app.SupportMutiPort() {
-				log.Error(`Unspecified switchable other ports.`)
-				return
-			}
-			port := app.UseRandPort()
-			for i := 0; i < 3 && port == app.Port; i++ {
-				app.Clean()
-				time.Sleep(time.Second)
-				port = app.UseRandPort()
-			}
-			if port == app.Port {
-				log.Error(`取得的端口与当前端口相同，无法编译切换`)
+			port, err := getPort()
+			if err != nil {
+				log.Error(err)
 				return
 			}
 			err = app.Start(true, port)
@@ -365,27 +294,17 @@ func startTower() {
 		watcher.OnChanged = func(file string) {
 			log.Debug(`== Switch Mode.`)
 			watcher.Reset()
-			if !app.SupportMutiPort() {
-				log.Error(`Unspecified switchable other ports.`)
+			port, err := getPort()
+			if err != nil {
+				log.Error(err)
 				return
 			}
-			port := app.UseRandPort()
-			for i := 0; i < 3 && port == app.Port; i++ {
-				app.Clean()
-				time.Sleep(time.Second)
-				port = app.UseRandPort()
-			}
-			if port == app.Port {
-				log.Error(`取得的端口与当前端口相同，无法切换`)
-				return
-			}
-
 			fileName := filepath.Base(file)
 			if !strings.HasPrefix(fileName, BinPrefix) {
 				log.Info(`忽略非`, BinPrefix, `前缀文件更改`)
 				return
 			}
-			if _suffix != "" {
+			if len(_suffix) > 0 {
 				fileName = strings.TrimSuffix(fileName, _suffix)
 			}
 			newAppBin := fileName
@@ -414,7 +333,7 @@ func startTower() {
 		watcher.OnlyWatchBin = true
 		app.DisabledBuild = true
 	}
-	proxy.Port = pxyPort
+	proxy.Port = *c.Conf.Proxy.Port
 	go func() {
 		mustSuccess(watcher.Watch())
 	}()
@@ -423,4 +342,23 @@ func startTower() {
 		log.Error(err)
 	}
 	mustSuccess(proxy.Listen())
+}
+
+func getPort() (port string, err error) {
+	if !app.DisabledVisitPort() {
+		if !app.SupportMutiPort() {
+			err = errors.New(`Unspecified switchable other ports.`)
+			return
+		}
+		port = app.UseRandPort()
+		for i := 0; i < 3 && port == app.Port; i++ {
+			app.Clean()
+			time.Sleep(time.Second)
+			port = app.UseRandPort()
+		}
+		if port == app.Port {
+			err = errors.New(`取得的端口与当前端口相同，无法编译切换`)
+		}
+	}
+	return
 }

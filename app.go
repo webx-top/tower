@@ -85,6 +85,10 @@ func NewApp(mainFile, port, buildDir, portParamName string) (app App) {
 	return
 }
 
+func (this *App) DisabledVisitPort() bool {
+	return len(this.Port) == 0 || len(this.PortParamName) == 0
+}
+
 func (this *App) ParseMutiPort(port string) {
 	p := strings.Split(port, `,`)
 	this.Ports = make(map[string]int64)
@@ -269,15 +273,21 @@ func (this *App) Run(port string) (err error) {
 	if err != nil {
 		return
 	}
-	log.Info("== Running at port " + port + ": " + this.Name)
-	ableSwitch := this.Port != port
-	this.Port = port //记录被使用的端口，避免下次使用
+	ableSwitch := true
+	disabledVisitPort := this.DisabledVisitPort()
+	if !disabledVisitPort {
+		log.Info("== Running at port " + port + ": " + this.Name)
+		ableSwitch = this.Port != port
+		this.Port = port //记录被使用的端口，避免下次使用
+	} else {
+		log.Info("== Running " + this.Name)
+	}
 
 	var cmd *exec.Cmd
 	this.portBinFiles[port] = bin
 	this.Ports[port] = time.Now().Unix()
 	params := []string{}
-	if this.SupportMutiPort() {
+	if !disabledVisitPort && this.SupportMutiPort() {
 		params = append(params, this.PortParamName)
 		params = append(params, port)
 	}
@@ -296,9 +306,11 @@ func (this *App) Run(port string) (err error) {
 			hasError = true
 		}
 	}()
-	err = dialAddress("127.0.0.1:"+this.Port, 60, func() bool {
-		return !hasError
-	})
+	if !disabledVisitPort {
+		err = dialAddress("127.0.0.1:"+this.Port, 60, func() bool {
+			return !hasError
+		})
+	}
 	if err == nil && ableSwitch {
 		this.SwitchToNewPort = true
 		if this.OfflineMode {

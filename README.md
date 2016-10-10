@@ -6,7 +6,7 @@ Tower 是一个为golang的web开发者提供的工具。它会动态监控文�
 
 ## 安装
 ```bash
-go get github.com/admpub/tower
+go get github.com/webx-top/tower
 ```
 
 ## 使用方法

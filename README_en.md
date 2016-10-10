@@ -6,7 +6,7 @@ runtime error through a clean page (see the demo below).
 
 ## Install
 ```bash
-go get github.com/admpub/tower
+go get github.com/webx-top/tower
 ```
 
 ## Usage

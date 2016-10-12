@@ -31,7 +31,7 @@ proxy {
   port : "8080"
 
   # 代理引擎。支持fast和standard
-  engine : "fast"
+  engine : "standard"
 }
 
 admin {

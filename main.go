@@ -35,7 +35,7 @@ func main() {
 	c.Conf.App.MainFile = flag.String("m", "", "path to your app's main file.")
 	c.Conf.App.Port = flag.String("p", "5001-5050", "port range of your app.")
 	c.Conf.Proxy.Port = flag.String("r", "8080", "proxy port of your app.")
-	c.Conf.Proxy.Engine = flag.String("e", "fast", "fast/standard")
+	c.Conf.Proxy.Engine = flag.String("e", "standard", "fast/standard")
 	c.Conf.App.BuildDir = flag.String("o", "", "save the executable file the folder.")
 	c.Conf.App.PortParamName = flag.String("n", "", "app's port param name.")
 	c.Conf.App.RunParams = flag.String("s", "", "app's run params.")

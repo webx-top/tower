@@ -47,7 +47,6 @@ type App struct {
 	restartErr         error
 	portBinFiles       map[string]string
 	DisabledLogRequest bool
-	oldBinFile         string
 }
 
 type StderrCapturer struct {
@@ -282,13 +281,13 @@ func (this *App) Run(port string) (err error) {
 		this.Port = port //记录被使用的端口，避免下次使用
 	} else {
 		log.Info("== Running " + this.Name)
-		cmd := this.GetCmd()
-		if cmd != nil && len(this.oldBinFile) > 0 {
+		cmd := this.GetCmd(port)
+		bin, _ := this.portBinFiles[port]
+		if cmd != nil && len(bin) > 0 {
 			defer func() {
 				if !CmdIsRunning(cmd) {
 					return
 				}
-				bin := this.BinFile(this.oldBinFile)
 				log.Info("== Stopping app: " + bin)
 				err := cmd.Process.Kill()
 				if err != nil {
@@ -356,7 +355,6 @@ func (this *App) Build() (err error) {
 	if this.DisabledBuild {
 		return nil
 	}
-	this.oldBinFile = AppBin
 	log.Info("== Building " + this.Name)
 	AppBin = BinPrefix + strconv.FormatInt(time.Now().Unix(), 10)
 	out, _ := exec.Command("go", "build", "-o", this.BinFile(), this.MainFile).CombinedOutput()

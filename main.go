@@ -371,6 +371,7 @@ func startTower() {
 }
 
 func getPort() (port string, err error) {
+	port = app.Port
 	if !app.DisabledVisitPort() {
 		if !app.SupportMutiPort() {
 			err = errors.New(`Unspecified switchable other ports.`)

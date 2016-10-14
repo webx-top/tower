@@ -23,7 +23,7 @@ const (
 
 var (
 	BinPrefix = "tower-app-"
-	AppBin    = BinPrefix + strconv.FormatInt(time.Now().Unix(), 10)
+	AppBin    = ""
 )
 
 type App struct {
@@ -47,6 +47,7 @@ type App struct {
 	restartErr         error
 	portBinFiles       map[string]string
 	DisabledLogRequest bool
+	oldBinFile         string
 }
 
 type StderrCapturer struct {
@@ -281,6 +282,37 @@ func (this *App) Run(port string) (err error) {
 		this.Port = port //记录被使用的端口，避免下次使用
 	} else {
 		log.Info("== Running " + this.Name)
+		cmd := this.GetCmd()
+		if cmd != nil && len(this.oldBinFile) > 0 {
+			defer func() {
+				if !CmdIsRunning(cmd) {
+					return
+				}
+				bin := this.BinFile(this.oldBinFile)
+				log.Info("== Stopping app: " + bin)
+				err := cmd.Process.Kill()
+				if err != nil {
+					log.Error(err)
+				}
+				err = os.Remove(bin)
+				if err == nil {
+					return
+				}
+
+				go func() {
+					for i := 0; i < 10; i++ {
+						time.Sleep(time.Second * time.Duration(i+1))
+						err = os.Remove(bin)
+						if err != nil {
+							log.Error(err)
+						} else {
+							log.Info(`== Remove ` + bin + `: Success.`)
+							return
+						}
+					}
+				}()
+			}()
+		}
 	}
 
 	var cmd *exec.Cmd
@@ -324,6 +356,7 @@ func (this *App) Build() (err error) {
 	if this.DisabledBuild {
 		return nil
 	}
+	this.oldBinFile = AppBin
 	log.Info("== Building " + this.Name)
 	AppBin = BinPrefix + strconv.FormatInt(time.Now().Unix(), 10)
 	out, _ := exec.Command("go", "build", "-o", this.BinFile(), this.MainFile).CombinedOutput()

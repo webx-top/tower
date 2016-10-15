@@ -300,7 +300,6 @@ func startTower() {
 	}
 	if allowBuild {
 		watcher.OnChanged = func(file string) {
-			log.Debug(`== Build Mode.`)
 			watcher.Reset()
 			fileName := filepath.Base(file)
 			if strings.HasPrefix(fileName, BinPrefix) {
@@ -319,13 +318,13 @@ func startTower() {
 		}
 	} else {
 		watcher.OnChanged = func(file string) {
-			log.Debug(`== Switch Mode.`)
 			watcher.Reset()
 			port, err := getPort()
 			if err != nil {
 				log.Error(err)
 				return
 			}
+			log.Debug(`== Switch port to `, port)
 			fileName := filepath.Base(file)
 			if !strings.HasPrefix(fileName, BinPrefix) {
 				log.Info(`忽略非`, BinPrefix, `前缀文件更改`)

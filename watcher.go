@@ -101,7 +101,6 @@ func (this *Watcher) Watch() (err error) {
 				log.Warn("== Change detected: ", file.Name)
 				this.Changed = true
 				if this.OnChanged != nil {
-					log.Debug("== Executive change event.")
 					this.OnChanged(file.Name)
 				}
 			}()

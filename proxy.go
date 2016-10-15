@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"strings"
 	"sync"
@@ -12,17 +13,22 @@ import (
 
 const ProxyPort = "8080"
 
+var errAppQuit = errors.New("== App quit unexpetedly")
+
 type Proxy struct {
-	App          *App
-	appOldPort   string
-	ReserveProxy reverseproxy.ReverseProxy
-	Watcher      *Watcher
-	FirstRequest *sync.Once
-	upgraded     int64
-	Port         string
-	AdminPwd     string
-	AdminIPs     []string
-	Engine       string
+	App                 *App
+	appOldPort          string
+	ReserveProxy        reverseproxy.ReverseProxy
+	Watcher             *Watcher
+	FirstRequest        *sync.Once
+	upgraded            int64
+	Port                string
+	AdminPwd            string
+	AdminIPs            []string
+	Engine              string
+	AutoRestartMaxTimes int
+	autoRestartTimes    int
+	waiting             bool
 }
 
 func NewProxy(app *App, watcher *Watcher) (proxy Proxy) {
@@ -30,6 +36,7 @@ func NewProxy(app *App, watcher *Watcher) (proxy Proxy) {
 	proxy.Watcher = watcher
 	proxy.Port = ProxyPort
 	proxy.AdminIPs = []string{`127.0.0.1`, `::1`}
+	proxy.AutoRestartMaxTimes = 3
 	return
 }
 
@@ -120,8 +127,29 @@ func (this *Proxy) Listen() error {
 				ctx.SetHeader(`X-Server-Upgraded`, fmt.Sprintf("%v", timeout))
 			}
 			if this.App.IsQuit() {
-				log.Warn("== App quit unexpetedly")
-				if err := this.App.Start(false); err != nil {
+				if this.waiting {
+					log.Warn(errAppQuit)
+					RenderError(ctx, this.App, "App quit unexpetedly.")
+					return true
+				}
+				this.waiting = true
+				err := errAppQuit
+				for ; this.autoRestartTimes < this.AutoRestartMaxTimes; this.autoRestartTimes++ {
+					var port string
+					port, err = getPort()
+					if err == nil {
+						err = this.App.Start(true, port)
+					}
+					if err == nil {
+						log.Error(err)
+					} else {
+						this.autoRestartTimes = 0
+						break
+					}
+				}
+				this.waiting = false
+				if err != nil {
+					log.Warn(errAppQuit)
 					RenderError(ctx, this.App, "App quit unexpetedly.")
 					return true
 				}

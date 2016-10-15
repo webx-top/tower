@@ -17,10 +17,11 @@ import (
 
 func init() {
 	log.DefaultLog.Category = `tower`
-	log.DefaultLog.SyncMode = true
+	log.Sync(true)
 	log.DefaultLog.Formatter = func(_ *log.Logger, e *log.Entry) string {
 		return e.Message
 	}
+	log.SetFatalAction(log.ActionExit)
 }
 
 const ConfigName = "tower.yml"

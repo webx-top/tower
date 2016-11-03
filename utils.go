@@ -4,8 +4,29 @@ import (
 	"errors"
 	"fmt"
 	"net"
+	"os"
+	"path/filepath"
 	"time"
 )
+
+var (
+	selfPath string
+	selfDir  string
+)
+
+func SelfPath() string {
+	if len(selfPath) == 0 {
+		selfPath, _ = filepath.Abs(os.Args[0])
+	}
+	return selfPath
+}
+
+func SelfDir() string {
+	if len(selfDir) == 0 {
+		selfDir = filepath.Dir(SelfPath())
+	}
+	return selfDir
+}
 
 func dialAddress(address string, timeOut int, args ...func() bool) (err error) {
 	seconds := 0

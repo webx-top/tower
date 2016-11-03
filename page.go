@@ -5,9 +5,8 @@ import (
 	"html/template"
 	"io/ioutil"
 	"os"
-	"path"
+	"path/filepath"
 	"regexp"
-	"runtime"
 	"strconv"
 	"strings"
 	"time"
@@ -18,12 +17,16 @@ import (
 var errorTemplate *template.Template
 
 func init() {
-	_, filename, _, _ := runtime.Caller(1)
-	pkgPath := path.Dir(filename)
-	templatePath := pkgPath + "/page.html"
+	templatePath := filepath.Join(SelfDir(), "page.html")
 
-	var err error
-	errorTemplate, err = template.ParseFiles(templatePath)
+	_, err := os.Stat(templatePath)
+	if err == nil {
+		errorTemplate, err = template.ParseFiles(templatePath)
+	} else {
+		errorTemplate = template.New(`defaultPage`)
+		_, err = errorTemplate.Parse(defaultPageHTML)
+	}
+
 	if err != nil {
 		panic(err)
 	}

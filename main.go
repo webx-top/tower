@@ -51,6 +51,7 @@ func main() {
 	c.Conf.Watch.FileExtension = flag.String("fileExtention", "go", "")
 	c.Conf.Watch.OtherDir = flag.String("watchOtherDir", "", "")
 	c.Conf.Watch.IgnoredPath = flag.String("watchIgnoredPath", "/\\.git", "")
+	prod := flag.String("prod", "", "Production mode")
 
 	flag.Parse()
 
@@ -61,6 +62,9 @@ func main() {
 	}
 	if !fileExist(*c.Conf.ConfigFile) {
 		generateExampleConfig()
+	}
+	if len(*prod) > 0 && atob(*prod) {
+		build = "0"
 	}
 	startTower()
 }

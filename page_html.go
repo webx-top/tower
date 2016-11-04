@@ -1,4 +1,6 @@
-<html>
+package main
+
+var defaultPageHTML = `<html>
   <head>
     <style>
       *{
@@ -134,3 +136,4 @@
     </div>
   </body>
 </html>
+`

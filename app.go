@@ -70,7 +70,17 @@ func (this StderrCapturer) Write(p []byte) (n int, err error) {
 
 func NewApp(mainFile, port, buildDir, portParamName string) (app App) {
 	app.Cmds = make(map[string]*exec.Cmd)
-	app.MainFile = mainFile
+	goPath := os.Getenv(`GOPATH`)
+	if len(goPath) > 0 && !strings.HasSuffix(mainFile, `.go`) {
+		var err error
+		goPath, err = filepath.Abs(goPath)
+		if err != nil {
+			panic(err.Error())
+		}
+		app.MainFile = strings.TrimPrefix(mainFile, string(append([]byte(filepath.Join(goPath, `src`)), filepath.Separator)))
+	} else {
+		app.MainFile = mainFile
+	}
 	app.BuildDir = buildDir
 	app.PortParamName = portParamName
 	app.ParseMutiPort(port)

@@ -13,6 +13,7 @@ type App struct {
 	Port          *string `json:"port"`
 	PortParamName *string `json:"portParamName"`
 	BuildDir      *string `json:"buildDir"`
+	BuildParams   *string `json:"buildParams"`
 	RunParams     *string `json:"params"`
 }
 
@@ -40,6 +41,10 @@ func (a *App) Fixed() {
 	if a.RunParams == nil {
 		s := ``
 		a.RunParams = &s
+	}
+	if a.BuildParams == nil {
+		s := ``
+		a.BuildParams = &s
 	}
 }
 

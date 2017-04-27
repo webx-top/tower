@@ -30,6 +30,7 @@ type App struct {
 	OfflineMode        bool
 	Cmds               map[string]*exec.Cmd
 	RunParams          []string
+	BuildParams        []string
 	MainFile           string
 	Port               string
 	Ports              map[string]int64
@@ -92,6 +93,7 @@ func NewApp(mainFile, port, buildDir, portParamName string) (app App) {
 	app.AppRestart = &sync.Once{}
 	app.portBinFiles = make(map[string]string)
 	app.RunParams = []string{}
+	app.BuildParams = []string{}
 	return
 }
 
@@ -367,7 +369,10 @@ func (this *App) Build() (err error) {
 	}
 	log.Info("== Building " + this.Name)
 	AppBin = BinPrefix + strconv.FormatInt(time.Now().Unix(), 10)
-	out, _ := exec.Command("go", "build", "-o", this.BinFile(), this.MainFile).CombinedOutput()
+	args := []string{"build"}
+	args = append(args, this.BuildParams...)
+	args = append(args, []string{"-o", this.BinFile(), this.MainFile}...)
+	out, _ := exec.Command("go", args...).CombinedOutput()
 	if len(out) > 0 {
 		msg := strings.Replace(string(out), "# command-line-arguments\n", "", 1)
 		log.Errorf("----------- Build Error -----------\n%s-----------------------------------", msg)

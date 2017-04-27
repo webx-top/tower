@@ -40,6 +40,7 @@ func main() {
 	c.Conf.App.BuildDir = flag.String("o", "", "save the executable file the folder.")
 	c.Conf.App.PortParamName = flag.String("n", "", "app's port param name.")
 	c.Conf.App.RunParams = flag.String("s", "", "app's run params.")
+	c.Conf.App.BuildParams = flag.String("b", "", "build params.")
 	c.Conf.Verbose = flag.Bool("v", false, "show more stuff.")
 	c.Conf.ConfigFile = flag.String("c", ConfigName, "yaml configuration file location.")
 	c.Conf.Admin.Password = flag.String("w", "", "admin password.")
@@ -284,7 +285,30 @@ func startTower() {
 	app.OfflineMode = *c.Conf.Offline
 	app.DisabledLogRequest = *c.Conf.LogRequest == false
 	if len(*c.Conf.App.RunParams) > 0 {
-		app.RunParams = strings.Split(*c.Conf.App.RunParams, ` `)
+		delim := ` `
+		param := *c.Conf.App.RunParams
+		//:<分割符>:<参数>
+		if param[0] == ':' {
+			param = strings.TrimPrefix(param, `:`)
+			if pos := strings.Index(param, `:`); pos > 0 {
+				delim = param[0:pos]
+				param = param[pos+1:]
+			}
+		}
+		app.RunParams = strings.Split(param, delim)
+	}
+	if len(*c.Conf.App.BuildParams) > 0 {
+		delim := ` `
+		param := *c.Conf.App.BuildParams
+		//:<分割符>:<参数>
+		if param[0] == ':' {
+			param = strings.TrimPrefix(param, `:`)
+			if pos := strings.Index(param, `:`); pos > 0 {
+				delim = param[0:pos]
+				param = param[pos+1:]
+			}
+		}
+		app.BuildParams = strings.Split(param, delim)
 	}
 	watchedDir := app.Root
 	if !allowBuild {

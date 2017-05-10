@@ -184,13 +184,13 @@ func getFileModTime(path string) (int64, bool) {
 	defer f.Close()
 	if err != nil {
 		log.Errorf("Fail to open file[ %s ]", err)
-		return time.Now().Unix()
+		return time.Now().Unix(), false
 	}
 
 	fi, err := f.Stat()
 	if err != nil {
 		log.Errorf("Fail to get file information[ %s ]", err)
-		return time.Now().Unix()
+		return time.Now().Unix(), false
 	}
 
 	return fi.ModTime().Unix(), fi.IsDir()

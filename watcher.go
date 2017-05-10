@@ -75,7 +75,7 @@ func (this *Watcher) Watch() (err error) {
 			if checkTMPFile(file.Name) {
 				continue
 			}
-			if expectedFileReg.Match([]byte(file.Name)) == false {
+			if expectedFileReg.MatchString(file.Name) == false {
 				if this.OnlyWatchBin {
 					log.Info("== [IGNORE]", file.Name)
 				}
@@ -146,7 +146,7 @@ func (this *Watcher) dirsToWatch() (dirs []string) {
 				return e
 			}
 			filePath = strings.Replace(filePath, "\\", "/", -1)
-			if !info.IsDir() || ignoredPathReg.Match([]byte(filePath)) || ignoredPathReg.Match([]byte(filePath+`/`)) {
+			if !info.IsDir() || ignoredPathReg.MatchString(filePath) || ignoredPathReg.MatchString(filePath+`/`) {
 				return
 			}
 			if mch, _ := matchedDirs[filePath]; mch {

@@ -81,7 +81,10 @@ func (this *Watcher) Watch() (err error) {
 				}
 				continue
 			}
-			mt := getFileModTime(file.Name)
+			mt, isDir := getFileModTime(file.Name)
+			if file.IsCreate() && isDir {
+				this.Watcher.Watch(file.Name)
+			}
 			if t := eventTime[file.Name]; mt == t {
 				log.Debugf("== [SKIP] # %s #", file.String())
 				continue
@@ -156,7 +159,7 @@ func (this *Watcher) dirsToWatch() (dirs []string) {
 		log.Debug("")
 		log.Debug("")
 	}
-	for dir, _ := range matchedDirs {
+	for dir := range matchedDirs {
 		dirs = append(dirs, dir)
 	}
 	return
@@ -175,7 +178,7 @@ func checkTMPFile(name string) bool {
 }
 
 // getFileModTime retuens unix timestamp of `os.File.ModTime` by given path.
-func getFileModTime(path string) int64 {
+func getFileModTime(path string) (int64, bool) {
 	path = strings.Replace(path, "\\", "/", -1)
 	f, err := os.Open(path)
 	defer f.Close()
@@ -190,5 +193,5 @@ func getFileModTime(path string) int64 {
 		return time.Now().Unix()
 	}
 
-	return fi.ModTime().Unix()
+	return fi.ModTime().Unix(), fi.IsDir()
 }

@@ -174,6 +174,10 @@ func (this *Proxy) Listen() error {
 					this.waiting = &sync.Once{}
 				})
 				if err != nil {
+					if this.App.buildErr != nil {
+						RenderBuildError(ctx, this.App, this.App.buildErr.Error())
+						return true
+					}
 					log.Warn(errAppQuit)
 					RenderError(ctx, this.App, "App quit unexpetedly.")
 					return true

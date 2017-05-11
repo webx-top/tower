@@ -7,6 +7,8 @@ import (
 	"sync"
 	"time"
 
+	"net/http"
+
 	"github.com/admpub/log"
 	"github.com/webx-top/reverseproxy"
 )
@@ -28,7 +30,7 @@ type Proxy struct {
 	Engine              string
 	AutoRestartMaxTimes int
 	autoRestartTimes    int
-	waiting             bool
+	waiting             *sync.Once
 }
 
 func NewProxy(app *App, watcher *Watcher) (proxy Proxy) {
@@ -37,6 +39,7 @@ func NewProxy(app *App, watcher *Watcher) (proxy Proxy) {
 	proxy.Port = ProxyPort
 	proxy.AdminIPs = []string{`127.0.0.1`, `::1`}
 	proxy.AutoRestartMaxTimes = 3
+	proxy.waiting = &sync.Once{}
 	return
 }
 
@@ -71,7 +74,7 @@ func (this *Proxy) Listen() error {
 	this.FirstRequest = &sync.Once{}
 	router := &ProxyRouter{Proxy: this}
 	router.dst = "http://localhost:" + app.Port
-	engine := ``
+	var engine string
 	if strings.ToLower(this.Engine) == `fast` {
 		this.ReserveProxy = &reverseproxy.FastReverseProxy{PassingBrowsingURL: true}
 		engine = `FastHTTP`
@@ -86,25 +89,46 @@ func (this *Proxy) Listen() error {
 		RequestIDHeader: "X-Request-ID",
 		ResponseBefore: func(ctx reverseproxy.Context) bool {
 			switch ctx.RequestPath() {
+			case "/tower-proxy/watch/restart":
+				status := `done`
+				code := 200
+				if !this.authAdmin(ctx) {
+					code = http.StatusUnauthorized
+					status = `Authentication failed`
+				} else {
+					err := this.App.Restart()
+					if err != nil {
+						code = http.StatusInternalServerError
+						status = err.Error()
+					}
+				}
+				ctx.SetStatusCode(code)
+				ctx.SetBody([]byte(status))
+				return true
+
 			case "/tower-proxy/watch/pause":
 				status := `done`
+				code := 200
 				if !this.authAdmin(ctx) {
+					code = http.StatusUnauthorized
 					status = `Authentication failed`
 				} else {
 					this.Watcher.Paused = true
 				}
-				ctx.SetStatusCode(200)
+				ctx.SetStatusCode(code)
 				ctx.SetBody([]byte(status))
 				return true
 
 			case "/tower-proxy/watch/begin":
 				status := `done`
+				code := 200
 				if !this.authAdmin(ctx) {
+					code = http.StatusUnauthorized
 					status = `Authentication failed`
 				} else {
 					this.Watcher.Paused = false
 				}
-				ctx.SetStatusCode(200)
+				ctx.SetStatusCode(code)
 				ctx.SetBody([]byte(status))
 				return true
 
@@ -127,27 +151,28 @@ func (this *Proxy) Listen() error {
 				ctx.SetHeader(`X-Server-Upgraded`, fmt.Sprintf("%v", timeout))
 			}
 			if this.App.IsQuit() {
-				if this.waiting {
-					log.Warn(errAppQuit)
-					RenderError(ctx, this.App, "App quit unexpetedly.")
-					return true
-				}
-				this.waiting = true
 				err := errAppQuit
-				for ; this.autoRestartTimes < this.AutoRestartMaxTimes; this.autoRestartTimes++ {
-					var port string
-					port, err = getPort()
-					if err == nil {
-						err = this.App.Start(true, port)
+				this.waiting.Do(func() {
+					if !this.App.IsQuit() {
+						this.waiting = &sync.Once{}
+						return
 					}
-					if err == nil {
+					for ; this.autoRestartTimes < this.AutoRestartMaxTimes; this.autoRestartTimes++ {
+						this.App.Stop(this.App.Port)
+						this.App.Clean()
+						var port string
+						port, err = getPort()
+						if err == nil {
+							err = this.App.Start(true, port)
+						}
+						if err == nil {
+							this.autoRestartTimes = 0
+							break
+						}
 						log.Error(err)
-					} else {
-						this.autoRestartTimes = 0
-						break
 					}
-				}
-				this.waiting = false
+					this.waiting = &sync.Once{}
+				})
 				if err != nil {
 					log.Warn(errAppQuit)
 					RenderError(ctx, this.App, "App quit unexpetedly.")
@@ -160,6 +185,9 @@ func (this *Proxy) Listen() error {
 			if len(this.App.LastError) != 0 {
 				RenderAppError(ctx, this.App, this.App.LastError)
 				return true
+			}
+			if ctx.IsDead() {
+				RenderError(ctx, this.App, "App quit unexpetedly.")
 			}
 			return false
 		},

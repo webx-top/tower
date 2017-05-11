@@ -4,6 +4,7 @@ import (
 	"io"
 	"log"
 	"net/http"
+	"flag"
 )
 
 func HelloServer(w http.ResponseWriter, req *http.Request) {
@@ -11,8 +12,11 @@ func HelloServer(w http.ResponseWriter, req *http.Request) {
 }
 
 func main() {
+	appPort := flag.String("p", "5000", "port of your app.")
+	flag.Parse()
+
 	http.HandleFunc("/", HelloServer)
-	err := http.ListenAndServe(":5000", nil)
+	err := http.ListenAndServe(":"+*appPort, nil)
 	if err != nil {
 		log.Fatal("ListenAndServe: ", err)
 	}

@@ -4,7 +4,7 @@ logRequest : true
 autoClear : true
 offline : false
 app {
-  exec : "test/dev/tower-app-*.exe"
+  exec : "test/tower-app-*.exe"
   main : "test/dev/server1.go"
   port : "5001-5010"
   portParamName : "-p"
@@ -21,6 +21,6 @@ admin {
 }
 watch {
   fileExtension : "go"
-  otherDir : "../|../../webx-top"
+  #otherDir : "../|../../webx-top"
   ignoredPath : "(/\.git|/configs/|/nowatch/)"
 }

@@ -14,7 +14,11 @@ import (
 	"github.com/webx-top/reverseproxy"
 )
 
-var errorTemplate *template.Template
+var (
+	errorTemplate      *template.Template
+	regexMemAddrSuffix = regexp.MustCompile(` [(+]0x[a-z0-9]+[)]?$`)
+	regexIP4Prefix     = regexp.MustCompile(`.+\d+\.\d+.\d+.\d+\:\d+\: `)
+)
 
 func init() {
 	templatePath := filepath.Join(SelfDir(), "page.html")
@@ -54,7 +58,7 @@ func RenderAppError(ctx reverseproxy.Context, app *App, errMessage string) {
 
 	// from: 2013/02/12 18:24:15 http: panic serving 127.0.0.1:54114: Validation Error
 	//   to: Validation Error
-	message[0] = string(regexp.MustCompile(`.+\d+\.\d+.\d+.\d+\:\d+\: `).ReplaceAll([]byte(message[0]), []byte("")))
+	message[0] = regexIP4Prefix.ReplaceAllString(message[0], "")
 	if !strings.Contains(message[0], "runtime error") {
 		message[0] = "panic: " + message[0]
 	}
@@ -65,11 +69,13 @@ func RenderAppError(ctx reverseproxy.Context, app *App, errMessage string) {
 
 	// from: test/server1.go:16 (0x211e)
 	//	 to: [test/server1.go, 16]
-	appFileInfo := strings.Split(strings.Split(trace[appIndex].File, " ")[0], ":")
-	info.SnippetPath = appFileInfo[0]
-	info.ShowSnippet = true
-	curLineNum, _ := strconv.ParseInt(appFileInfo[1], 10, 16)
-	info.Snippet = extractAppSnippet(appFileInfo[0], int(curLineNum))
+	if appIndex >= 0 && appIndex < len(trace) {
+		tr := trace[appIndex]
+		info.SnippetPath = tr.File
+		var err error
+		info.Snippet, err = extractAppSnippet(tr.File, tr.Line)
+		info.ShowSnippet = err == nil
+	}
 
 	info.Prepare()
 	renderPage(ctx, info)
@@ -103,37 +109,50 @@ func extractAppErrorInfo(errMessage string) (message []string, trace []Trace, ap
 	// from: /Users/user/tower/test/server1.go:16 (0x211e)
 	// 		   Panic: panic(errors.New("Panic !!"))
 	//   to: <n>//Users/user/tower/test/server1.go:16 (0x211e)<n>Panic: panic(errors.New("Panic !!"))
-	errMessage = strings.Replace(strings.Replace(errMessage, "\n", "<n>", -1), "<n>/", "<n>//", -1)
+	errMessage = strings.Replace(errMessage, "\n\t", `<nt>`, -1)
+	errMessage = strings.Replace(errMessage, "\n", `<n>`, -1)
 
 	wd, _ := os.Getwd()
-	wd = wd + "/"
-	for i, line := range strings.Split(errMessage, "<n>/") {
-		lines := strings.Split(line, "<n>")
-		if i == 0 {
+	wd = filepath.ToSlash(wd) + "/"
+	appIndex = -1
+	for _, line := range strings.Split(errMessage, `<n>`) {
+		if len(line) == 0 { //另一个Goroutine开始
+			continue
+		}
+		lines := strings.Split(line, `<nt>`)
+		if !strings.HasSuffix(lines[0], `:`) && len(message) == 0 {
 			message = lines
+		}
+		if len(lines) < 2 {
 			continue
 		}
 
-		t := Trace{Func: lines[1]}
-		if strings.Index(lines[0], wd) != -1 {
-			if appIndex == 0 {
-				appIndex = i - 1
+		t := Trace{Func: lines[0], File: lines[1]}
+		if strings.Index(t.File, wd) != -1 {
+			if appIndex == -1 {
+				appIndex = len(trace)
 			}
 			t.AppFile = true
 		}
-		t.File = strings.Replace(lines[0], wd, "", 1)
+		t.File = strings.Replace(t.File, wd, "", 1)
 		// from: /Users/user/tower/test/server1.go:16 (0x211e)
+		// or from:  /Users/user/tower/test/server1.go:16 +0x211e
 		//   to: /Users/user/tower/test/server1.go:16
-		t.File = string(regexp.MustCompile(`\(.+\)$`).ReplaceAll([]byte(t.File), []byte("")))
+		t.File = regexMemAddrSuffix.ReplaceAllString(t.File, "")
+		t.File = strings.TrimSpace(t.File)
+		if p := strings.LastIndex(t.File, `:`); p > 0 {
+			t.Line, _ = strconv.Atoi(t.File[p+1:])
+			t.File = t.File[0:p]
+		}
 		trace = append(trace, t)
 	}
 	return
 }
 
-func extractAppSnippet(appFile string, curLineNum int) (snippet []Snippet) {
+func extractAppSnippet(appFile string, curLineNum int) (snippet []Snippet, err error) {
 	content, err := ioutil.ReadFile(appFile)
 	if err != nil {
-		panic(err)
+		return nil, err
 	}
 	lines := strings.Split(string(content), "\n")
 	for lineNum := curLineNum - SnippetLineNumbers/2; lineNum <= curLineNum+SnippetLineNumbers/2; lineNum++ {
@@ -167,6 +186,7 @@ type Snippet struct {
 }
 
 type Trace struct {
+	Line    int
 	File    string
 	Func    string
 	AppFile bool

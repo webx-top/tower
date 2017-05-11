@@ -43,11 +43,13 @@ type App struct {
 	SwitchToNewPort    bool
 	DisabledBuild      bool
 	BuildStart         *sync.Once
-	startErr           error
 	AppRestart         *sync.Once
-	restartErr         error
-	portBinFiles       map[string]string
 	DisabledLogRequest bool
+
+	portBinFiles map[string]string
+	buildErr     error
+	startErr     error
+	restartErr   error
 }
 
 type StderrCapturer struct {
@@ -124,7 +126,7 @@ func (this *App) SupportMutiPort() bool {
 }
 
 func (this *App) UseRandPort() string {
-	lastRunTime := make([]int64, 0)
+	var lastRunTime []int64
 	lastRunPorts := make(map[int64]string, 0)
 	for port, runningTime := range this.Ports {
 		if runningTime == 0 || this.IsRunning(port) == false || isFreePort(port) {
@@ -143,9 +145,10 @@ func (this *App) UseRandPort() string {
 func (this *App) Start(build bool, args ...string) error {
 	this.BuildStart.Do(func() {
 		if build {
-			this.startErr = this.Build()
-			if this.startErr != nil {
-				log.Error("== Fail to build " + this.Name + ": " + this.startErr.Error())
+			this.buildErr = this.Build()
+			if this.buildErr != nil {
+				log.Error("== Fail to build " + this.Name + ": " + this.buildErr.Error())
+				this.startErr = this.buildErr
 				this.BuildStart = &sync.Once{}
 				return
 			}
@@ -230,9 +233,13 @@ func (this *App) Stop(port string, args ...string) {
 	}()
 }
 
-func (this *App) Clean() {
+func (this *App) Clean(excludePorts ...string) {
+	excludePort := this.Port
+	if len(excludePorts) > 0 {
+		excludePort = excludePorts[0]
+	}
 	for port, cmd := range this.Cmds {
-		if port == this.Port || !CmdIsRunning(cmd) {
+		if port == excludePort || !CmdIsRunning(cmd) {
 			continue
 		}
 		log.Info("== Stopping app at port: " + port)

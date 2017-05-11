@@ -1,77 +1,60 @@
 package main
 
-var defaultPageHTML = `<html>
+var defaultPageHTML = `<!DOCTYPE html>
+<html lang="en">
   <head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>{{.Title}} - Powered by Tower</title>
     <style>
-      *{
-        font-family: Helvetica Neue, Arial, Verdana, sans-serif;
-      }
-      body{
-        margin: 0;
-      }
+      *{font-family: Helvetica Neue, Arial, Verdana, sans-serif;}
+      body{margin: 0;}
       .header{
         width:100%;
         height: 70px;
-        background-color: #D8E5F2;
+        background-color: burlywood;
       }
       h1{
         font-size: 30px;
         line-height: 70px;
-        width: 880px;
+        max-width: 880px;
         margin: 0 auto;
         padding-left: 20px;
       }
       .content{
-        width: 880px;
+        max-width: 880px;
         margin: 0 auto;
         padding-left:20px;
       }
-
-      h2{
-        font-size:20px;
-      }
-
-      .message{
-        margin: 40px 0 60px 0;
-      }
-
+      h2{font-size:20px;}
+      .message{margin: 40px 0 60px 0;}
       .snippet, .trace{
         margin-left: -15px;
         padding:14px;
-        border: 1px solid #D8E5F2;
+        border: 1px solid burlywood;
         border-radius: 5px;
         -moz-border-radius: 5px;
         -webkit-border-radius: 5px;
         margin-bottom: 30px;
       }
-
-      .numbers, .codes{
-        line-height: 22px;
-      }
+      dl{margin:0}
+      .numbers, .codes{line-height: 22px;}
+      .bold{font-weight:bold;}
+      dd.codes{margin:0;min-height:22px}
       .numbers{
         float:left;
         text-align: right;
         margin-right: 15px;
         color: #929292;
       }
-
       .trace ul{
         padding: 0;
         margin: 0;
         list-style: none;
       }
-      .trace ul li{
-        margin-bottom: 10px;
-      }
-
-      .trace .func{
-        color: #929292;
-      }
-
-      .clearfix{
-        clear: both;
-      }
-
+      .trace ul li{margin-bottom: 10px;}
+      .trace .func{color: #929292;}
+      .clearfix{clear: both;}
     </style>
   </head>
   <body>
@@ -84,32 +67,20 @@ var defaultPageHTML = `<html>
         {{.Message}}
       </div>
 
-
       {{if .ShowSnippet}}
       <h2>{{.SnippetPath}}</h2>
       <div class="snippet">
-        <div class="numbers">
           {{range .Snippet}}
+          <dl>
             {{if .Current}}
-              <strong>{{.Number}}</strong>
+              <dt class="numbers bold">{{.Number}}</dt>
+              <dd class="codes bold">{{.Code}}</dd>
             {{else}}
-              {{.Number}}
+              <dt class="numbers">{{.Number}}</dt>
+              <dd class="codes">{{.Code}}</dd>
             {{end}}
-            <br/>
+          </dl>
           {{end}}
-        </div>
-
-        <div class="codes">
-          {{range .Snippet}}
-            {{if .Current}}
-              <strong>{{.Code}}</strong>
-            {{else}}
-              {{.Code}}
-            {{end}}
-            <br/>
-          {{end}}
-        </div>
-        <div class="clearfix"></div>
       </div>
       {{end}}
 

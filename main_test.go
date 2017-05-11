@@ -2,37 +2,40 @@ package main
 
 import (
 	"fmt"
-	"github.com/shaoshing/gotest"
 	"io/ioutil"
 	"net/http"
-	"os/exec"
 	"testing"
 	"time"
+
+	"os"
+
+	"github.com/stretchr/testify/assert"
+	c "github.com/webx-top/tower/config"
 )
 
 func TestCmd(t *testing.T) {
-	assert.Test = t
-
-	go startTower("", "", true)
-	err := dialAddress("127.0.0.1:8000", 60)
+	confFile := `test/dev/configs/tower.yml`
+	c.Conf.ConfigFile = &confFile
+	go startTower()
+	err := dialAddress("127.0.0.1:8080", 60)
 	if err != nil {
 		panic(err)
 	}
 	defer func() {
-		app.Stop()
+		app.Clean()
 		fmt.Println("\n\n\n\n\n")
 	}()
 
-	assert.Equal("server 1", get("http://127.0.0.1:8000/"))
-	assert.Equal("server 1", get("http://127.0.0.1:8000/?k=v1&k=v2&k1=v3")) // Test logging parameters
-	assert.Equal("server 1", get("http://127.0.0.1:5000/"))
+	assert.Equal(t, "server 1", get("http://127.0.0.1:8080/"))
+	assert.Equal(t, "server 1", get("http://127.0.0.1:8080/?k=v1&k=v2&k1=v3")) // Test logging parameters
+	assert.Equal(t, "server 1", get("http://127.0.0.1:"+app.Port+"/"))
 
-	app.Stop()
+	app.Clean()
 	concurrency := 10
 	compileChan := make(chan bool)
 	for i := 0; i < concurrency; i++ {
 		go func() {
-			get("http://127.0.0.1:8000/")
+			get("http://127.0.0.1:8080/")
 			compileChan <- true
 		}()
 	}
@@ -41,30 +44,53 @@ func TestCmd(t *testing.T) {
 		select {
 		case <-compileChan:
 		case <-time.After(10 * time.Second):
-			assert.TrueM(false, "Timeout on concurrency testing.")
+			assert.True(t, false, "Timeout on concurrency testing.")
 		}
 	}
 
 	// test app exits unexpectedly
-	assert.Contain("App quit unexpetedly", get("http://127.0.0.1:8000/exit")) // should restart the application
+	assert.Contains(t, get("http://127.0.0.1:8080/exit"), "App quit unexpetedly") // should restart the application
 
 	// test error page
-	highlightCode := `<strong>&nbsp;&nbsp;&nbsp;&nbsp;`
-	assert.Contain("panic: Panic !!", get("http://127.0.0.1:8000/panic"))                   // should be able to detect panic
-	assert.Contain(highlightCode+`panic(errors.New`, get("http://127.0.0.1:8000/panic"))    // should show code snippet
-	assert.Contain(`<strong>36`, get("http://127.0.0.1:8000/panic"))                        // should show line number
-	assert.Contain("runtime error: index out of range", get("http://127.0.0.1:8000/error")) // should be able to detect runtime error
-	assert.Contain(highlightCode+`paths[0]`, get("http://127.0.0.1:8000/error"))            // should show code snippet
-	assert.Contain(`<strong>17`, get("http://127.0.0.1:8000/error"))                        // should show line number
+	highlightCode := `<dd class="codes bold">&nbsp;&nbsp;&nbsp;&nbsp;`
+	assert.Contains(t, get("http://127.0.0.1:8080/panic"), ": Panic !!")                        // should be able to detect panic
+	assert.Contains(t, get("http://127.0.0.1:8080/panic"), highlightCode+`panic(errors.New`)    // should show code snippet
+	assert.Contains(t, get("http://127.0.0.1:8080/panic"), `<dt class="numbers bold">40`)       // should show line number
+	assert.Contains(t, get("http://127.0.0.1:8080/error"), "runtime error: index out of range") // should be able to detect runtime error
+	assert.Contains(t, get("http://127.0.0.1:8080/error"), highlightCode+`paths[0]`)            // should show code snippet
+	assert.Contains(t, get("http://127.0.0.1:8080/error"), `<dt class="numbers bold">18`)       // should show line number
+	/*
+		defer exec.Command("git", "checkout", "test").Run()
 
-	defer exec.Command("git", "checkout", "test").Run()
+		exec.Command("cp", "test/files/server2.go_", "test/server1.go").Run()
+	*/
 
-	exec.Command("cp", "test/files/server2.go_", "test/server1.go").Run()
-	time.Sleep(100 * time.Millisecond)
-	assert.Equal("server 2", get("http://127.0.0.1:8000/"))
+	os.Rename(`test/dev/server1.go`, `test/dev/server1.go_`)
+	reverse := func() {
+		os.Remove(`test/dev/server1.go`)
+		os.Rename(`test/dev/server1.go_`, `test/dev/server1.go`)
+	}
+	err = copy(`test/dev/files/server2.go_`, `test/dev/server1.go`)
+	if err != nil {
+		reverse()
+		panic(err)
+	}
 
-	exec.Command("cp", "test/files/error.go_", "test/server1.go").Run()
-	assert.Match("Build Error", get("http://127.0.0.1:8000/"))
+	time.Sleep(5 * time.Second)
+	assert.Equal(t, "server 2", get("http://127.0.0.1:8080/"))
+
+	//exec.Command("cp", "test/files/error.go_", "test/server1.go").Run()
+
+	err = copy(`test/dev/files/error.go_`, `test/dev/server1.go`)
+	if err != nil {
+		reverse()
+		panic(err)
+	}
+
+	time.Sleep(5 * time.Second)
+	assert.Contains(t, get("http://127.0.0.1:8080/"), "Build Error")
+	time.Sleep(5 * time.Second)
+	reverse()
 }
 
 func get(url string) string {
@@ -72,6 +98,15 @@ func get(url string) string {
 	if err != nil {
 		panic(err)
 	}
-	b_body, _ := ioutil.ReadAll(resp.Body)
-	return string(b_body)
+	b, _ := ioutil.ReadAll(resp.Body)
+	return string(b)
+}
+
+func copy(src string, dest string) error {
+	b, e := ioutil.ReadFile(src)
+	if e != nil {
+		return e
+	}
+	e = ioutil.WriteFile(dest, b, os.ModePerm)
+	return e
 }

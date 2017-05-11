@@ -92,10 +92,10 @@ var defaultPageHTML = `<!DOCTYPE html>
           {{range .Trace}}
           <li>
             {{if .AppFile}}
-              <strong>{{.File}}</strong>
+              <strong>{{.File}}:{{.Line}}</strong>
             {{end}}
             {{if not .AppFile}}
-              {{.File}}
+              {{.File}}:{{.Line}}
             {{end}}
             <br/>
             <span class="func">{{.Func}}</span>

@@ -2,7 +2,9 @@
 
 Tower 是一个为golang的web开发者提供的工具。它会动态监控文件更改并自动重新编译运行您的golang源码。
 它采用了反向代理的方式，自动将用户的访问代理到新的程序，然后关闭并删除旧程序，这样就可以最大限度的做到零下线升级您的golang应用。
-如果编译失败或出现异常，Tower会通过一个整洁的页面显示这些信息。
+
+如果编译失败或出现异常，Tower会通过一个整洁的页面显示这些信息：
+[![](https://github.com/webx-top/tower/blob/master/test/trace.png?raw=true)](https://github.com/webx-top/tower/blob/master/test/trace.png)
 
 ## 安装
 ```bash

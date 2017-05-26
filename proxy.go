@@ -197,12 +197,12 @@ func (this *Proxy) Listen() error {
 		},
 	}
 	this.appOldPort = app.Port
-	addr, err := this.ReserveProxy.Initialize(config)
+	err := this.ReserveProxy.Initialize(config)
 	if err != nil {
 		return err
 	}
 	log.Info("== Listening to " + router.dst)
-	log.Info(`== Server(`+engine+`) Address:`, addr)
+	log.Info(`== Server(`+engine+`) Address`, config.Listen)
 	this.ReserveProxy.Listen()
 	this.ReserveProxy.Stop()
 	return nil

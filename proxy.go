@@ -202,7 +202,7 @@ func (this *Proxy) Listen() error {
 		return err
 	}
 	log.Info("== Listening to " + router.dst)
-	log.Info(`== Server(`+engine+`) Address`, config.Listen)
+	log.Info(`== Server(`+engine+`) Address `, config.Listen)
 	this.ReserveProxy.Listen()
 	this.ReserveProxy.Stop()
 	return nil

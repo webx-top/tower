@@ -16,6 +16,7 @@ import (
 	"time"
 
 	"github.com/admpub/log"
+	"github.com/webx-top/com"
 )
 
 const (
@@ -26,6 +27,7 @@ var (
 	BinPrefix = "tower-app-"
 	AppBin    = ""
 	findPackage = regexp.MustCompile(`:[\s]*cannot find package "([^"]+)" in any of:`)
+	findPackage2 = regexp.MustCompile(`:[\s]*unrecognized import path "([^"]+)"[\s]*\(`)
 )
 
 type App struct {
@@ -372,6 +374,58 @@ func (this *App) Run(port string) (err error) {
 	return
 }
 
+func (this *App) fetchPkg(matches [][]string)bool{
+	alldl:=true
+	for _, match := range matches{
+		pkg:=match[1]
+		var moveTo string
+		if len(pkg)> 0 {
+			switch pkg[0:10] {
+			case `golang.org`:
+				moveTo=pkg
+				pkg=strings.TrimPrefix(pkg,`golang.org/x/`)
+				pkg=`github.com/golang/`+pkg
+			}
+		}
+		cmd:=exec.Command("go","get","-v",pkg)
+		cmd.Stdin=os.Stdin
+		cmd.Stderr=os.Stderr
+		cmd.Stdout=os.Stdout
+		err:=cmd.Run()
+		if err!= nil {
+			matches2:=findPackage2.FindAllStringSubmatch(err.Error(),-1)
+			if len(matches2)>0 {
+				if this.fetchPkg(matches2) {
+					err=nil
+				}
+			}
+		}
+		if err!= nil {
+			log.Error(err)
+			alldl=false
+			continue
+		}
+		if len(moveTo)>0 {
+			goPath:=os.Getenv(`GOPATH`)
+			fromPath:=filepath.Join(goPath,`src`,pkg)
+			toPath:=filepath.Join(goPath,`src`,moveTo)
+			err=os.MkdirAll(toPath,os.ModePerm)
+			if err!=nil {
+				log.Error(err,`: `,toPath)
+				alldl=false
+				continue
+			}
+			err=com.CopyDir(fromPath,toPath)
+			if err!= nil {
+				log.Error(err,`: `,fromPath,` => `,toPath)
+				alldl=false
+				continue
+			}
+		}
+	}
+	return alldl
+}
+
 func (this *App) Build() (err error) {
 	if this.DisabledBuild {
 		return nil
@@ -385,47 +439,7 @@ func (this *App) Build() (err error) {
 	if len(out) > 0 {
 		matches := findPackage.FindAllStringSubmatch(string(out),-1)
 		if len(matches)>0 {
-			alldl:=true
-			for _, match := range matches{
-				pkg:=match[1]
-				var moveTo string
-				if len(pkg)> 0 {
-					switch pkg[0:10] {
-					case `golang.org`:
-						moveTo=pkg
-						pkg=strings.TrimPrefix(pkg,`golang.org/x/`)
-						pkg=`github.com/golang/`+pkg
-					}
-				}
-				cmd:=exec.Command("go","get","-v",pkg)
-				cmd.Stdin=os.Stdin
-				cmd.Stderr=os.Stderr
-				cmd.Stdout=os.Stdout
-				err:=cmd.Run()
-				if err!= nil {
-					log.Error(err)
-					alldl=false
-					continue
-				}
-				if len(moveTo)>0 {
-					goPath:=os.Getenv(`GOPATH`)
-					fromPath:=filepath.Join(goPath,`src`,pkg)
-					toPath:=filepath.Join(goPath,`src`,moveTo)
-					err=os.MkdirAll(toPath,os.ModePerm)
-					if err!=nil {
-						log.Error(err,`: `,toPath)
-						alldl=false
-						continue
-					}
-					err=os.Rename(fromPath,toPath)
-					if err!= nil {
-						log.Error(err,`: `,fromPath,` => `,toPath)
-						alldl=false
-						continue
-					}
-				}
-			}
-			if alldl {
+			if this.fetchPkg(matches) {
 				out, _ = exec.Command("go", args...).CombinedOutput()
 			}
 		}

@@ -28,6 +28,7 @@ var (
 	AppBin    = ""
 	findPackage = regexp.MustCompile(`:[\s]*cannot find package "([^"]+)" in any of:`)
 	findPackage2 = regexp.MustCompile(`:[\s]*unrecognized import path "([^"]+)"[\s]*\(`)
+	movePackage =regexp.MustCompile(`can't load package: package [^:]+: code in directory ([^\s]+) expects import "([^"]+)"`)
 )
 
 type App struct {
@@ -379,12 +380,16 @@ func (this *App) fetchPkg(matches [][]string,isRetry bool)bool{
 	for _, match := range matches{
 		pkg:=match[1]
 		var moveTo string
-		if len(pkg)> 0 {
+		if len(pkg)> 10 {
 			switch pkg[0:10] {
 			case `golang.org`:
-				moveTo=pkg
 				pkg=strings.TrimPrefix(pkg,`golang.org/x/`)
-				pkg=`github.com/golang/`+pkg
+				repertory:=strings.SplitN(pkg,`/`,2)[0]
+				pkg=`github.com/golang/`+repertory
+				moveTo=`golang.org/x/`+repertory
+			case `github.com`:
+				arr:=strings.SplitN(pkg,`/`,4)
+				pkg=strings.Join(arr[0:3],`/`)
 			}
 		}
 		cmd:=exec.Command("go","get","-v",pkg)
@@ -402,8 +407,27 @@ func (this *App) fetchPkg(matches [][]string,isRetry bool)bool{
 		}
 		if err!= nil {
 			log.Error(err)
-			alldl=false
-			continue
+			match:=movePackage.FindStringSubmatch(err.Error())
+			if len(match)>0{
+				fromPath:=match[1]
+				moveTo:=match[2]
+				goPath:=os.Getenv(`GOPATH`)
+				toPath:=filepath.Join(goPath,`src`,moveTo)
+				err=os.MkdirAll(toPath,os.ModePerm)
+				if err!=nil {
+					log.Error(err,`: `,toPath)
+					alldl=false
+					continue
+				}
+				err=com.CopyDir(fromPath,toPath)
+				if err!= nil {
+					log.Error(err,`: `,fromPath,` => `,toPath)
+					alldl=false
+					continue
+				}
+			}else{
+				alldl=false
+			}
 		}
 		if len(moveTo)>0 {
 			goPath:=os.Getenv(`GOPATH`)

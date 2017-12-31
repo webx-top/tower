@@ -374,7 +374,7 @@ func (this *App) Run(port string) (err error) {
 	return
 }
 
-func (this *App) fetchPkg(matches [][]string)bool{
+func (this *App) fetchPkg(matches [][]string,isRetry bool)bool{
 	alldl:=true
 	for _, match := range matches{
 		pkg:=match[1]
@@ -392,10 +392,10 @@ func (this *App) fetchPkg(matches [][]string)bool{
 		cmd.Stderr=os.Stderr
 		cmd.Stdout=os.Stdout
 		err:=cmd.Run()
-		if err!= nil {
+		if err!= nil && !isRetry {
 			matches2:=findPackage2.FindAllStringSubmatch(err.Error(),-1)
 			if len(matches2)>0 {
-				if this.fetchPkg(matches2) {
+				if this.fetchPkg(matches2,true) {
 					err=nil
 				}
 			}
@@ -439,7 +439,7 @@ func (this *App) Build() (err error) {
 	if len(out) > 0 {
 		matches := findPackage.FindAllStringSubmatch(string(out),-1)
 		if len(matches)>0 {
-			if this.fetchPkg(matches) {
+			if this.fetchPkg(matches,false) {
 				out, _ = exec.Command("go", args...).CombinedOutput()
 			}
 		}

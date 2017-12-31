@@ -1,6 +1,7 @@
 package main
 
 import (
+	"regexp"
 	"bufio"
 	"errors"
 	"fmt"
@@ -24,6 +25,7 @@ const (
 var (
 	BinPrefix = "tower-app-"
 	AppBin    = ""
+	findPackage = regexp.MustCompile(`:[\s]*cannot find package "([^"]+)" in any of:`)
 )
 
 type App struct {
@@ -381,9 +383,57 @@ func (this *App) Build() (err error) {
 	args = append(args, []string{"-o", this.BinFile(), this.MainFile}...)
 	out, _ := exec.Command("go", args...).CombinedOutput()
 	if len(out) > 0 {
-		msg := strings.Replace(string(out), "# command-line-arguments\n", "", 1)
-		log.Errorf("----------- Build Error -----------\n%s-----------------------------------", msg)
-		return errors.New(msg)
+		matches := findPackage.FindAllStringSubmatch(string(out),-1)
+		if len(matches)>0 {
+			alldl:=true
+			for _, match := range matches{
+				pkg:=match[1]
+				var moveTo string
+				if len(pkg)> 0 {
+					switch pkg[0:10] {
+					case `golang.org`:
+						moveTo=pkg
+						pkg=strings.TrimPrefix(pkg,`golang.org/x/`)
+						pkg=`github.com/golang/`+pkg
+					}
+				}
+				cmd:=exec.Command("go","get","-v",pkg)
+				cmd.Stdin=os.Stdin
+				cmd.Stderr=os.Stderr
+				cmd.Stdout=os.Stdout
+				err:=cmd.Run()
+				if err!= nil {
+					log.Error(err)
+					alldl=false
+					continue
+				}
+				if len(moveTo)>0 {
+					goPath:=os.Getenv(`GOPATH`)
+					fromPath:=filepath.Join(goPath,`src`,pkg)
+					toPath:=filepath.Join(goPath,`src`,moveTo)
+					err=os.MkdirAll(toPath,os.ModePerm)
+					if err!=nil {
+						log.Error(err,`: `,toPath)
+						alldl=false
+						continue
+					}
+					err=os.Rename(fromPath,toPath)
+					if err!= nil {
+						log.Error(err,`: `,fromPath,` => `,toPath)
+						alldl=false
+						continue
+					}
+				}
+			}
+			if alldl {
+				out, _ = exec.Command("go", args...).CombinedOutput()
+			}
+		}
+		if len(out) > 0 {
+			msg := strings.Replace(string(out), "# command-line-arguments\n", "", 1)
+			log.Errorf("----------- Build Error -----------\n%s-----------------------------------", msg)
+			return errors.New(msg)
+		}
 	}
 	log.Info("== Build completed.")
 	return nil

@@ -7,8 +7,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/admpub/fsnotify"
 	"github.com/admpub/log"
-	"github.com/howeyc/fsnotify"
 )
 
 const (
@@ -54,7 +54,7 @@ func NewWatcher(dir, filePattern, ignoredPathPattern string) (w Watcher) {
 
 func (this *Watcher) Watch() (err error) {
 	for _, dir := range this.dirsToWatch() {
-		err = this.Watcher.Watch(dir)
+		err = this.Watcher.Add(dir)
 		if err != nil {
 			return
 		}
@@ -66,7 +66,7 @@ func (this *Watcher) Watch() (err error) {
 	expectedFileReg := regexp.MustCompile(filePattern)
 	for {
 		select {
-		case file := <-this.Watcher.Event:
+		case file := <-this.Watcher.Events:
 			if this.Paused {
 				log.Info(`== Pause monitoring file changes.`)
 				continue
@@ -82,8 +82,8 @@ func (this *Watcher) Watch() (err error) {
 				continue
 			}
 			mt, isDir := getFileModTime(file.Name)
-			if file.IsCreate() && isDir {
-				this.Watcher.Watch(file.Name)
+			if file.Op == fsnotify.Create && isDir {
+				this.Watcher.Add(file.Name)
 			}
 			if t := eventTime[file.Name]; mt == t {
 				log.Debugf("== [SKIP] # %s #", file.String())
@@ -107,7 +107,7 @@ func (this *Watcher) Watch() (err error) {
 					this.OnChanged(file.Name)
 				}
 			}()
-		case err := <-this.Watcher.Error:
+		case err := <-this.Watcher.Errors:
 			log.Warn(err) // No need to exit here
 		}
 	}

@@ -1,6 +1,5 @@
 tmp
 /test/*.exe
-/vendor
 /tower_darwin_386
 /tower_darwin_amd64
 /tower_linux_386

@@ -1,0 +1,8 @@
+package: github.com/webx-top/reverseproxy
+import:
+- package: github.com/admpub/manners
+- package: github.com/nu7hatch/gouuid
+- package: github.com/valyala/fasthttp
+testImport:
+- package: golang.org/x/net/websocket
+- package: gopkg.in/check.v1

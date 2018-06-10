@@ -1,0 +1,24 @@
+hash: 62941b3e9400f6bbe9e3a2dcb30b09c040907448970af6296fdae861d67beb2b
+updated: 2016-06-23T14:01:07.3198606+08:00
+imports:
+- name: github.com/admpub/manners
+  version: 72097fd728f7b61a5454fd5bc4a7fa5c73176e85
+- name: github.com/klauspost/compress
+  version: 14eb9c4951195779ecfbec34431a976de7335b0a
+  subpackages:
+  - flate
+  - gzip
+  - zlib
+- name: github.com/klauspost/cpuid
+  version: 09cded8978dc9e80714c4d85b0322337b0a1e5e0
+- name: github.com/klauspost/crc32
+  version: 19b0b332c9e4516a6370a0456e6182c3b5036720
+- name: github.com/nu7hatch/gouuid
+  version: 179d4d0c4d8d407a32af483c2354df1d2c91e6c3
+- name: github.com/valyala/fasthttp
+  version: 44c592bdbf865a4477274dc8e3e95b1c13961a06
+testImports:
+- name: golang.org/x/net/websocket
+  version: 44c592bdbf865a4477274dc8e3e95b1c13961a06
+- name: gopkg.in/check.v1
+  version: 4f90aeace3a26ad7021961c297b22c42160c7b25

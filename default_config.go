@@ -77,58 +77,58 @@ func convertOldConfigFormat(configFile string) error {
 		return err
 	}
 	if v, ok := newmap["app_port"]; ok {
-		c.Conf.App.Port = &v
+		c.Conf.App.Port = v
 	}
 	if v, ok := newmap["pxy_port"]; ok {
-		c.Conf.Proxy.Port = &v
+		c.Conf.Proxy.Port = v
 	}
 	if v, ok := newmap["pxy_engine"]; ok {
-		c.Conf.Proxy.Engine = &v
+		c.Conf.Proxy.Engine = v
 	}
 	if v, ok := newmap["auto_clear"]; ok {
 		b := atob(v)
-		c.Conf.AutoClear = &b
+		c.Conf.AutoClear = b
 	}
 	if v, ok := newmap["log_level"]; ok {
-		c.Conf.LogLevel = &v
+		c.Conf.LogLevel = v
 	}
 	if v, ok := newmap["app_buildDir"]; ok {
-		c.Conf.App.BuildDir = &v
+		c.Conf.App.BuildDir = v
 	}
 	if v, ok := newmap["app_portParamName"]; ok {
-		c.Conf.App.PortParamName = &v
+		c.Conf.App.PortParamName = v
 	}
 	if v, ok := newmap["app_runParams"]; ok {
-		c.Conf.App.RunParams = &v
+		c.Conf.App.RunParams = v
 	}
 	if v, ok := newmap["watch"]; ok {
-		c.Conf.Watch.FileExtension = &v
+		c.Conf.Watch.FileExtension = v
 	}
 	if v, ok := newmap["watch_otherDir"]; ok {
-		c.Conf.Watch.OtherDir = &v
+		c.Conf.Watch.OtherDir = v
 	} //编译模式下有效
 	if v, ok := newmap["watch_ignoredPath"]; ok {
-		c.Conf.Watch.IgnoredPath = &v
+		c.Conf.Watch.IgnoredPath = v
 	}
 	if v, ok := newmap["offline_mode"]; ok {
 		b := atob(v)
-		c.Conf.Offline = &b
+		c.Conf.Offline = b
 	}
 	if v, ok := newmap["admin_pwd"]; ok {
-		c.Conf.Admin.Password = &v
+		c.Conf.Admin.Password = v
 	}
 	if v, ok := newmap["admin_ip"]; ok {
-		c.Conf.Admin.IPs = &v
+		c.Conf.Admin.IPs = v
 	}
 	if v, ok := newmap["log_request"]; ok {
 		b := atob(v)
-		c.Conf.LogRequest = &b
+		c.Conf.LogRequest = b
 	}
 	if v, ok := newmap["main"]; ok {
-		c.Conf.App.MainFile = &v
+		c.Conf.App.MainFile = v
 	} //编译模式下有效
 	if v, ok := newmap["exec"]; ok {
-		c.Conf.App.ExecFile = &v
+		c.Conf.App.ExecFile = v
 	} //非编译模式下有效
 	return nil
 }

@@ -15,7 +15,7 @@ import (
 
 func TestCmd(t *testing.T) {
 	confFile := `test/dev/configs/tower.yml`
-	c.Conf.ConfigFile = &confFile
+	c.Conf.ConfigFile = confFile
 	go startTower()
 	err := dialAddress("127.0.0.1:8080", 60)
 	if err != nil {
@@ -23,7 +23,11 @@ func TestCmd(t *testing.T) {
 	}
 	defer func() {
 		app.Clean()
-		fmt.Println("\n\n\n\n\n")
+		fmt.Println("")
+		fmt.Println("")
+		fmt.Println("")
+		fmt.Println("")
+		fmt.Println("")
 	}()
 
 	assert.Equal(t, "server 1", get("http://127.0.0.1:8080/"))

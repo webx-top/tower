@@ -32,26 +32,26 @@ var (
 )
 
 func main() {
-	c.Conf.App.ExecFile = flag.String("f", "tower-app-*.exe", "path to your app's main file.")
-	c.Conf.App.MainFile = flag.String("m", "", "path to your app's main file.")
-	c.Conf.App.Port = flag.String("p", "5001-5050", "port range of your app.")
-	c.Conf.Proxy.Port = flag.String("r", "8080", "proxy port of your app.")
-	c.Conf.Proxy.Engine = flag.String("e", "standard", "fast/standard")
-	c.Conf.App.BuildDir = flag.String("o", "", "save the executable file the folder.")
-	c.Conf.App.PortParamName = flag.String("n", "", "app's port param name.")
-	c.Conf.App.RunParams = flag.String("s", "", "app's run params.")
-	c.Conf.App.BuildParams = flag.String("b", "", "build params.")
-	c.Conf.Verbose = flag.Bool("v", false, "show more stuff.")
-	c.Conf.ConfigFile = flag.String("c", ConfigName, "yaml configuration file location.")
-	c.Conf.Admin.Password = flag.String("w", "", "admin password.")
-	c.Conf.Admin.IPs = flag.String("i", "127.0.0.1,::1", "admin allow IP.")
-	c.Conf.AutoClear = flag.Bool("a", true, "automatically deletes previously compiled files when you startup Tower in the compile mode")
-	c.Conf.LogLevel = flag.String("logLevel", "Debug", "logger level(Debug/Info/Warn/Error/Fatal)")
-	c.Conf.Offline = flag.Bool("offline", true, "offline mode")
-	c.Conf.LogRequest = flag.Bool("logRequest", true, "")
-	c.Conf.Watch.FileExtension = flag.String("fileExtention", "go", "")
-	c.Conf.Watch.OtherDir = flag.String("watchOtherDir", "", "")
-	c.Conf.Watch.IgnoredPath = flag.String("watchIgnoredPath", "/\\.git", "")
+	flag.StringVar(&c.Conf.App.ExecFile, "f", "tower-app-*.exe", "path to your app's main file.")
+	flag.StringVar(&c.Conf.App.MainFile, "m", "", "path to your app's main file.")
+	flag.StringVar(&c.Conf.App.Port, "p", "5001-5050", "port range of your app.")
+	flag.StringVar(&c.Conf.Proxy.Port, "r", "8080", "proxy port of your app.")
+	flag.StringVar(&c.Conf.Proxy.Engine, "e", "standard", "fast/standard")
+	flag.StringVar(&c.Conf.App.BuildDir, "o", "", "save the executable file the folder.")
+	flag.StringVar(&c.Conf.App.PortParamName, "n", "", "app's port param name.")
+	flag.StringVar(&c.Conf.App.RunParams, "s", "", "app's run params.")
+	flag.StringVar(&c.Conf.App.BuildParams, "b", "", "build params.")
+	flag.BoolVar(&c.Conf.Verbose, "v", false, "show more stuff.")
+	flag.StringVar(&c.Conf.ConfigFile, "c", ConfigName, "yaml configuration file location.")
+	flag.StringVar(&c.Conf.Admin.Password, "w", "", "admin password.")
+	flag.StringVar(&c.Conf.Admin.IPs, "i", "127.0.0.1,::1", "admin allow IP.")
+	flag.BoolVar(&c.Conf.AutoClear, "a", true, "automatically deletes previously compiled files when you startup Tower in the compile mode")
+	flag.StringVar(&c.Conf.LogLevel, "logLevel", "Debug", "logger level(Debug/Info/Warn/Error/Fatal)")
+	flag.BoolVar(&c.Conf.Offline, "offline", true, "offline mode")
+	flag.BoolVar(&c.Conf.LogRequest, "logRequest", true, "")
+	flag.StringVar(&c.Conf.Watch.FileExtension, "fileExtention", "go", "")
+	flag.StringVar(&c.Conf.Watch.OtherDir, "watchOtherDir", "", "")
+	flag.StringVar(&c.Conf.Watch.IgnoredPath, "watchIgnoredPath", "/\\.git", "")
 	prod := flag.String("prod", "", "Production mode")
 
 	flag.Parse()
@@ -61,7 +61,7 @@ func main() {
 		generateExampleConfig()
 		return
 	}
-	if !fileExist(*c.Conf.ConfigFile) {
+	if !fileExist(c.Conf.ConfigFile) {
 		generateExampleConfig()
 	}
 	if len(*prod) > 0 && atob(*prod) {
@@ -139,13 +139,13 @@ func findBinFile(f string) string {
 	return file
 }
 
-func checkBinFile(appMainFile string, suffix string, _suffix *string, appBuildDir *string) error {
+func checkBinFile(appMainFile string, suffix string, _suffix *string, appBuildDir string) error {
 	_, err := os.Stat(appMainFile)
 	if err != nil {
-		if len(*c.Conf.App.BuildDir) == 0 {
+		if len(c.Conf.App.BuildDir) == 0 {
 			return errors.New(err.Error() + `: ` + appMainFile)
 		}
-		appMainFile = filepath.Join(*c.Conf.App.BuildDir, appMainFile)
+		appMainFile = filepath.Join(c.Conf.App.BuildDir, appMainFile)
 		_, err = os.Stat(appMainFile)
 		if err != nil {
 			return errors.New(err.Error() + `: ` + appMainFile)
@@ -155,8 +155,8 @@ func checkBinFile(appMainFile string, suffix string, _suffix *string, appBuildDi
 	if err != nil {
 		return errors.New(err.Error() + `: ` + appMainFile)
 	}
-	if len(*c.Conf.App.BuildDir) == 0 {
-		*c.Conf.App.BuildDir = filepath.Dir(appMainFile)
+	if len(c.Conf.App.BuildDir) == 0 {
+		c.Conf.App.BuildDir = filepath.Dir(appMainFile)
 	}
 	fileName := filepath.Base(appMainFile)
 	AppBin = fileName
@@ -184,10 +184,10 @@ func startTower() {
 		suffix     = ".exe"
 		_suffix    = ""
 	)
-	if len(*c.Conf.ConfigFile) == 0 {
-		*c.Conf.ConfigFile = ConfigName
+	if len(c.Conf.ConfigFile) == 0 {
+		c.Conf.ConfigFile = ConfigName
 	}
-	configFile := *c.Conf.ConfigFile
+	configFile := c.Conf.ConfigFile
 	_, err := confl.DecodeFile(configFile, c.Conf)
 	if err != nil {
 		if strings.HasSuffix(err.Error(), `. Expected map but found 'string'.`) {
@@ -196,7 +196,6 @@ func startTower() {
 				log.Error(err.Error())
 			} else {
 				os.Rename(configFile, configFile+`.`+time.Now().Format(`20060102150405`))
-				c.Conf.Fixed()
 				configContent, err := confl.Marshal(c.Conf)
 				if err != nil {
 					log.Fatal(err)
@@ -213,54 +212,56 @@ func startTower() {
 			log.Error(err.Error())
 		}
 	} else {
-		if strings.Contains(*c.Conf.Watch.IgnoredPath, `\\`) {
-			*c.Conf.Watch.IgnoredPath = strings.Replace(*c.Conf.Watch.IgnoredPath, `\\`, `\`, -1)
+		if strings.Contains(c.Conf.Watch.IgnoredPath, `\\`) {
+			c.Conf.Watch.IgnoredPath = strings.Replace(c.Conf.Watch.IgnoredPath, `\\`, `\`, -1)
+		}
+		if len(c.Conf.App.BuildDir) == 0 {
+			c.Conf.App.BuildDir, _ = os.Getwd()
 		}
 	}
-	c.Conf.Fixed()
 	if !allowBuild {
-		if len(*c.Conf.App.ExecFile) == 0 {
+		if len(c.Conf.App.ExecFile) == 0 {
 			log.Error("请设置exec参数用来指定执行文件位置")
 			time.Sleep(time.Second * 10)
 			return
 		}
 	}
-	if *c.Conf.Verbose {
-		*c.Conf.LogLevel = `Debug`
+	if c.Conf.Verbose {
+		c.Conf.LogLevel = `Debug`
 	}
 
-	log.DefaultLog.SetLevel(*c.Conf.LogLevel)
-	if len(*c.Conf.Proxy.Port) > 0 {
-		err := dialAddress("127.0.0.1:"+*c.Conf.Proxy.Port, 1)
+	log.DefaultLog.SetLevel(c.Conf.LogLevel)
+	if len(c.Conf.Proxy.Port) > 0 {
+		err := dialAddress("127.0.0.1:"+c.Conf.Proxy.Port, 1)
 		if err == nil {
-			log.Error("Error: port (" + *c.Conf.Proxy.Port + ") already in used.")
+			log.Error("Error: port (" + c.Conf.Proxy.Port + ") already in used.")
 			os.Exit(1)
 		}
 	}
 	if !allowBuild {
-		if strings.Contains(*c.Conf.App.ExecFile, `*`) {
-			orgiMainFile := *c.Conf.App.ExecFile
-			*c.Conf.App.ExecFile = findBinFile(*c.Conf.App.ExecFile)
-			if len(*c.Conf.App.ExecFile) == 0 {
-				if len(*c.Conf.App.BuildDir) > 0 {
-					*c.Conf.App.ExecFile = filepath.Join(*c.Conf.App.BuildDir, orgiMainFile)
-					*c.Conf.App.ExecFile = findBinFile(*c.Conf.App.ExecFile)
+		if strings.Contains(c.Conf.App.ExecFile, `*`) {
+			orgiMainFile := c.Conf.App.ExecFile
+			c.Conf.App.ExecFile = findBinFile(c.Conf.App.ExecFile)
+			if len(c.Conf.App.ExecFile) == 0 {
+				if len(c.Conf.App.BuildDir) > 0 {
+					c.Conf.App.ExecFile = filepath.Join(c.Conf.App.BuildDir, orgiMainFile)
+					c.Conf.App.ExecFile = findBinFile(c.Conf.App.ExecFile)
 				}
 			}
 		}
-		if err := checkBinFile(*c.Conf.App.ExecFile, suffix, &_suffix, c.Conf.App.BuildDir); err != nil {
+		if err := checkBinFile(c.Conf.App.ExecFile, suffix, &_suffix, c.Conf.App.BuildDir); err != nil {
 			fmt.Println(err)
 			time.Sleep(time.Second * 300)
 			return
 		}
-		app = NewApp(*c.Conf.App.ExecFile, *c.Conf.App.Port, *c.Conf.App.BuildDir, *c.Conf.App.PortParamName)
+		app = NewApp(c.Conf.App.ExecFile, c.Conf.App.Port, c.Conf.App.BuildDir, c.Conf.App.PortParamName)
 	} else {
-		if len(*c.Conf.App.BuildDir) == 0 {
-			*c.Conf.App.MainFile, _ = filepath.Abs(*c.Conf.App.MainFile)
-			*c.Conf.App.BuildDir = filepath.Dir(*c.Conf.App.MainFile)
+		if len(c.Conf.App.BuildDir) == 0 {
+			c.Conf.App.MainFile, _ = filepath.Abs(c.Conf.App.MainFile)
+			c.Conf.App.BuildDir = filepath.Dir(c.Conf.App.MainFile)
 		}
-		if *c.Conf.AutoClear {
-			err := filepath.Walk(*c.Conf.App.BuildDir, func(filePath string, info os.FileInfo, e error) (err error) {
+		if c.Conf.AutoClear {
+			err := filepath.Walk(c.Conf.App.BuildDir, func(filePath string, info os.FileInfo, e error) (err error) {
 				if e != nil {
 					return e
 				}
@@ -280,13 +281,13 @@ func startTower() {
 				log.Error(err)
 			}
 		}
-		app = NewApp(*c.Conf.App.MainFile, *c.Conf.App.Port, *c.Conf.App.BuildDir, *c.Conf.App.PortParamName)
+		app = NewApp(c.Conf.App.MainFile, c.Conf.App.Port, c.Conf.App.BuildDir, c.Conf.App.PortParamName)
 	}
-	app.OfflineMode = *c.Conf.Offline
-	app.DisabledLogRequest = *c.Conf.LogRequest == false
-	if len(*c.Conf.App.RunParams) > 0 {
+	app.OfflineMode = c.Conf.Offline
+	app.DisabledLogRequest = c.Conf.LogRequest == false
+	if len(c.Conf.App.RunParams) > 0 {
 		delim := ` `
-		param := *c.Conf.App.RunParams
+		param := c.Conf.App.RunParams
 		//:<分割符>:<参数>
 		if param[0] == ':' {
 			param = strings.TrimPrefix(param, `:`)
@@ -297,9 +298,9 @@ func startTower() {
 		}
 		app.RunParams = strings.Split(param, delim)
 	}
-	if len(*c.Conf.App.BuildParams) > 0 {
+	if len(c.Conf.App.BuildParams) > 0 {
 		delim := ` `
-		param := *c.Conf.App.BuildParams
+		param := c.Conf.App.BuildParams
 		//:<分割符>:<参数>
 		if param[0] == ':' {
 			param = strings.TrimPrefix(param, `:`)
@@ -316,15 +317,15 @@ func startTower() {
 			watchedDir = app.BuildDir
 		}
 	}
-	if len(*c.Conf.Watch.OtherDir) > 0 {
-		watchedDir = *c.Conf.Watch.OtherDir + "|" + watchedDir
+	if len(c.Conf.Watch.OtherDir) > 0 {
+		watchedDir = c.Conf.Watch.OtherDir + "|" + watchedDir
 	}
-	watcher := NewWatcher(watchedDir, *c.Conf.Watch.FileExtension, *c.Conf.Watch.IgnoredPath)
+	watcher := NewWatcher(watchedDir, c.Conf.Watch.FileExtension, c.Conf.Watch.IgnoredPath)
 	proxy := NewProxy(&app, &watcher)
-	proxy.AdminPwd = *c.Conf.Admin.Password
-	proxy.Engine = *c.Conf.Proxy.Engine
-	if len(*c.Conf.Admin.IPs) > 0 {
-		proxy.AdminIPs = strings.Split(*c.Conf.Admin.IPs, `,`)
+	proxy.AdminPwd = c.Conf.Admin.Password
+	proxy.Engine = c.Conf.Proxy.Engine
+	if len(c.Conf.Admin.IPs) > 0 {
+		proxy.AdminIPs = strings.Split(c.Conf.Admin.IPs, `,`)
 	}
 	if allowBuild {
 		watcher.OnChanged = func(file string) {
@@ -387,7 +388,7 @@ func startTower() {
 		watcher.OnlyWatchBin = true
 		app.DisabledBuild = true
 	}
-	proxy.Port = *c.Conf.Proxy.Port
+	proxy.Port = c.Conf.Proxy.Port
 	go func() {
 		mustSuccess(watcher.Watch())
 	}()

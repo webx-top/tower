@@ -1,7 +1,6 @@
 package main
 
 import (
-	"regexp"
 	"bufio"
 	"errors"
 	"fmt"
@@ -9,6 +8,7 @@ import (
 	"os/exec"
 	"os/signal"
 	"path/filepath"
+	"regexp"
 	"runtime"
 	"strconv"
 	"strings"
@@ -24,11 +24,11 @@ const (
 )
 
 var (
-	BinPrefix = "tower-app-"
-	AppBin    = ""
-	findPackage = regexp.MustCompile(`:[\s]*cannot find package "([^"]+)" in any of:`)
+	BinPrefix    = "tower-app-"
+	AppBin       = ""
+	findPackage  = regexp.MustCompile(`:[\s]*cannot find package "([^"]+)" in any of:`)
 	findPackage2 = regexp.MustCompile(`:[\s]*unrecognized import path "([^"]+)"[\s]*\(`)
-	movePackage =regexp.MustCompile(`can't load package: package [^:]+: code in directory ([^\s]+) expects import "([^"]+)"`)
+	movePackage  = regexp.MustCompile(`can't load package: package [^:]+: code in directory ([^\s]+) expects import "([^"]+)"`)
 )
 
 type App struct {
@@ -192,7 +192,7 @@ func (this *App) BinFile(args ...string) (f string) {
 	if len(args) > 0 {
 		binFileName = args[0]
 	}
-	if this.BuildDir != "" {
+	if len(this.BuildDir) > 0 {
 		f = filepath.Join(this.BuildDir, binFileName)
 	} else {
 		f = binFileName
@@ -375,74 +375,74 @@ func (this *App) Run(port string) (err error) {
 	return
 }
 
-func (this *App) fetchPkg(matches [][]string,isRetry bool)bool{
-	alldl:=true
-	for _, match := range matches{
-		pkg:=match[1]
+func (this *App) fetchPkg(matches [][]string, isRetry bool) bool {
+	alldl := true
+	for _, match := range matches {
+		pkg := match[1]
 		var moveTo string
-		if len(pkg)> 10 {
+		if len(pkg) > 10 {
 			switch pkg[0:10] {
 			case `golang.org`:
-				pkg=strings.TrimPrefix(pkg,`golang.org/x/`)
-				repertory:=strings.SplitN(pkg,`/`,2)[0]
-				pkg=`github.com/golang/`+repertory
-				moveTo=`golang.org/x/`+repertory
+				pkg = strings.TrimPrefix(pkg, `golang.org/x/`)
+				repertory := strings.SplitN(pkg, `/`, 2)[0]
+				pkg = `github.com/golang/` + repertory
+				moveTo = `golang.org/x/` + repertory
 			case `github.com`:
-				arr:=strings.SplitN(pkg,`/`,4)
-				pkg=strings.Join(arr[0:3],`/`)
+				arr := strings.SplitN(pkg, `/`, 4)
+				pkg = strings.Join(arr[0:3], `/`)
 			}
 		}
-		cmd:=exec.Command("go","get","-v",pkg)
-		cmd.Stdin=os.Stdin
-		cmd.Stderr=os.Stderr
-		cmd.Stdout=os.Stdout
-		err:=cmd.Run()
-		if err!= nil && !isRetry {
-			matches2:=findPackage2.FindAllStringSubmatch(err.Error(),-1)
-			if len(matches2)>0 {
-				if this.fetchPkg(matches2,true) {
-					err=nil
+		cmd := exec.Command("go", "get", "-v", pkg)
+		cmd.Stdin = os.Stdin
+		cmd.Stderr = os.Stderr
+		cmd.Stdout = os.Stdout
+		err := cmd.Run()
+		if err != nil && !isRetry {
+			matches2 := findPackage2.FindAllStringSubmatch(err.Error(), -1)
+			if len(matches2) > 0 {
+				if this.fetchPkg(matches2, true) {
+					err = nil
 				}
 			}
 		}
-		if err!= nil {
+		if err != nil {
 			log.Error(err)
-			match:=movePackage.FindStringSubmatch(err.Error())
-			if len(match)>0{
-				fromPath:=match[1]
-				moveTo:=match[2]
-				goPath:=os.Getenv(`GOPATH`)
-				toPath:=filepath.Join(goPath,`src`,moveTo)
-				err=os.MkdirAll(toPath,os.ModePerm)
-				if err!=nil {
-					log.Error(err,`: `,toPath)
-					alldl=false
+			match := movePackage.FindStringSubmatch(err.Error())
+			if len(match) > 0 {
+				fromPath := match[1]
+				moveTo := match[2]
+				goPath := os.Getenv(`GOPATH`)
+				toPath := filepath.Join(goPath, `src`, moveTo)
+				err = os.MkdirAll(toPath, os.ModePerm)
+				if err != nil {
+					log.Error(err, `: `, toPath)
+					alldl = false
 					continue
 				}
-				err=com.CopyDir(fromPath,toPath)
-				if err!= nil {
-					log.Error(err,`: `,fromPath,` => `,toPath)
-					alldl=false
+				err = com.CopyDir(fromPath, toPath)
+				if err != nil {
+					log.Error(err, `: `, fromPath, ` => `, toPath)
+					alldl = false
 					continue
 				}
-			}else{
-				alldl=false
+			} else {
+				alldl = false
 			}
 		}
-		if len(moveTo)>0 {
-			goPath:=os.Getenv(`GOPATH`)
-			fromPath:=filepath.Join(goPath,`src`,pkg)
-			toPath:=filepath.Join(goPath,`src`,moveTo)
-			err=os.MkdirAll(toPath,os.ModePerm)
-			if err!=nil {
-				log.Error(err,`: `,toPath)
-				alldl=false
+		if len(moveTo) > 0 {
+			goPath := os.Getenv(`GOPATH`)
+			fromPath := filepath.Join(goPath, `src`, pkg)
+			toPath := filepath.Join(goPath, `src`, moveTo)
+			err = os.MkdirAll(toPath, os.ModePerm)
+			if err != nil {
+				log.Error(err, `: `, toPath)
+				alldl = false
 				continue
 			}
-			err=com.CopyDir(fromPath,toPath)
-			if err!= nil {
-				log.Error(err,`: `,fromPath,` => `,toPath)
-				alldl=false
+			err = com.CopyDir(fromPath, toPath)
+			if err != nil {
+				log.Error(err, `: `, fromPath, ` => `, toPath)
+				alldl = false
 				continue
 			}
 		}
@@ -461,9 +461,9 @@ func (this *App) Build() (err error) {
 	args = append(args, []string{"-o", this.BinFile(), this.MainFile}...)
 	out, _ := exec.Command("go", args...).CombinedOutput()
 	if len(out) > 0 {
-		matches := findPackage.FindAllStringSubmatch(string(out),-1)
-		if len(matches)>0 {
-			if this.fetchPkg(matches,false) {
+		matches := findPackage.FindAllStringSubmatch(string(out), -1)
+		if len(matches) > 0 {
+			if this.fetchPkg(matches, false) {
 				out, _ = exec.Command("go", args...).CombinedOutput()
 			}
 		}

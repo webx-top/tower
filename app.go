@@ -2,6 +2,7 @@ package main
 
 import (
 	"bufio"
+	"bytes"
 	"errors"
 	"fmt"
 	"os"
@@ -50,6 +51,7 @@ type App struct {
 	BuildStart         *sync.Once
 	AppRestart         *sync.Once
 	DisabledLogRequest bool
+	PkgMirrors         map[string]string
 
 	portBinFiles map[string]string
 	buildErr     error
@@ -99,6 +101,7 @@ func NewApp(mainFile, port, buildDir, portParamName string) (app App) {
 	app.BuildStart = &sync.Once{}
 	app.AppRestart = &sync.Once{}
 	app.portBinFiles = make(map[string]string)
+	app.PkgMirrors = make(map[string]string)
 	app.RunParams = []string{}
 	app.BuildParams = []string{}
 	return
@@ -380,6 +383,14 @@ func (this *App) fetchPkg(matches [][]string, isRetry bool) bool {
 	for _, match := range matches {
 		pkg := match[1]
 		var moveTo string
+		for rule, rep := range this.PkgMirrors {
+			re, err := regexp.Compile(rule)
+			if err != nil {
+				log.Error(err)
+				continue
+			}
+			pkg = re.ReplaceAllString(pkg, rep)
+		}
 		if len(pkg) > 10 {
 			switch pkg[0:10] {
 			case `golang.org`:
@@ -459,18 +470,27 @@ func (this *App) Build() (err error) {
 	args := []string{"build"}
 	args = append(args, this.BuildParams...)
 	args = append(args, []string{"-o", this.BinFile(), this.MainFile}...)
-	out, _ := exec.Command("go", args...).CombinedOutput()
-	if len(out) > 0 {
-		matches := findPackage.FindAllStringSubmatch(string(out), -1)
+	build := func() (string, error) {
+		cmd := exec.Command("go", args...)
+		var b bytes.Buffer
+		cmd.Stderr = &b
+		cmd.Stdout = os.Stdout
+		err := cmd.Run()
+		out := b.String()
+		return out, err
+	}
+	out, err := build()
+	if err != nil && len(out) > 0 {
+		matches := findPackage.FindAllStringSubmatch(out, -1)
 		if len(matches) > 0 {
 			if this.fetchPkg(matches, false) {
-				out, _ = exec.Command("go", args...).CombinedOutput()
+				out, err = build()
 			}
 		}
-		if len(out) > 0 {
-			msg := strings.Replace(string(out), "# command-line-arguments\n", "", 1)
+		if err != nil && len(out) > 0 {
+			msg := strings.Replace(out, "# command-line-arguments\n", "", 1)
 			log.Errorf("----------- Build Error -----------\n%s-----------------------------------", msg)
-			return errors.New(msg)
+			return errors.New(err.Error() + `: ` + msg)
 		}
 	}
 	log.Info("== Build completed.")

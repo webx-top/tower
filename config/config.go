@@ -8,13 +8,14 @@ var Conf = &Config{
 }
 
 type App struct {
-	ExecFile      string `json:"exec"` //非编译模式下有效
-	MainFile      string `json:"main"` //编译模式下有效
-	Port          string `json:"port"`
-	PortParamName string `json:"portParamName"`
-	BuildDir      string `json:"buildDir"`
-	BuildParams   string `json:"buildParams"`
-	RunParams     string `json:"params"`
+	ExecFile      string            `json:"exec"` //非编译模式下有效
+	MainFile      string            `json:"main"` //编译模式下有效
+	Port          string            `json:"port"`
+	PortParamName string            `json:"portParamName"`
+	BuildDir      string            `json:"buildDir"`
+	BuildParams   string            `json:"buildParams"`
+	RunParams     string            `json:"params"`
+	PkgMirrors    map[string]string `json:"pkgMirrors"`
 }
 
 type Proxy struct {

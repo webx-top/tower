@@ -67,36 +67,43 @@ func main() {
 				a := &App{
 					PkgMirrors: make(map[string]string),
 				}
-				if len(args) > 2 && len(args[2]) > 0 {
-					for _, rep := range strings.Split(args[2], `;`) {
-						rep = strings.TrimSpace(rep)
-						if len(rep) < 1 {
-							continue
-						}
-						r := strings.SplitN(rep, `=>`, 2)
-						r[0] = strings.TrimSpace(r[0])
-						if len(r[0]) == 0 {
-							continue
-						}
-						if len(r) == 2 {
-							r[1] = strings.TrimSpace(r[1])
-							a.PkgMirrors[r[0]] = r[1]
-						}
-					}
-				}
-				pkgs := [][]string{}
-				for _, pkg := range strings.Split(args[1], `,`) {
-					pkg = strings.TrimSpace(pkg)
-					if len(pkg) < 1 {
-						continue
-					}
-					pkgs = append(pkgs, []string{``, pkg})
-				}
 				cmdArgs := []string{}
-				if len(args) > 3 {
-					cmdArgs = append(cmdArgs, args[3:]...)
+				pkgArgs := []string{}
+				for _, arg := range args[1:] {
+					if strings.HasPrefix(arg, `-`) {
+						cmdArgs = append(cmdArgs, arg)
+					} else {
+						pkgArgs = append(pkgArgs, arg)
+					}
 				}
-				a.fetchPkg(pkgs, false, cmdArgs...)
+				if len(pkgArgs) > 0 {
+					if len(pkgArgs) > 1 && len(pkgArgs[1]) > 0 {
+						for _, rep := range strings.Split(pkgArgs[1], `;`) {
+							rep = strings.TrimSpace(rep)
+							if len(rep) < 1 {
+								continue
+							}
+							r := strings.SplitN(rep, `=>`, 2)
+							r[0] = strings.TrimSpace(r[0])
+							if len(r[0]) == 0 {
+								continue
+							}
+							if len(r) == 2 {
+								r[1] = strings.TrimSpace(r[1])
+								a.PkgMirrors[r[0]] = r[1]
+							}
+						}
+					}
+					pkgs := [][]string{}
+					for _, pkg := range strings.Split(pkgArgs[0], `,`) {
+						pkg = strings.TrimSpace(pkg)
+						if len(pkg) < 1 {
+							continue
+						}
+						pkgs = append(pkgs, []string{``, pkg})
+					}
+					a.fetchPkg(pkgs, false, cmdArgs...)
+				}
 				return
 
 			}

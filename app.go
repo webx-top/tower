@@ -403,7 +403,7 @@ func (this *App) fetchPkg(matches [][]string, isRetry bool) bool {
 				pkg = strings.Join(arr[0:3], `/`)
 			}
 		}
-		cmd := exec.Command("go", "get", "-v", pkg)
+		cmd := exec.Command("go", "get", "-u", "-v", pkg)
 		cmd.Stdin = os.Stdin
 		cmd.Stderr = os.Stderr
 		cmd.Stdout = os.Stdout

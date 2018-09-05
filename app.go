@@ -378,7 +378,7 @@ func (this *App) Run(port string) (err error) {
 	return
 }
 
-func (this *App) fetchPkg(matches [][]string, isRetry bool) bool {
+func (this *App) fetchPkg(matches [][]string, isRetry bool, args ...string) bool {
 	alldl := true
 	for _, match := range matches {
 		pkg := match[1]
@@ -403,7 +403,20 @@ func (this *App) fetchPkg(matches [][]string, isRetry bool) bool {
 				pkg = strings.Join(arr[0:3], `/`)
 			}
 		}
-		cmd := exec.Command("go", "get", "-u", "-v", pkg)
+		cmdArgs := []string{`get`}
+		cmdArgs = append(cmdArgs, args...)
+		var hasVerb bool
+		for _, _arg := range cmdArgs {
+			if _arg == `-v` {
+				hasVerb = true
+				break
+			}
+		}
+		if !hasVerb {
+			cmdArgs = append(cmdArgs, `-v`)
+		}
+		cmdArgs = append(cmdArgs, pkg)
+		cmd := exec.Command("go", cmdArgs...)
 		cmd.Stdin = os.Stdin
 		cmd.Stderr = os.Stderr
 		cmd.Stdout = os.Stdout
@@ -411,7 +424,7 @@ func (this *App) fetchPkg(matches [][]string, isRetry bool) bool {
 		if err != nil && !isRetry {
 			matches2 := findPackage2.FindAllStringSubmatch(err.Error(), -1)
 			if len(matches2) > 0 {
-				if this.fetchPkg(matches2, true) {
+				if this.fetchPkg(matches2, true, args...) {
 					err = nil
 				}
 			}

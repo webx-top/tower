@@ -67,7 +67,7 @@ func main() {
 				a := &App{
 					PkgMirrors: make(map[string]string),
 				}
-				if len(args) > 2 {
+				if len(args) > 2 && len(args[2]) > 0 {
 					for _, rep := range strings.Split(args[2], `;`) {
 						rep = strings.TrimSpace(rep)
 						if len(rep) < 1 {
@@ -92,7 +92,11 @@ func main() {
 					}
 					pkgs = append(pkgs, []string{``, pkg})
 				}
-				a.fetchPkg(pkgs, false)
+				cmdArgs := []string{}
+				if len(args) > 3 {
+					cmdArgs = append(cmdArgs, args[3:]...)
+				}
+				a.fetchPkg(pkgs, false, cmdArgs...)
 				return
 
 			}

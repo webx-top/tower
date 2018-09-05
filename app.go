@@ -382,7 +382,7 @@ func (this *App) fetchPkg(matches [][]string, isRetry bool) bool {
 	alldl := true
 	for _, match := range matches {
 		pkg := match[1]
-		var moveTo string
+		moveTo := pkg
 		for rule, rep := range this.PkgMirrors {
 			re, err := regexp.Compile(rule)
 			if err != nil {
@@ -440,7 +440,7 @@ func (this *App) fetchPkg(matches [][]string, isRetry bool) bool {
 				alldl = false
 			}
 		}
-		if len(moveTo) > 0 {
+		if moveTo != pkg {
 			goPath := os.Getenv(`GOPATH`)
 			fromPath := filepath.Join(goPath, `src`, pkg)
 			toPath := filepath.Join(goPath, `src`, moveTo)

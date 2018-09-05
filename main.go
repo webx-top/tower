@@ -57,9 +57,46 @@ func main() {
 	flag.Parse()
 
 	args := flag.Args()
-	if len(args) == 1 && args[0] == "init" {
-		generateExampleConfig()
-		return
+	if len(args) > 0 {
+		switch args[0] {
+		case "init":
+			generateExampleConfig()
+			return
+		case "get":
+			if len(args) > 1 {
+				a := &App{
+					PkgMirrors: make(map[string]string),
+				}
+				if len(args) > 2 {
+					for _, rep := range strings.Split(args[2], `;`) {
+						rep = strings.TrimSpace(rep)
+						if len(rep) < 1 {
+							continue
+						}
+						r := strings.SplitN(rep, `=>`, 2)
+						r[0] = strings.TrimSpace(r[0])
+						if len(r[0]) == 0 {
+							continue
+						}
+						if len(r) == 2 {
+							r[1] = strings.TrimSpace(r[1])
+							a.PkgMirrors[r[0]] = r[1]
+						}
+					}
+				}
+				pkgs := [][]string{}
+				for _, pkg := range strings.Split(args[1], `,`) {
+					pkg = strings.TrimSpace(pkg)
+					if len(pkg) < 1 {
+						continue
+					}
+					pkgs = append(pkgs, []string{``, pkg})
+				}
+				a.fetchPkg(pkgs, false)
+				return
+
+			}
+		}
 	}
 	if !fileExist(c.Conf.ConfigFile) {
 		generateExampleConfig()

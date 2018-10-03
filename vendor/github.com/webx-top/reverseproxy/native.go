@@ -113,9 +113,9 @@ func (rp *NativeReverseProxy) Initialize(rpConfig ReverseProxyConfig) error {
 	return nil
 }
 
-func (rp *NativeReverseProxy) Listen(listener ...net.Listener) {
+func (rp *NativeReverseProxy) Listen(listener ...net.Listener) error {
 	if rp.ReverseProxyConfig.DisabledAloneService {
-		return
+		return nil
 	}
 	if len(listener) > 0 {
 		rp.listener = listener[0]
@@ -123,7 +123,7 @@ func (rp *NativeReverseProxy) Listen(listener ...net.Listener) {
 		var err error
 		rp.listener, err = net.Listen("tcp", rp.ReverseProxyConfig.Listen)
 		if err != nil {
-			panic(err)
+			return err
 		}
 	}
 
@@ -136,16 +136,17 @@ func (rp *NativeReverseProxy) Listen(listener ...net.Listener) {
 		ConnState:         rp.ConnState,
 	})
 	rp.servers = append(rp.servers, server)
-	server.Serve(rp.listener)
+	return server.Serve(rp.listener)
 }
 
-func (rp *NativeReverseProxy) Stop() {
+func (rp *NativeReverseProxy) Stop() error {
 	if rp.ReverseProxyConfig.DisabledAloneService {
-		return
+		return nil
 	}
 	for _, server := range rp.servers {
 		server.Close()
 	}
+	return nil
 }
 
 func (rp *NativeReverseProxy) HandlerForEcho(resp engine.Response, req engine.Request) {

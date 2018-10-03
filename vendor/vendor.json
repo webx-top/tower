@@ -173,22 +173,22 @@
 			"revisionTime": "2018-06-10T02:02:00Z"
 		},
 		{
-			"checksumSHA1": "4S/nKtrjIzWecThy/WjhauJAhMc=",
+			"checksumSHA1": "IqWC7UkguxrK6pL0e8xE5S5/o8Q=",
 			"path": "github.com/webx-top/reverseproxy",
-			"revision": "a56511ac2a937b838f2762311eb19721ffa96076",
-			"revisionTime": "2017-05-26T11:38:15Z"
+			"revision": "1052d5ba3ba23188eb4e91ee45924d20c003c702",
+			"revisionTime": "2018-10-03T02:51:56Z"
 		},
 		{
-			"checksumSHA1": "fZs7ZN/E9p+1sLGG3DuUuNJe/CE=",
+			"checksumSHA1": "5d6SlnFoqGVBYE3AyxnetNLD3rs=",
 			"path": "github.com/webx-top/reverseproxy/log",
-			"revision": "a56511ac2a937b838f2762311eb19721ffa96076",
-			"revisionTime": "2017-05-26T11:38:15Z"
+			"revision": "1052d5ba3ba23188eb4e91ee45924d20c003c702",
+			"revisionTime": "2018-10-03T02:51:56Z"
 		},
 		{
-			"checksumSHA1": "2IcWj/fTs7MHSpOvRvihawxYU30=",
+			"checksumSHA1": "j6SAIDNFMGnMRl758J53nUzmqts=",
 			"path": "github.com/webx-top/reverseproxy/tls",
-			"revision": "a56511ac2a937b838f2762311eb19721ffa96076",
-			"revisionTime": "2017-05-26T11:38:15Z"
+			"revision": "1052d5ba3ba23188eb4e91ee45924d20c003c702",
+			"revisionTime": "2018-10-03T02:51:56Z"
 		},
 		{
 			"checksumSHA1": "hCTfgxXvMC3YDGOMAFGNg1S+j/U=",

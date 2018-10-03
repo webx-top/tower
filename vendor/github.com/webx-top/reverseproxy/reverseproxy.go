@@ -31,8 +31,8 @@ type Router interface {
 
 type ReverseProxy interface {
 	Initialize(rpConfig ReverseProxyConfig) error
-	Listen(...net.Listener)
-	Stop()
+	Listen(...net.Listener) error
+	Stop() error
 	HandlerForEcho(engine.Response, engine.Request)
 }
 

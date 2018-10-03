@@ -48,9 +48,9 @@ func (rp *FastReverseProxy) Initialize(rpConfig ReverseProxyConfig) error {
 	return nil
 }
 
-func (rp *FastReverseProxy) Listen(listener ...net.Listener) {
+func (rp *FastReverseProxy) Listen(listener ...net.Listener) error {
 	if rp.ReverseProxyConfig.DisabledAloneService {
-		return
+		return nil
 	}
 	if len(listener) > 0 {
 		rp.listener = listener[0]
@@ -58,17 +58,17 @@ func (rp *FastReverseProxy) Listen(listener ...net.Listener) {
 		var err error
 		rp.listener, err = net.Listen("tcp", rp.ReverseProxyConfig.Listen)
 		if err != nil {
-			panic(err)
+			return err
 		}
 	}
-	rp.server.Serve(rp.listener)
+	return rp.server.Serve(rp.listener)
 }
 
-func (rp *FastReverseProxy) Stop() {
+func (rp *FastReverseProxy) Stop() error {
 	if rp.ReverseProxyConfig.DisabledAloneService {
-		return
+		return nil
 	}
-	rp.listener.Close()
+	return rp.listener.Close()
 }
 
 func (rp *FastReverseProxy) HandlerForEcho(resp engine.Response, req engine.Request) {

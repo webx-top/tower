@@ -65,6 +65,15 @@ var defaultPageHTML = `<!DOCTYPE html>
     <div class="content">
       <div class="message">
         {{.Message}}
+        <p><a href="/tower-proxy/watch/restart" target="_blank">[Restart]</a>
+        [
+        Watcher:
+        <a href="/tower-proxy/watch" target="_blank">Status</a>
+        |
+        <a href="/tower-proxy/watch/begin" target="_blank">Start</a>
+        |
+        <a href="/tower-proxy/watch/pause" target="_blank">Pause</a>
+        ]</p>
       </div>
 
       {{if .ShowSnippet}}

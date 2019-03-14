@@ -138,7 +138,7 @@ func (this *Proxy) Listen() error {
 					status = `Pause`
 				}
 				ctx.SetStatusCode(200)
-				ctx.SetBody([]byte(`watch status: ` + status))
+				ctx.SetBody([]byte(`Watcher Status: ` + status))
 				return true
 			}
 

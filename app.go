@@ -402,6 +402,7 @@ func (this *App) fetchPkg(matches [][]string, isRetry bool, args ...string) bool
 			}
 			pkg = re.ReplaceAllString(pkg, rep)
 		}
+		fromDir := pkg
 		if len(pkg) > 10 {
 			switch pkg[0:10] {
 			case `golang.org`:
@@ -464,9 +465,12 @@ func (this *App) fetchPkg(matches [][]string, isRetry bool, args ...string) bool
 				alldl = false
 			}
 		}
-		if moveTo != pkg {
+		if moveTo != fromDir {
 			goPath := os.Getenv(`GOPATH`)
-			fromPath := filepath.Join(goPath, `src`, pkg)
+			fromPath := filepath.Join(goPath, `src`, fromDir)
+			if !com.IsDir(fromPath) {
+				continue
+			}
 			toPath := filepath.Join(goPath, `src`, moveTo)
 			err = os.MkdirAll(toPath, os.ModePerm)
 			if err != nil {

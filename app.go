@@ -231,6 +231,10 @@ func (this *App) Stop(port string, args ...string) {
 			time.Sleep(time.Second)
 			err = os.Remove(bin)
 			if err != nil {
+				if os.IsNotExist(err) {
+					this.Ports[port] = 0
+					return
+				}
 				log.Error(err)
 			} else {
 				log.Info(`== Remove ` + bin + `: Success.`)
@@ -330,6 +334,9 @@ func (this *App) Run(port string) (err error) {
 						time.Sleep(time.Second * time.Duration(i+1))
 						err = os.Remove(bin)
 						if err != nil {
+							if os.IsNotExist(err) {
+								return
+							}
 							log.Error(err)
 						} else {
 							log.Info(`== Remove ` + bin + `: Success.`)
@@ -382,6 +389,9 @@ func (this *App) fetchPkg(matches [][]string, isRetry bool, args ...string) bool
 	alldl := true
 	for _, match := range matches {
 		pkg := match[1]
+		if strings.Contains(filepath.ToSlash(this.BuildDir), pkg) {
+			continue
+		}
 		moveTo := pkg
 		for rule, rep := range this.PkgMirrors {
 			re, err := regexp.Compile(rule)

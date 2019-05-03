@@ -387,9 +387,10 @@ func (this *App) Run(port string) (err error) {
 
 func (this *App) fetchPkg(matches [][]string, isRetry bool, args ...string) bool {
 	alldl := true
+	currt := filepath.ToSlash(this.BuildDir)
 	for _, match := range matches {
 		pkg := match[1]
-		if strings.Contains(filepath.ToSlash(this.BuildDir), pkg) {
+		if strings.Contains(currt, pkg) {
 			continue
 		}
 		moveTo := pkg

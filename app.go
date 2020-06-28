@@ -508,18 +508,22 @@ func (this *App) Build() (err error) {
 		return out, err
 	}
 	out, err := build()
-	if err != nil && len(out) > 0 {
+	var lastOut string
+	for i := 0; err != nil && len(out) > 0 && lastOut != out && i < 10; i++ {
 		matches := findPackage.FindAllStringSubmatch(out, -1)
 		if len(matches) > 0 {
 			if this.fetchPkg(matches, false) {
+				lastOut = out
 				out, err = build()
+				continue
 			}
 		}
-		if err != nil && len(out) > 0 {
-			msg := strings.Replace(out, "# command-line-arguments\n", "", 1)
-			log.Errorf("----------- Build Error -----------\n%s-----------------------------------", msg)
-			return errors.New(err.Error() + `: ` + msg)
-		}
+		break
+	}
+	if err != nil && len(out) > 0 {
+		msg := strings.Replace(out, "# command-line-arguments\n", "", 1)
+		log.Errorf("----------- Build Error -----------\n%s-----------------------------------", msg)
+		return errors.New(err.Error() + `: ` + msg)
 	}
 	log.Info("== Build completed.")
 	return nil

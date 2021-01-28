@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"errors"
 	"flag"
 	"io"
@@ -10,7 +11,9 @@ import (
 )
 
 func HelloServer(w http.ResponseWriter, req *http.Request) {
+	b, _ := json.MarshalIndent(os.Environ(), "", " ")
 	io.WriteString(w, "server 1")
+	io.WriteString(w, "\n=======================\n"+string(b))
 }
 
 func Error(w http.ResponseWriter, req *http.Request) {

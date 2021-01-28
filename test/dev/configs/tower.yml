@@ -6,10 +6,11 @@ offline : false
 app {
   exec : "test/tower-app-*.exe"
   main : "test/dev/server1.go"
-  port : "5001-5010"
+  port : "6001-6010"
   portParamName : "-p"
   buildDir : "test"
   params : ""
+  env : ["V1_IN_CFG=TRUE","V2_IN_CFG=TRUE"]
 }
 proxy {
   port : "8080"

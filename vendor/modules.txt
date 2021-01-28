@@ -9,7 +9,7 @@ github.com/admpub/copier
 github.com/admpub/events
 github.com/admpub/events/dispatcher
 github.com/admpub/events/emitter
-# github.com/admpub/fasthttp v0.0.0-20200705060903-f0f441048f4a
+# github.com/admpub/fasthttp v0.0.1
 github.com/admpub/fasthttp
 github.com/admpub/fasthttp/fasthttputil
 github.com/admpub/fasthttp/stackless
@@ -71,7 +71,7 @@ github.com/webx-top/echo/encoding/json
 github.com/webx-top/echo/engine
 github.com/webx-top/echo/logger
 github.com/webx-top/echo/param
-# github.com/webx-top/reverseproxy v0.0.0-20210118060138-8a60e7e893e8
+# github.com/webx-top/reverseproxy v0.0.1
 ## explicit
 github.com/webx-top/reverseproxy
 github.com/webx-top/reverseproxy/log
@@ -83,9 +83,9 @@ github.com/webx-top/validation
 # golang.org/x/crypto v0.0.0-20201221181555-eec23a3978ad
 golang.org/x/crypto/acme
 golang.org/x/crypto/acme/autocert
-# golang.org/x/net v0.0.0-20201224014010-6772e930b67b
+# golang.org/x/net v0.0.0-20210119194325-5f4716e94777
 golang.org/x/net/idna
-# golang.org/x/sys v0.0.0-20201119102817-f84b799fce68
+# golang.org/x/sys v0.0.0-20210124154548-22da62e12c0c
 golang.org/x/sys/internal/unsafeheader
 golang.org/x/sys/unix
 golang.org/x/sys/windows

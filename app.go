@@ -362,6 +362,7 @@ func (this *App) Run(port string) (err error) {
 	this.SetCmd(this.Port, cmd)
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = StderrCapturer{this}
+	cmd.Env = append(os.Environ(), this.Env...)
 	var hasError bool
 	go func() {
 		err := cmd.Run()
@@ -433,6 +434,7 @@ func (this *App) fetchPkg(matches [][]string, isRetry bool, args ...string) bool
 		cmd.Stdin = os.Stdin
 		cmd.Stderr = os.Stderr
 		cmd.Stdout = os.Stdout
+		cmd.Env = append(os.Environ(), this.Env...)
 		err := cmd.Run()
 		if err != nil && !isRetry {
 			matches2 := findPackage2.FindAllStringSubmatch(err.Error(), -1)

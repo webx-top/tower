@@ -8,5 +8,5 @@ require (
 	github.com/admpub/log v0.0.0-20191027043925-a6c03a7421a3
 	github.com/stretchr/testify v1.7.0
 	github.com/webx-top/com v0.0.7
-	github.com/webx-top/reverseproxy v0.0.0-20210118060138-8a60e7e893e8
+	github.com/webx-top/reverseproxy v0.0.1
 )

@@ -33,8 +33,13 @@ type FastReverseProxy struct {
 }
 
 func dialWithTimeout(t time.Duration) func(string) (net.Conn, error) {
+	if t > 0 {
+		return func(addr string) (net.Conn, error) {
+			return fasthttp.DialTimeout(addr, t)
+		}
+	}
 	return func(addr string) (net.Conn, error) {
-		return fasthttp.DialTimeout(addr, t)
+		return fasthttp.Dial(addr)
 	}
 }
 

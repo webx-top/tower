@@ -19,6 +19,7 @@ import (
 	"math"
 	"net/url"
 	"path"
+	"regexp"
 	"strings"
 )
 
@@ -43,23 +44,31 @@ func Base64Decode(str string) (string, error) {
 	return string(s), e
 }
 
+// URLSafeBase64 base64字符串编码为URL友好的字符串
+func URLSafeBase64(str string, encode bool) string {
+	if encode { // 编码后处理
+		str = strings.TrimRight(str, `=`)
+		str = strings.Replace(str, `/`, `_`, -1)
+		str = strings.Replace(str, `+`, `-`, -1)
+		return str
+	}
+	// 解码前处理
+	str = strings.Replace(str, `_`, `/`, -1)
+	str = strings.Replace(str, `-`, `+`, -1)
+	var missing = (4 - len(str)%4) % 4
+	str += strings.Repeat(`=`, missing)
+	return str
+}
+
 // SafeBase64Encode base64 encode
 func SafeBase64Encode(str string) string {
 	str = Base64Encode(str)
-	for strings.HasSuffix(str, `=`) {
-		str = strings.TrimSuffix(str, `=`) + `_`
-	}
-	str = strings.Replace(str, `/`, `-`, -1)
-	return str
+	return URLSafeBase64(str, true)
 }
 
 // SafeBase64Decode base64 decode
 func SafeBase64Decode(str string) (string, error) {
-	str = strings.Replace(str, `-`, `/`, -1)
-	str = strings.Replace(str, ` `, `+`, -1)
-	for strings.HasSuffix(str, `_`) {
-		str = strings.TrimSuffix(str, `_`) + `=`
-	}
+	str = URLSafeBase64(str, false)
 	return Base64Decode(str)
 }
 
@@ -98,4 +107,18 @@ func AbsURL(pageURL string, relURL string) string {
 		relURL = strings.TrimPrefix(relURL, `../`)
 	}
 	return siteURL + path.Join(urlPath, relURL)
+}
+
+var localIPRegexp = regexp.MustCompile(`^127(?:\.(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)){3}$`)
+
+// IsLocalhost 是否是本地主机
+func IsLocalhost(host string) bool {
+	switch host {
+	case `localhost`:
+		return true
+	case `[::1]`:
+		return true
+	default:
+		return localIPRegexp.MatchString(host)
+	}
 }

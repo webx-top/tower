@@ -16,6 +16,7 @@ type App struct {
 	BuildParams   string            `json:"buildParams"`
 	RunParams     string            `json:"params"`
 	PkgMirrors    map[string]string `json:"pkgMirrors"`
+	Env           []string          `json:"env"`
 }
 
 type Proxy struct {

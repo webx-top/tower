@@ -1,0 +1,98 @@
+# github.com/admpub/color v1.7.0
+github.com/admpub/color
+# github.com/admpub/confl v0.0.3
+## explicit
+github.com/admpub/confl
+# github.com/admpub/copier v0.0.1
+github.com/admpub/copier
+# github.com/admpub/events v0.0.0-20190913050400-383beb0843c6
+github.com/admpub/events
+github.com/admpub/events/dispatcher
+github.com/admpub/events/emitter
+# github.com/admpub/fasthttp v0.0.0-20200705060903-f0f441048f4a
+github.com/admpub/fasthttp
+github.com/admpub/fasthttp/fasthttputil
+github.com/admpub/fasthttp/stackless
+# github.com/admpub/fsnotify v1.4.4
+## explicit
+github.com/admpub/fsnotify
+# github.com/admpub/go-reuseport v0.0.3
+github.com/admpub/go-reuseport
+# github.com/admpub/log v0.0.0-20191027043925-a6c03a7421a3
+## explicit
+github.com/admpub/log
+# github.com/admpub/manners v0.0.0-20160501130611-72097fd728f7
+github.com/admpub/manners
+# github.com/admpub/map2struct v0.0.5
+github.com/admpub/map2struct
+# github.com/admpub/queueChan v0.0.0-20151001074356-79908f7a499f
+github.com/admpub/queueChan
+# github.com/andybalholm/brotli v1.0.1
+github.com/andybalholm/brotli
+# github.com/davecgh/go-spew v1.1.1
+github.com/davecgh/go-spew/spew
+# github.com/francoispqt/gojay v1.2.13
+github.com/francoispqt/gojay
+# github.com/json-iterator/go v1.1.10
+github.com/json-iterator/go
+# github.com/klauspost/compress v1.11.7
+github.com/klauspost/compress/flate
+github.com/klauspost/compress/gzip
+github.com/klauspost/compress/zlib
+# github.com/mattn/go-colorable v0.1.8
+github.com/mattn/go-colorable
+# github.com/mattn/go-isatty v0.0.12
+github.com/mattn/go-isatty
+# github.com/mitchellh/go-homedir v1.1.0
+github.com/mitchellh/go-homedir
+# github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd
+github.com/modern-go/concurrent
+# github.com/modern-go/reflect2 v1.0.1
+github.com/modern-go/reflect2
+# github.com/nu7hatch/gouuid v0.0.0-20131221200532-179d4d0c4d8d
+github.com/nu7hatch/gouuid
+# github.com/pkg/errors v0.9.1
+github.com/pkg/errors
+# github.com/pmezard/go-difflib v1.0.0
+github.com/pmezard/go-difflib/difflib
+# github.com/stretchr/testify v1.7.0
+## explicit
+github.com/stretchr/testify/assert
+# github.com/valyala/bytebufferpool v1.0.0
+github.com/valyala/bytebufferpool
+# github.com/webx-top/com v0.0.7
+## explicit
+github.com/webx-top/com
+github.com/webx-top/com/encoding/json
+# github.com/webx-top/echo v2.6.0+incompatible
+github.com/webx-top/echo
+github.com/webx-top/echo/code
+github.com/webx-top/echo/encoding/json
+github.com/webx-top/echo/engine
+github.com/webx-top/echo/logger
+github.com/webx-top/echo/param
+# github.com/webx-top/reverseproxy v0.0.0-20210118060138-8a60e7e893e8
+## explicit
+github.com/webx-top/reverseproxy
+github.com/webx-top/reverseproxy/log
+github.com/webx-top/reverseproxy/tls
+# github.com/webx-top/tagfast v0.0.0-20161020041435-9a2065ce3dd2
+github.com/webx-top/tagfast
+# github.com/webx-top/validation v0.0.1
+github.com/webx-top/validation
+# golang.org/x/crypto v0.0.0-20201221181555-eec23a3978ad
+golang.org/x/crypto/acme
+golang.org/x/crypto/acme/autocert
+# golang.org/x/net v0.0.0-20201224014010-6772e930b67b
+golang.org/x/net/idna
+# golang.org/x/sys v0.0.0-20201119102817-f84b799fce68
+golang.org/x/sys/internal/unsafeheader
+golang.org/x/sys/unix
+golang.org/x/sys/windows
+# golang.org/x/text v0.3.3
+golang.org/x/text/secure/bidirule
+golang.org/x/text/transform
+golang.org/x/text/unicode/bidi
+golang.org/x/text/unicode/norm
+# gopkg.in/yaml.v3 v3.0.0-20200313102051-9f266ea9e77c
+gopkg.in/yaml.v3

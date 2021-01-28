@@ -15,10 +15,26 @@
 package com
 
 import (
+	"errors"
 	"math/rand"
+	"reflect"
 	"strings"
 	"time"
 )
+
+func WithPrefix(strs []string, prefix string) []string {
+	for k, v := range strs {
+		strs[k] = prefix + v
+	}
+	return strs
+}
+
+func WithSuffix(strs []string, suffix string) []string {
+	for k, v := range strs {
+		strs[k] = v + suffix
+	}
+	return strs
+}
 
 // AppendStr appends string to slice with no duplicates.
 func AppendStr(strs []string, str string) []string {
@@ -110,6 +126,86 @@ func InSliceIface(v interface{}, sl []interface{}) bool {
 	return false
 }
 
+func InStringSlice(v string, sl []string) bool {
+	return InSlice(v, sl)
+}
+
+func InInterfaceSlice(v interface{}, sl []interface{}) bool {
+	return InSliceIface(v, sl)
+}
+
+func InIntSlice(v int, sl []int) bool {
+	for _, vv := range sl {
+		if vv == v {
+			return true
+		}
+	}
+	return false
+}
+
+func InInt32Slice(v int32, sl []int32) bool {
+	for _, vv := range sl {
+		if vv == v {
+			return true
+		}
+	}
+	return false
+}
+
+func InInt16Slice(v int16, sl []int16) bool {
+	for _, vv := range sl {
+		if vv == v {
+			return true
+		}
+	}
+	return false
+}
+
+func InInt64Slice(v int64, sl []int64) bool {
+	for _, vv := range sl {
+		if vv == v {
+			return true
+		}
+	}
+	return false
+}
+
+func InUintSlice(v uint, sl []uint) bool {
+	for _, vv := range sl {
+		if vv == v {
+			return true
+		}
+	}
+	return false
+}
+
+func InUint32Slice(v uint32, sl []uint32) bool {
+	for _, vv := range sl {
+		if vv == v {
+			return true
+		}
+	}
+	return false
+}
+
+func InUint16Slice(v uint16, sl []uint16) bool {
+	for _, vv := range sl {
+		if vv == v {
+			return true
+		}
+	}
+	return false
+}
+
+func InUint64Slice(v uint64, sl []uint64) bool {
+	for _, vv := range sl {
+		if vv == v {
+			return true
+		}
+	}
+	return false
+}
+
 func SliceRandList(min, max int) []int {
 	if max < min {
 		min, max = max, min
@@ -167,6 +263,51 @@ func SliceDiff(slice1, slice2 []interface{}) (diffslice []interface{}) {
 	return
 }
 
+func StringSliceDiff(slice1, slice2 []string) (diffslice []string) {
+	for _, v := range slice1 {
+		if !InSlice(v, slice2) {
+			diffslice = append(diffslice, v)
+		}
+	}
+	return
+}
+
+func UintSliceDiff(slice1, slice2 []uint) (diffslice []uint) {
+	for _, v := range slice1 {
+		if !InUintSlice(v, slice2) {
+			diffslice = append(diffslice, v)
+		}
+	}
+	return
+}
+
+func IntSliceDiff(slice1, slice2 []int) (diffslice []int) {
+	for _, v := range slice1 {
+		if !InIntSlice(v, slice2) {
+			diffslice = append(diffslice, v)
+		}
+	}
+	return
+}
+
+func Uint64SliceDiff(slice1, slice2 []uint64) (diffslice []uint64) {
+	for _, v := range slice1 {
+		if !InUint64Slice(v, slice2) {
+			diffslice = append(diffslice, v)
+		}
+	}
+	return
+}
+
+func Int64SliceDiff(slice1, slice2 []int64) (diffslice []int64) {
+	for _, v := range slice1 {
+		if !InInt64Slice(v, slice2) {
+			diffslice = append(diffslice, v)
+		}
+	}
+	return
+}
+
 func SliceIntersect(slice1, slice2 []interface{}) (diffslice []interface{}) {
 	for _, v := range slice1 {
 		if !InSliceIface(v, slice2) {
@@ -216,12 +357,37 @@ func SliceUnique(slice []interface{}) (uniqueslice []interface{}) {
 }
 
 func SliceShuffle(slice []interface{}) []interface{} {
-	for i := 0; i < len(slice); i++ {
-		a := rand.Intn(len(slice))
-		b := rand.Intn(len(slice))
+	size := len(slice)
+	for i := 0; i < size; i++ {
+		a := rand.Intn(size)
+		b := rand.Intn(size)
+		if a == b {
+			continue
+		}
 		slice[a], slice[b] = slice[b], slice[a]
 	}
 	return slice
+}
+
+var ErrNotSliceType = errors.New("expects a slice type")
+
+// Shuffle 打乱数组
+func Shuffle(arr interface{}) error {
+	contentType := reflect.TypeOf(arr)
+	if contentType.Kind() != reflect.Slice {
+		return ErrNotSliceType
+	}
+	contentValue := reflect.ValueOf(arr)
+	source := rand.NewSource(time.Now().UnixNano())
+	random := rand.New(source)
+	len := contentValue.Len()
+	for i := len - 1; i > 0; i-- {
+		j := random.Intn(i + 1)
+		x, y := contentValue.Index(i).Interface(), contentValue.Index(j).Interface()
+		contentValue.Index(i).Set(reflect.ValueOf(y))
+		contentValue.Index(j).Set(reflect.ValueOf(x))
+	}
+	return nil
 }
 
 func SliceInsert(slice, insertion []interface{}, index int) []interface{} {
@@ -248,7 +414,7 @@ func SliceRemove(slice []interface{}, start int, args ...int) []interface{} {
 
 // SliceRemoveCallback : 根据条件删除
 // a=[]int{1,2,3,4,5,6}
-// SliceRemoveCallback(50, func(i int) func(bool)error{
+// SliceRemoveCallback(len(a), func(i int) func(bool)error{
 //	if a[i]!=4 {
 //	 	return nil
 // 	}
@@ -258,7 +424,7 @@ func SliceRemove(slice []interface{}, start int, args ...int) []interface{} {
 // 		}else{
 //			a=a[0:i]
 //		}
-//		return 1,nil
+//		return nil
 // 	}
 //})
 func SliceRemoveCallback(length int, callback func(int) func(bool) error) error {

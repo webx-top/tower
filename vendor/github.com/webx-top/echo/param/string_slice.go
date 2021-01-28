@@ -15,6 +15,7 @@
    limitations under the License.
 
 */
+
 package param
 
 import (
@@ -26,6 +27,73 @@ type StringSlice []string
 
 func (p StringSlice) String() []string {
 	return []string(p)
+}
+
+func (p StringSlice) GetByIndex(i int, defaults ...string) string {
+	if len(p) > i {
+		return p[i]
+	}
+	if len(defaults) > 0 {
+		return defaults[0]
+	}
+	return ``
+}
+
+func (p StringSlice) Unique() StringSlice {
+	record := map[string]struct{}{}
+	result := StringSlice{}
+	for _, s := range p {
+		if _, ok := record[s]; !ok {
+			record[s] = struct{}{}
+			result = append(result, s)
+		}
+	}
+	return result
+}
+
+func (p StringSlice) Filter(filterFunc func(s *string) bool) StringSlice {
+	if filterFunc == nil {
+		return p
+	}
+	result := StringSlice{}
+	for _, s := range p {
+		if filterFunc(&s) {
+			result = append(result, s)
+		}
+	}
+	return result
+}
+
+func (p StringSlice) HasValue(v interface{}) bool {
+	expected := AsString(v)
+	for _, val := range p {
+		if val == expected {
+			return true
+		}
+	}
+	return false
+}
+
+func (p StringSlice) Size() int {
+	return len(p)
+}
+
+func (p StringSlice) Join(sep string) string {
+	return strings.Join([]string(p), sep)
+}
+
+func (p StringSlice) Interface(filters ...func(int, string) bool) []interface{} {
+	var filter func(int, string) bool
+	if len(filters) > 0 {
+		filter = filters[0]
+	}
+	var ids []interface{}
+	for idx, id := range p {
+		if filter == nil || filter(idx, id) {
+			ids = append(ids, interface{}(id))
+		}
+	}
+	return ids
 }
 
 func (p StringSlice) Int(filters ...func(int, int) bool) []int {
@@ -168,4 +236,102 @@ func (p StringSlice) Bool(filters ...func(int, bool) bool) []bool {
 		}
 	}
 	return values
+}
+
+func GetByIndex(v interface{}, i int, defaults ...interface{}) interface{} {
+	switch p := v.(type) {
+	case []string:
+		if len(p) > i {
+			return p[i]
+		}
+		if len(defaults) > 0 {
+			return defaults[0]
+		}
+		return ``
+	case []interface{}:
+		if len(p) > i {
+			return p[i]
+		}
+		if len(defaults) > 0 {
+			return defaults[0]
+		}
+		return nil
+	case []int:
+		if len(p) > i {
+			return p[i]
+		}
+		if len(defaults) > 0 {
+			return defaults[0]
+		}
+		return 0
+	case []int32:
+		if len(p) > i {
+			return p[i]
+		}
+		if len(defaults) > 0 {
+			return defaults[0]
+		}
+		return 0
+	case []int64:
+		if len(p) > i {
+			return p[i]
+		}
+		if len(defaults) > 0 {
+			return defaults[0]
+		}
+		return 0
+	case []uint:
+		if len(p) > i {
+			return p[i]
+		}
+		if len(defaults) > 0 {
+			return defaults[0]
+		}
+		return 0
+	case []uint32:
+		if len(p) > i {
+			return p[i]
+		}
+		if len(defaults) > 0 {
+			return defaults[0]
+		}
+		return 0
+	case []uint64:
+		if len(p) > i {
+			return p[i]
+		}
+		if len(defaults) > 0 {
+			return defaults[0]
+		}
+		return 0
+	case []float32:
+		if len(p) > i {
+			return p[i]
+		}
+		if len(defaults) > 0 {
+			return defaults[0]
+		}
+		return 0
+	case []float64:
+		if len(p) > i {
+			return p[i]
+		}
+		if len(defaults) > 0 {
+			return defaults[0]
+		}
+		return 0
+	case []bool:
+		if len(p) > i {
+			return p[i]
+		}
+		if len(defaults) > 0 {
+			return defaults[0]
+		}
+		return false
+	default:
+		if len(defaults) > 0 {
+			return defaults[0]
+		}
+		return nil
+	}
 }

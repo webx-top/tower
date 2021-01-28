@@ -8,3 +8,4 @@ tmp
 /tower_windows_amd64.exe
 /.vscode
 /debug.test
+tower-app-*

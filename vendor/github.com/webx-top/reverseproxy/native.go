@@ -20,7 +20,7 @@ import (
 	"time"
 
 	"github.com/admpub/manners"
-	"github.com/nu7hatch/gouuid"
+	uuid "github.com/nu7hatch/gouuid"
 	"github.com/webx-top/echo/engine"
 	"github.com/webx-top/reverseproxy/log"
 )
@@ -137,6 +137,10 @@ func (rp *NativeReverseProxy) Listen(listener ...net.Listener) error {
 	})
 	rp.servers = append(rp.servers, server)
 	return server.Serve(rp.listener)
+}
+
+func (rp *NativeReverseProxy) Listener() net.Listener {
+	return rp.listener
 }
 
 func (rp *NativeReverseProxy) Stop() error {

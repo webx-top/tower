@@ -25,9 +25,12 @@ import (
 	"encoding/gob"
 	"encoding/hex"
 	"encoding/json"
+	"fmt"
 	"hash"
 	"io"
+	"io/ioutil"
 	r "math/rand"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -56,6 +59,11 @@ func ByteMd5(b []byte) string {
 	m := md5.New()
 	m.Write(b)
 	return hex.EncodeToString(m.Sum(nil))
+}
+
+func Md5file(file string) string {
+	barray, _ := ioutil.ReadFile(file)
+	return ByteMd5(barray)
 }
 
 func Token(key string, val []byte, args ...string) string {
@@ -264,11 +272,96 @@ func IsASCIIUpper(r rune) bool {
 	return 'A' <= r && r <= 'Z'
 }
 
+func IsUpperLetter(r rune) bool {
+	return IsASCIIUpper(r)
+}
+
 func ToASCIIUpper(r rune) rune {
 	if 'a' <= r && r <= 'z' {
 		r -= ('a' - 'A')
 	}
 	return r
+}
+
+func ToUpperLetter(r rune) rune {
+	return ToASCIIUpper(r)
+}
+
+func StrIsASCIIUpper(s string) bool {
+	if len(s) == 0 {
+		return false
+	}
+	for _, r := range s {
+		if !IsASCIIUpper(r) {
+			return false
+		}
+	}
+	return true
+}
+
+func StrIsUpperLetter(s string) bool {
+	return StrIsASCIIUpper(s)
+}
+
+func IsAlpha(r rune) bool {
+	if ('Z' < r || r < 'A') && ('z' < r || r < 'a') {
+		return false
+	}
+	return true
+}
+
+func StrIsLetter(s string) bool {
+	return StrIsAlpha(s)
+}
+
+func StrIsAlpha(s string) bool {
+	if len(s) == 0 {
+		return false
+	}
+	for _, r := range s {
+		if !IsAlpha(r) {
+			return false
+		}
+	}
+	return true
+}
+
+func IsAlphaNumeric(r rune) bool {
+	if ('Z' < r || r < 'A') && ('z' < r || r < 'a') && ('9' < r || r < '0') {
+		return false
+	}
+	return true
+}
+
+func StrIsAlphaNumeric(s string) bool {
+	if len(s) == 0 {
+		return false
+	}
+	for _, r := range s {
+		if !IsAlphaNumeric(r) {
+			return false
+		}
+	}
+	return true
+}
+
+func IsNumeric(r rune) bool {
+	if '9' < r || r < '0' {
+		return false
+	}
+	return true
+}
+
+func StrIsNumeric(s string) bool {
+	if len(s) == 0 {
+		return false
+	}
+	for _, r := range s {
+		if !IsNumeric(r) {
+			return false
+		}
+	}
+	return true
 }
 
 // GonicCase : webxTop => webx_top
@@ -302,9 +395,8 @@ func TitleCase(name string) string {
 		case upNextChar:
 			upNextChar = false
 			chr = ToASCIIUpper(chr)
-		case chr == '_':
+		case chr == '_', chr == ' ':
 			upNextChar = true
-			continue
 		}
 		s = append(s, chr)
 	}
@@ -328,7 +420,7 @@ func SnakeCase(name string) string {
 
 // CamelCase : webx_top => webxTop
 func CamelCase(s string) string {
-	n := ""
+	var n string
 	var capNext bool
 	for _, v := range s {
 		if v >= 'a' && v <= 'z' {
@@ -352,7 +444,7 @@ func CamelCase(s string) string {
 
 // PascalCase : webx_top => WebxTop
 func PascalCase(s string) string {
-	n := ""
+	var n string
 	capNext := true
 	for _, v := range s {
 		if v >= 'a' && v <= 'z' {
@@ -421,6 +513,42 @@ func AddCSlashes(s string, b ...rune) string {
 	return s
 }
 
+func StripSlashes(s string) string {
+	r := []rune{}
+	var found bool
+	for _, v := range []rune(s) {
+		if v == '\\' {
+			if !found {
+				found = true
+			} else {
+				r = append(r, v)
+				found = false
+			}
+			continue
+		}
+		r = append(r, v)
+	}
+	s = string(r)
+	return s
+}
+
+// SplitHost localhost:8080 => localhost,8080
+func SplitHost(host string) (domain string, port string) {
+	pos := strings.LastIndex(host, `:`)
+	if pos >= 0 {
+		domain = host[0:pos]
+		port = host[pos:]
+		port = strings.TrimPrefix(port, `:`)
+		if strings.HasPrefix(port, `[`) {
+			port = strings.TrimPrefix(port, `[`)
+			port = strings.TrimSuffix(port, `]`)
+		}
+	} else {
+		domain = host
+	}
+	return
+}
+
 // MaskString 0123456789 => 012****789
 func MaskString(v string, width ...float64) string {
 	size := len(v)
@@ -454,4 +582,23 @@ func MaskString(v string, width ...float64) string {
 		}
 	}
 	return v[0:1] + strings.Repeat(`*`, size-1)
+}
+
+// LeftPadZero 字符串指定长度，长度不足的时候左边补零
+func LeftPadZero(input string, padLength int) string {
+	return fmt.Sprintf(`%0*s`, padLength, input)
+}
+
+var (
+	reSpaceLine     = regexp.MustCompile("([\\t\\s\r]*\n){2,}")
+	BreakLine       = []byte("\n")
+	BreakLineString = StrLF
+)
+
+func CleanSpaceLine(b []byte) []byte {
+	return reSpaceLine.ReplaceAll(b, BreakLine)
+}
+
+func CleanSpaceLineString(b string) string {
+	return reSpaceLine.ReplaceAllString(b, BreakLineString)
 }

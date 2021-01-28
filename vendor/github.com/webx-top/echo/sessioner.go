@@ -26,14 +26,20 @@ var (
 	DefaultNopSession     Sessioner = &NopSession{}
 	DefaultDebugSession   Sessioner = &DebugSession{}
 	DefaultSession                  = DefaultNopSession
-	DefaultSessionOptions           = &SessionOptions{
-		Engine: `cookie`,
-		Name:   `SID`,
-		CookieOptions: &CookieOptions{
-			Path: `/`,
-		},
-	}
+	DefaultSessionOptions           = NewSessionOptions(`cookie`, `SID`)
 )
+
+func NewSessionOptions(engine string, name string, args ...*CookieOptions) *SessionOptions {
+	cookieOptions := DefaultCookieOptions
+	if len(args) > 0 {
+		cookieOptions = args[0]
+	}
+	return &SessionOptions{
+		Engine:        engine,
+		Name:          name,
+		CookieOptions: cookieOptions,
+	}
+}
 
 // SessionOptions stores configuration for a session or session store.
 // Fields are a subset of http.Cookie fields.
@@ -60,6 +66,7 @@ type Sessioner interface {
 	Set(key string, val interface{}) Sessioner
 	SetID(id string) Sessioner
 	ID() string
+	MustID() string
 	// Delete removes the session value associated to the given key.
 	Delete(key string) Sessioner
 	// Clear deletes all values in the session.
@@ -74,6 +81,8 @@ type Sessioner interface {
 	Flashes(vars ...string) []interface{}
 	// Save saves all sessions used during the current request.
 	Save() error
+	AddPreSaveHook(func(Context) error)
+	SetPreSaveHook(...func(Context) error)
 }
 
 type NopSession struct {
@@ -92,6 +101,10 @@ func (n *NopSession) SetID(id string) Sessioner {
 }
 
 func (n *NopSession) ID() string {
+	return ``
+}
+
+func (n *NopSession) MustID() string {
 	return ``
 }
 
@@ -119,6 +132,12 @@ func (n *NopSession) Save() error {
 	return nil
 }
 
+func (n *NopSession) AddPreSaveHook(_ func(Context) error) {
+}
+
+func (n *NopSession) SetPreSaveHook(_ ...func(Context) error) {
+}
+
 type DebugSession struct {
 }
 
@@ -142,6 +161,11 @@ func (n *DebugSession) ID() string {
 	return ``
 }
 
+func (n *DebugSession) MustID() string {
+	log.Println(`DebugSession.MustID`)
+	return ``
+}
+
 func (n *DebugSession) Delete(name string) Sessioner {
 	log.Println(`DebugSession.Delete`, name)
 	return n
@@ -152,8 +176,8 @@ func (n *DebugSession) Clear() Sessioner {
 	return n
 }
 
-func (n *DebugSession) AddFlash(name interface{}, args ...string) Sessioner {
-	log.Println(`DebugSession.AddFlash`, name, args)
+func (n *DebugSession) AddFlash(value interface{}, args ...string) Sessioner {
+	log.Println(`DebugSession.AddFlash`, value, args)
 	return n
 }
 
@@ -170,4 +194,10 @@ func (n *DebugSession) Options(options SessionOptions) Sessioner {
 func (n *DebugSession) Save() error {
 	log.Println(`DebugSession.Save`)
 	return nil
+}
+
+func (n *DebugSession) AddPreSaveHook(_ func(Context) error) {
+}
+
+func (n *DebugSession) SetPreSaveHook(_ ...func(Context) error) {
 }

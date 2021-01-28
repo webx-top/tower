@@ -334,6 +334,7 @@ func startTower() {
 	app.OfflineMode = c.Conf.Offline
 	app.DisabledLogRequest = c.Conf.LogRequest == false
 	app.PkgMirrors = c.Conf.App.PkgMirrors
+	app.Env = append(app.Env, c.Conf.App.Env...)
 	if len(c.Conf.App.RunParams) > 0 {
 		delim := ` `
 		param := c.Conf.App.RunParams

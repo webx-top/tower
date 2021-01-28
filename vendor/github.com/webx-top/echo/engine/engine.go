@@ -1,6 +1,7 @@
 package engine
 
 import (
+	"context"
 	"io"
 	"mime/multipart"
 	"net"
@@ -17,6 +18,7 @@ type (
 		SetLogger(logger.Logger)
 		Start() error
 		Stop() error
+		Shutdown(ctx context.Context) error
 	}
 
 	// Request defines an interface for HTTP request.
@@ -87,7 +89,7 @@ type (
 		// FormFile returns the multipart form file for the provided name.
 		FormFile(string) (multipart.File, *multipart.FileHeader, error)
 
-		// ContentLength returns the size of request's body.
+		// Size returns the size of request's body.
 		Size() int64
 
 		BasicAuth() (string, string, bool)
@@ -124,7 +126,7 @@ type (
 		Writer() io.Writer
 		Object() interface{}
 
-		Hijack(func(net.Conn))
+		Hijacker(func(net.Conn)) error
 		Body() []byte
 		Redirect(string, int)
 		NotFound()
@@ -168,6 +170,7 @@ type (
 		Encode() string
 		All() map[string][]string
 		Reset(url.Values)
+		Merge(url.Values)
 	}
 
 	// URL defines an interface for HTTP request url.

@@ -4,6 +4,7 @@ import (
 	"crypto/tls"
 	"log"
 	"net"
+	"net/http"
 	"os"
 	"path/filepath"
 	"time"
@@ -16,7 +17,10 @@ import (
 type Config struct {
 	Address            string       // TCP address to listen on.
 	Listener           net.Listener // Custom `net.Listener`. If set, server accepts connections on it.
+	ReusePort          bool
 	TLSAuto            bool
+	TLSHosts           []string
+	TLSEmail           string
 	TLSCacheDir        string
 	TLSConfig          *tls.Config
 	TLSCertFile        string        // TLS certificate file path.
@@ -70,27 +74,47 @@ func (c *Config) AddTLSCert(certFile, keyFile string) *Config {
 	return c
 }
 
+func (c *Config) NewAutoTLSManager(hosts ...string) *autocert.Manager {
+	autoTLSManager := &autocert.Manager{
+		Prompt: autocert.AcceptTOS,
+		Email:  c.TLSEmail,
+	}
+	if len(hosts) > 0 {
+		c.TLSHosts = append(c.TLSHosts, hosts...)
+	}
+	autoTLSManager.HostPolicy = autocert.HostWhitelist(c.TLSHosts...) // Added security
+	if len(c.TLSCacheDir) == 0 {
+		home, err := homedir.Dir()
+		if err != nil {
+			panic(err)
+		}
+		c.TLSCacheDir = filepath.Join(home, ".webx.top", "cache", "autocert")
+	}
+	if _, err := os.Stat(c.TLSCacheDir); os.IsNotExist(err) {
+		err = os.MkdirAll(c.TLSCacheDir, 0666)
+		if err != nil {
+			panic(err)
+		}
+	}
+	autoTLSManager.Cache = autocert.DirCache(c.TLSCacheDir)
+	return autoTLSManager
+}
+
 func (c *Config) SupportAutoTLS(autoTLSManager *autocert.Manager, hosts ...string) *Config {
 	if c.TLSConfig == nil {
 		c.InitTLSConfig()
 	}
 	if autoTLSManager == nil {
-		autoTLSManager = &autocert.Manager{
-			Prompt: autocert.AcceptTOS,
-		}
-		autoTLSManager.HostPolicy = autocert.HostWhitelist(hosts...) // Added security
-		home, err := homedir.Dir()
-		if err != nil {
-			panic(err)
-		}
-		if len(c.TLSCacheDir) == 0 {
-			c.TLSCacheDir = filepath.Join(home, ".webx-top-echo", "cache")
-			err = os.MkdirAll(c.TLSCacheDir, 0666)
+		autoTLSManager = c.NewAutoTLSManager(hosts...)
+	}
+	if c.Listener == nil && AddressPort(c.Address) != 80 {
+		go func() {
+			log.Println(`Starting serve: ACME "http-01" challenge responses.`)
+			err := http.ListenAndServe(":http", autoTLSManager.HTTPHandler(nil))
 			if err != nil {
-				panic(err)
+				log.Println(err)
 			}
-		}
-		autoTLSManager.Cache = autocert.DirCache(c.TLSCacheDir)
+		}()
 	}
 	//c.TLSConfig.GetCertificate = autoTLSManager.GetCertificate
 	c.TLSConfig.BuildNameToCertificate()
@@ -119,7 +143,7 @@ func (c *Config) InitTLSListener(before ...func() error) error {
 			return err
 		}
 	}
-	ln, err := NewListener(c.Address)
+	ln, err := NewListener(c.Address, c.ReusePort)
 	if err != nil {
 		return err
 	}
@@ -136,7 +160,7 @@ func (c *Config) InitListener(before ...func() error) error {
 			return err
 		}
 	}
-	ln, err := NewListener(c.Address)
+	ln, err := NewListener(c.Address, c.ReusePort)
 	if err != nil {
 		return err
 	}

@@ -52,6 +52,7 @@ type App struct {
 	AppRestart         *sync.Once
 	DisabledLogRequest bool
 	PkgMirrors         map[string]string
+	Env                []string
 
 	portBinFiles map[string]string
 	buildErr     error
@@ -503,6 +504,7 @@ func (this *App) Build() (err error) {
 		var b bytes.Buffer
 		cmd.Stderr = &b
 		cmd.Stdout = os.Stdout
+		cmd.Env = append(os.Environ(), this.Env...)
 		err := cmd.Run()
 		out := b.String()
 		return out, err

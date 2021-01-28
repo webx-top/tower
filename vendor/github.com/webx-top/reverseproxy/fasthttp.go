@@ -17,7 +17,7 @@ import (
 	"time"
 
 	"github.com/admpub/fasthttp"
-	"github.com/nu7hatch/gouuid"
+	uuid "github.com/nu7hatch/gouuid"
 	"github.com/webx-top/echo/engine"
 	"github.com/webx-top/reverseproxy/log"
 )
@@ -62,6 +62,10 @@ func (rp *FastReverseProxy) Listen(listener ...net.Listener) error {
 		}
 	}
 	return rp.server.Serve(rp.listener)
+}
+
+func (rp *FastReverseProxy) Listener() net.Listener {
+	return rp.listener
 }
 
 func (rp *FastReverseProxy) Stop() error {

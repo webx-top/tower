@@ -12,6 +12,7 @@ import (
 
 type ProxyOptions struct {
 	Prefix          string   //网址路径前缀，符合这个前缀的将反向代理到其它服务器
+	Domain          string   //域名，符合这个域名的将反向代理到其它服务器
 	Engine          string   //反向代理使用的引擎，值为fast时使用fastHTTP，否则使用标准HTTP
 	Hosts           []string //支持通过反向代理访问的后台服务器集群，例如 192.168.0.2:8080
 	FlushInterval   time.Duration
@@ -59,22 +60,28 @@ func Proxy(options *ProxyOptions) echo.MiddlewareFunc {
 		panic(err.Error())
 	}
 	prefixLength := len(options.Prefix)
+	proxyFn := func(c echo.Context) error {
+		if options.Preprocessor != nil {
+			if err := options.Preprocessor(c); err != nil {
+				return err
+			}
+		}
+		rPxy.HandlerForEcho(c.Response(), c.Request())
+		return nil
+	}
 	return func(h echo.Handler) echo.Handler {
 		return echo.HandlerFunc(func(c echo.Context) error {
-			urlPath := c.Request().URL().Path()
-			if len(urlPath) > prefixLength && urlPath[0:prefixLength] == options.Prefix {
-				/*
-					if options.router.hostNum < 1 {
-						return ErrAllBackendsDead
-					}
-				*/
-				if options.Preprocessor != nil {
-					if err := options.Preprocessor(c); err != nil {
-						return err
-					}
+			if len(options.Domain) > 0 {
+				if c.Domain() != options.Domain {
+					return h.Handle(c)
 				}
-				rPxy.HandlerForEcho(c.Response(), c.Request())
-				return nil
+				if prefixLength <= 0 {
+					return proxyFn(c)
+				}
+			}
+			urlPath := c.Request().URL().Path()
+			if len(urlPath) >= prefixLength && urlPath[0:prefixLength] == options.Prefix {
+				return proxyFn(c)
 			}
 			return h.Handle(c)
 		})

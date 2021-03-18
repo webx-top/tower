@@ -1,2 +1,5 @@
 /vendor/github.com/valyala/fasthttp/*.gz
 /.vscode
+go.mod
+go.sum
+tower-app-*

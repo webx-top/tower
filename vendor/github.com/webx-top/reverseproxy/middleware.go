@@ -7,6 +7,7 @@ import (
 
 	"github.com/admpub/log"
 	"github.com/webx-top/echo"
+	"github.com/webx-top/echo/middleware"
 	. "github.com/webx-top/reverseproxy/log"
 )
 
@@ -23,6 +24,7 @@ type ProxyOptions struct {
 	ResponseAfter   func(Context) bool
 	Preprocessor    func(echo.Context) error
 	router          *ProxyRouter
+	Rewrite         middleware.RewriteConfig
 }
 
 func (p *ProxyOptions) AddHost(hosts ...string) {
@@ -59,6 +61,10 @@ func Proxy(options *ProxyOptions) echo.MiddlewareFunc {
 	if err != nil {
 		panic(err.Error())
 	}
+	if options.Rewrite.Rules == nil {
+		options.Rewrite.Rules = map[string]string{}
+	}
+	options.Rewrite.Init()
 	prefixLength := len(options.Prefix)
 	proxyFn := func(c echo.Context) error {
 		if options.Preprocessor != nil {
@@ -66,6 +72,7 @@ func Proxy(options *ProxyOptions) echo.MiddlewareFunc {
 				return err
 			}
 		}
+		c.Request().URL().SetPath(options.Rewrite.Rewrite(c.Request().URL().Path()))
 		rPxy.HandlerForEcho(c.Response(), c.Request())
 		return nil
 	}
@@ -75,15 +82,15 @@ func Proxy(options *ProxyOptions) echo.MiddlewareFunc {
 				if c.Domain() != options.Domain {
 					return h.Handle(c)
 				}
-				if prefixLength <= 0 {
+			}
+			if prefixLength > 0 {
+				urlPath := c.Request().URL().Path()
+				if len(urlPath) >= prefixLength && urlPath[0:prefixLength] == options.Prefix {
 					return proxyFn(c)
 				}
+				return h.Handle(c)
 			}
-			urlPath := c.Request().URL().Path()
-			if len(urlPath) >= prefixLength && urlPath[0:prefixLength] == options.Prefix {
-				return proxyFn(c)
-			}
-			return h.Handle(c)
+			return proxyFn(c)
 		})
 	}
 }

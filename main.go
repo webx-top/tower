@@ -332,34 +332,14 @@ func startTower() {
 		app = NewApp(c.Conf.App.MainFile, c.Conf.App.Port, c.Conf.App.BuildDir, c.Conf.App.PortParamName)
 	}
 	app.OfflineMode = c.Conf.Offline
-	app.DisabledLogRequest = c.Conf.LogRequest == false
+	app.DisabledLogRequest = !c.Conf.LogRequest
 	app.PkgMirrors = c.Conf.App.PkgMirrors
 	app.Env = append(app.Env, c.Conf.App.Env...)
 	if len(c.Conf.App.RunParams) > 0 {
-		delim := ` `
-		param := c.Conf.App.RunParams
-		//:<分割符>:<参数>
-		if param[0] == ':' {
-			param = strings.TrimPrefix(param, `:`)
-			if pos := strings.Index(param, `:`); pos > 0 {
-				delim = param[0:pos]
-				param = param[pos+1:]
-			}
-		}
-		app.RunParams = strings.Split(param, delim)
+		app.RunParams = parseParams(c.Conf.App.RunParams)
 	}
 	if len(c.Conf.App.BuildParams) > 0 {
-		delim := ` `
-		param := c.Conf.App.BuildParams
-		//:<分割符>:<参数>
-		if param[0] == ':' {
-			param = strings.TrimPrefix(param, `:`)
-			if pos := strings.Index(param, `:`); pos > 0 {
-				delim = param[0:pos]
-				param = param[pos+1:]
-			}
-		}
-		app.BuildParams = strings.Split(param, delim)
+		app.BuildParams = parseParams(c.Conf.App.BuildParams)
 	}
 	watchedDir := app.Root
 	if !allowBuild {

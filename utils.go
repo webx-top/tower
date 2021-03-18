@@ -6,7 +6,10 @@ import (
 	"net"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
+
+	"github.com/webx-top/com"
 )
 
 var (
@@ -102,4 +105,19 @@ func quickSort(arr []int64, start, end int) {
 			quickSort(arr, i, end)
 		}
 	}
+}
+
+func parseParams(param string) []string {
+	if param[0] != ':' {
+		return com.ParseArgs(param)
+	}
+
+	//:<分割符>:<参数>
+	delim := ` `
+	param = strings.TrimPrefix(param, `:`)
+	if pos := strings.Index(param, `:`); pos > 0 {
+		delim = param[0:pos]
+		param = param[pos+1:]
+	}
+	return strings.Split(param, delim)
 }

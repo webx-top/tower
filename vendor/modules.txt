@@ -27,7 +27,7 @@ github.com/admpub/go-reuseport
 # github.com/admpub/humanize v0.0.0-20190501023926-5f826e92c8ca
 ## explicit
 github.com/admpub/humanize
-# github.com/admpub/log v0.0.2
+# github.com/admpub/log v0.2.0
 ## explicit
 github.com/admpub/log
 # github.com/admpub/manners v0.0.0-20160501130611-72097fd728f7
@@ -89,7 +89,7 @@ github.com/webx-top/captcha
 ## explicit
 github.com/webx-top/com
 github.com/webx-top/com/encoding/json
-# github.com/webx-top/echo v2.8.2+incompatible
+# github.com/webx-top/echo v2.8.3+incompatible
 ## explicit
 github.com/webx-top/echo
 github.com/webx-top/echo/code

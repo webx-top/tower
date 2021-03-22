@@ -26,8 +26,8 @@ github.com/admpub/go-reuseport v0.0.3 h1:K9gDKC2Alx77JC2NibDIfXouFosHlQ44JqV4ttO
 github.com/admpub/go-reuseport v0.0.3/go.mod h1:d5DFsbZ3EvwDW86DFRhpK/IIS96EwYBLjvWl6w1QqP0=
 github.com/admpub/humanize v0.0.0-20190501023926-5f826e92c8ca h1:9mfauR3d9p41BFnAoXmHc2z8yHcgg+3+jT1hbnQrtXo=
 github.com/admpub/humanize v0.0.0-20190501023926-5f826e92c8ca/go.mod h1:eHL6IsGOvDKqPc9Zp0d0NNayoEYoJ+UC+vj6zG0lGCY=
-github.com/admpub/log v0.0.2 h1:XDg8G5XIOIDBOkkeJPYnjb+snNpGgzexIzGK2cai6Zo=
-github.com/admpub/log v0.0.2/go.mod h1:rr6Sw/xAGWzL/Hg7FCekKd98XguStEEjcYC/DG5y/YA=
+github.com/admpub/log v0.2.0 h1:4vuA5wmk/z9x2gT3lN7OTN4NbNQ1cVb+tAu0CyykYXg=
+github.com/admpub/log v0.2.0/go.mod h1:rr6Sw/xAGWzL/Hg7FCekKd98XguStEEjcYC/DG5y/YA=
 github.com/admpub/manners v0.0.0-20160501130611-72097fd728f7 h1:UIU46MHldBEyGh5lrv2oP7LKHzrLV5ASXZHHRffXy1k=
 github.com/admpub/manners v0.0.0-20160501130611-72097fd728f7/go.mod h1:qvQUcftumm7cJ11nhqPGVzm2INF9RWpGNRJeJfpSyT8=
 github.com/admpub/map2struct v0.0.5 h1:NP/2mvqaD3QYYEbcNz2tIcTEyuW0sqIDLiuoBsNMUmY=
@@ -168,8 +168,8 @@ github.com/webx-top/captcha v0.0.0-20161202061115-29e9e7f30aa0 h1:KkrDcd2yO7QHeJ
 github.com/webx-top/captcha v0.0.0-20161202061115-29e9e7f30aa0/go.mod h1:DLtQXR6uR8UMcKb7dB5eYgsDHG0WPI74rM/B/JFGxfE=
 github.com/webx-top/com v0.1.2 h1:pAsQmYbcgoVzM/TKePP2EQET4lTmDEK5a23uwo5f4G4=
 github.com/webx-top/com v0.1.2/go.mod h1:DDfATzu1w5+vD5XmG3YRTfLjaIqZWi/yeJ7HQEGsM2Q=
-github.com/webx-top/echo v2.8.2+incompatible h1:1By7LOPqHTANxRzbbOO5AQRmzbJvxgj6mOqzaiHm0xo=
-github.com/webx-top/echo v2.8.2+incompatible/go.mod h1:ufVP//GwP1suggBSQW7l8G9XcKxZM+FIfCMElLAQqF8=
+github.com/webx-top/echo v2.8.3+incompatible h1:A1HCzSzapfzwu59sAsOLqBPGLTl8TZLZskygIYPqz0I=
+github.com/webx-top/echo v2.8.3+incompatible/go.mod h1:ufVP//GwP1suggBSQW7l8G9XcKxZM+FIfCMElLAQqF8=
 github.com/webx-top/reverseproxy v0.0.2 h1:V/ylAOiPQvgDj3SUNJJnQlc17oM/B4ZU3Aq+TxDjY2I=
 github.com/webx-top/reverseproxy v0.0.2/go.mod h1:yCbmmzm+kjreKSMNB4nBQsWrUfa+EUN9HqiXDKX82Hk=
 github.com/webx-top/tagfast v0.0.0-20161020041435-9a2065ce3dd2 h1:lqnGa1BnWT7pN+c9V31bik0lTp5XxyOMRp7ICsZ6K5M=

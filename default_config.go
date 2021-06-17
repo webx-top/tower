@@ -30,9 +30,8 @@ app {
 
   # 包路径替换规则，例如：{"^golang\\.org/x/(.*)$":"github.com/golang/$1"}
   pkgMirrors : {}
-  env : [
-	  # 自定义环境变量。例如:
-      # "ENV_NAME_1=123"
+  env : [ 
+	# 自定义环境变量。例如: "ENV_NAME_1=123"
   ]
 }
 

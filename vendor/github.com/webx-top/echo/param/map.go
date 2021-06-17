@@ -141,13 +141,28 @@ func (s Store) DateTime(key string, layouts ...string) time.Time {
 func (s Store) Children(keys ...interface{}) Store {
 	r := s
 	for _, key := range keys {
-		r = r.Store(fmt.Sprint(key))
+		r = r.GetStore(fmt.Sprint(key))
 	}
 	return r
 }
 
-func (s Store) Store(key string, defaults ...interface{}) Store {
+func (s Store) GetStore(key string, defaults ...interface{}) Store {
 	return AsStore(s.Get(key, defaults...))
+}
+
+func (s Store) GetStoreByKeys(keys ...string) Store {
+	sz := len(keys)
+	if sz == 0 {
+		return s
+	}
+	r := s.GetStore(keys[0])
+	if sz == 1 {
+		return r
+	}
+	for _, key := range keys[1:] {
+		r = r.GetStore(key)
+	}
+	return r
 }
 
 func (s Store) Delete(keys ...string) Store {

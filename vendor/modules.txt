@@ -5,10 +5,10 @@ github.com/admpub/color
 github.com/admpub/confl
 # github.com/admpub/copier v0.0.1
 github.com/admpub/copier
-# github.com/admpub/decimal v0.0.0-20180709203117-cd690d0c9e24
+# github.com/admpub/decimal v0.0.2
 ## explicit
 github.com/admpub/decimal
-# github.com/admpub/events v0.0.0-20190913050400-383beb0843c6
+# github.com/admpub/events v1.2.0
 ## explicit
 github.com/admpub/events
 github.com/admpub/events/dispatcher
@@ -21,13 +21,13 @@ github.com/admpub/fasthttp/stackless
 # github.com/admpub/fsnotify v1.4.4
 ## explicit
 github.com/admpub/fsnotify
-# github.com/admpub/go-reuseport v0.0.3
+# github.com/admpub/go-reuseport v0.0.4
 ## explicit
 github.com/admpub/go-reuseport
 # github.com/admpub/humanize v0.0.0-20190501023926-5f826e92c8ca
 ## explicit
 github.com/admpub/humanize
-# github.com/admpub/log v0.2.0
+# github.com/admpub/log v0.3.1
 ## explicit
 github.com/admpub/log
 # github.com/admpub/manners v0.0.0-20160501130611-72097fd728f7
@@ -37,7 +37,8 @@ github.com/admpub/manners
 github.com/admpub/map2struct
 # github.com/admpub/queueChan v0.0.0-20151001074356-79908f7a499f
 github.com/admpub/queueChan
-# github.com/andybalholm/brotli v1.0.1
+# github.com/andybalholm/brotli v1.0.3
+## explicit
 github.com/andybalholm/brotli
 # github.com/braintree/manners v0.0.0-20160418043613-82a8879fc5fd
 ## explicit
@@ -46,13 +47,21 @@ github.com/davecgh/go-spew/spew
 # github.com/francoispqt/gojay v1.2.13
 ## explicit
 github.com/francoispqt/gojay
-# github.com/goccy/go-json v0.4.7
+# github.com/goccy/go-json v0.7.0
 ## explicit
 github.com/goccy/go-json
-# github.com/json-iterator/go v1.1.10
+github.com/goccy/go-json/internal/decoder
+github.com/goccy/go-json/internal/encoder
+github.com/goccy/go-json/internal/encoder/vm
+github.com/goccy/go-json/internal/encoder/vm_color
+github.com/goccy/go-json/internal/encoder/vm_color_indent
+github.com/goccy/go-json/internal/encoder/vm_indent
+github.com/goccy/go-json/internal/errors
+github.com/goccy/go-json/internal/runtime
+# github.com/json-iterator/go v1.1.11
 ## explicit
 github.com/json-iterator/go
-# github.com/klauspost/compress v1.11.12
+# github.com/klauspost/compress v1.13.1
 ## explicit
 github.com/klauspost/compress/flate
 github.com/klauspost/compress/gzip
@@ -61,7 +70,8 @@ github.com/klauspost/compress/zlib
 ## explicit
 # github.com/mattn/go-colorable v0.1.8
 github.com/mattn/go-colorable
-# github.com/mattn/go-isatty v0.0.12
+# github.com/mattn/go-isatty v0.0.13
+## explicit
 github.com/mattn/go-isatty
 # github.com/mitchellh/go-homedir v1.1.0
 ## explicit
@@ -82,14 +92,14 @@ github.com/pmezard/go-difflib/difflib
 github.com/stretchr/testify/assert
 # github.com/valyala/bytebufferpool v1.0.0
 github.com/valyala/bytebufferpool
-# github.com/webx-top/captcha v0.0.0-20161202061115-29e9e7f30aa0
+# github.com/webx-top/captcha v0.0.1
 ## explicit
 github.com/webx-top/captcha
-# github.com/webx-top/com v0.1.2
+# github.com/webx-top/com v0.2.2
 ## explicit
 github.com/webx-top/com
 github.com/webx-top/com/encoding/json
-# github.com/webx-top/echo v2.8.3+incompatible
+# github.com/webx-top/echo v2.14.5+incompatible
 ## explicit
 github.com/webx-top/echo
 github.com/webx-top/echo/code
@@ -112,20 +122,19 @@ github.com/webx-top/tagfast
 # github.com/webx-top/validation v0.0.1
 ## explicit
 github.com/webx-top/validation
-# golang.org/x/crypto v0.0.0-20210317152858-513c2a44f670
+# golang.org/x/crypto v0.0.0-20210616213533-5ff15b29337e
 ## explicit
 golang.org/x/crypto/acme
 golang.org/x/crypto/acme/autocert
-# golang.org/x/net v0.0.0-20210316092652-d523dce5a7f4
+# golang.org/x/net v0.0.0-20210614182718-04defd469f4e
 ## explicit
 golang.org/x/net/idna
-# golang.org/x/sys v0.0.0-20210317225723-c4fcb01b228e
+# golang.org/x/sys v0.0.0-20210616094352-59db8d763f22
 ## explicit
 golang.org/x/sys/internal/unsafeheader
 golang.org/x/sys/unix
 golang.org/x/sys/windows
-# golang.org/x/text v0.3.5
-## explicit
+# golang.org/x/text v0.3.6
 golang.org/x/text/secure/bidirule
 golang.org/x/text/transform
 golang.org/x/text/unicode/bidi

@@ -21,6 +21,7 @@ package echo
 import (
 	"errors"
 	"fmt"
+	"strings"
 )
 
 // T 标记为多语言文本
@@ -41,13 +42,90 @@ func E(format string, args ...interface{}) error {
 type Translator interface {
 	T(format string, args ...interface{}) string
 	E(format string, args ...interface{}) error
-	Lang() string
+	Lang() LangCode
 }
 
-var DefaultNopTranslate Translator = &NopTranslate{language: `en`}
+type LangCode interface {
+	String() string    // all lowercase characters
+	Normalize() string // lowercase(language)-uppercase(region)
+	Format(regionUppercase bool, separator ...string) string
+	Language() string
+	Region(regionUppercase bool) string
+}
+
+func NewLangCode(language string, separator ...string) LangCode {
+	l := langCode{}
+	sep := `-`
+	if len(separator) > 0 && len(separator[0]) > 0 {
+		sep = separator[0]
+	}
+	lg := strings.SplitN(language, sep, 2)
+	switch len(lg) {
+	case 2:
+		l.regionLowercase = strings.ToLower(lg[1])
+		l.region = strings.ToUpper(lg[1])
+		fallthrough
+	case 1:
+		l.language = strings.ToLower(lg[0])
+	}
+	return l
+}
+
+type langCode struct {
+	language        string
+	region          string
+	regionLowercase string
+}
+
+func (l langCode) String() string {
+	if len(l.regionLowercase) > 0 {
+		return l.language + `-` + l.regionLowercase
+	}
+	return l.language
+}
+
+func (l langCode) Normalize() string {
+	if len(l.region) > 0 {
+		return l.language + `-` + l.region
+	}
+	return l.language
+}
+
+func (l langCode) Language() string {
+	return l.language
+}
+
+func (l langCode) Region(regionUppercase bool) string {
+	if regionUppercase {
+		return l.region
+	}
+	return l.regionLowercase
+}
+
+func (l langCode) Format(regionUppercase bool, separator ...string) string {
+	var region string
+	if regionUppercase {
+		region = l.region
+	} else {
+		region = l.regionLowercase
+	}
+	if len(region) > 0 {
+		if len(separator) > 0 {
+			return l.language + separator[0] + region
+		}
+		return l.language + `-` + region
+	}
+	return l.language
+}
+
+var DefaultNopTranslate Translator = &NopTranslate{
+	code: langCode{
+		language: `en`,
+	},
+}
 
 type NopTranslate struct {
-	language string
+	code LangCode
 }
 
 func (n *NopTranslate) T(format string, args ...interface{}) string {
@@ -58,6 +136,6 @@ func (n *NopTranslate) E(format string, args ...interface{}) error {
 	return E(format, args...)
 }
 
-func (n *NopTranslate) Lang() string {
-	return n.language
+func (n *NopTranslate) Lang() LangCode {
+	return n.code
 }

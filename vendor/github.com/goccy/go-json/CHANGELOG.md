@@ -1,3 +1,74 @@
+# v0.8.1 - 2021/12/05
+
+* Fix operation conversion from PtrHead to Head in Recursive type ( #305 )
+
+# v0.8.0 - 2021/12/02
+
+* Fix embedded field conflict behavior ( #300 )
+* Refactor compiler for encoder ( #301 #302 )
+
+# v0.7.10 - 2021/10/16
+
+* Fix conversion from pointer to uint64  ( #294 )
+
+# v0.7.9 - 2021/09/28
+
+* Fix encoding of nil value about interface type that has method ( #291 )
+
+# v0.7.8 - 2021/09/01
+
+* Fix mapassign_faststr for indirect struct type ( #283 )
+* Fix encoding of not empty interface type ( #284 )
+* Fix encoding of empty struct interface type ( #286 )
+
+# v0.7.7 - 2021/08/25
+
+* Fix invalid utf8 on stream decoder ( #279 )
+* Fix buffer length bug on string stream decoder ( #280 )
+
+Thank you @orisano !!
+
+# v0.7.6 - 2021/08/13
+
+* Fix nil slice assignment ( #276 )
+* Improve error message ( #277 )
+
+# v0.7.5 - 2021/08/12
+
+* Fix encoding of embedded struct with tags ( #265 )
+* Fix encoding of embedded struct that isn't first field ( #272 )
+* Fix decoding of binary type with escaped char ( #273 )
+
+# v0.7.4 - 2021/07/06
+
+* Fix encoding of indirect layout structure ( #264 )
+
+# v0.7.3 - 2021/06/29
+
+* Fix encoding of pointer type in empty interface ( #262 )
+
+# v0.7.2 - 2021/06/26
+
+### Fix decoder
+
+* Add decoder for func type to fix decoding of nil function value ( #257 )
+* Fix stream decoding of []byte type ( #258 )
+
+### Performance
+
+* Improve decoding performance of map[string]interface{} type ( use `mapassign_faststr` ) ( #256 )
+* Improve encoding performance of empty interface type ( remove recursive calling of `vm.Run` ) ( #259 )
+
+### Benchmark
+
+* Add bytedance/sonic as benchmark target ( #254 )
+
+# v0.7.1 - 2021/06/18
+
+### Fix decoder
+
+* Fix error when unmarshal empty array ( #253 )
+
 # v0.7.0 - 2021/06/12
 
 ### Support context for MarshalJSON and UnmarshalJSON ( #248 )

@@ -139,8 +139,8 @@ func (c *xContext) XMLBlob(b []byte, codes ...int) (err error) {
 	return
 }
 
-func (c *xContext) Stream(step func(w io.Writer) bool) {
-	c.response.Stream(step)
+func (c *xContext) Stream(step func(w io.Writer) bool) error {
+	return c.response.Stream(step)
 }
 
 func (c *xContext) SSEvent(event string, data chan interface{}) (err error) {
@@ -148,15 +148,21 @@ func (c *xContext) SSEvent(event string, data chan interface{}) (err error) {
 	hdr.Set(HeaderContentType, MIMEEventStream)
 	hdr.Set(`Cache-Control`, `no-cache`)
 	hdr.Set(`Connection`, `keep-alive`)
-	c.Stream(func(w io.Writer) bool {
-		b, e := c.Fetch(event, <-data)
-		if e != nil {
-			err = e
+	hdr.Set(`Transfer-Encoding`, `chunked`)
+	err = c.Stream(func(w io.Writer) bool {
+		recv, ok := <-data
+		if !ok {
+			return ok
+		}
+		b, _err := c.Fetch(event, recv)
+		if _err != nil {
+			err = _err
 			return false
 		}
-		_, e = w.Write(b)
-		if e != nil {
-			err = e
+		//c.Logger().Debugf(`SSEvent: %s`, b)
+		_, _err = w.Write(b)
+		if _err != nil {
+			err = _err
 			return false
 		}
 		return true
@@ -216,10 +222,15 @@ func (c *xContext) File(file string, fs ...http.FileSystem) (err error) {
 			return err
 		}
 	}
-	return c.ServeContent(f, fi.Name(), fi.ModTime())
+	c.Response().ServeContent(f, fi.Name(), fi.ModTime())
+	return nil
 }
 
 func (c *xContext) ServeContent(content io.Reader, name string, modtime time.Time) error {
+	if readSeeker, ok := content.(io.ReadSeeker); ok {
+		c.Response().ServeContent(readSeeker, name, modtime)
+		return nil
+	}
 	return c.ServeCallbackContent(func(_ Context) (io.Reader, error) {
 		return content, nil
 	}, name, modtime)
@@ -237,6 +248,10 @@ func (c *xContext) ServeCallbackContent(callback func(Context) (io.Reader, error
 	content, err := callback(c)
 	if err != nil {
 		return err
+	}
+	if readSeeker, ok := content.(io.ReadSeeker); ok {
+		c.Response().ServeContent(readSeeker, name, modtime)
+		return nil
 	}
 	rs.Header().Set(HeaderContentType, ContentTypeByExtension(name))
 	rs.Header().Set(HeaderLastModified, modtime.UTC().Format(http.TimeFormat))

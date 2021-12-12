@@ -57,6 +57,10 @@ const (
 	MIMETextHTMLCharsetUTF8              = MIMETextHTML + "; " + CharsetUTF8
 	MIMETextPlain                        = "text/plain"
 	MIMETextPlainCharsetUTF8             = MIMETextPlain + "; " + CharsetUTF8
+	MIMETextJavaScript                   = "text/javascript"
+	MIMETextJavaScriptCharsetUTF8        = MIMETextJavaScript + "; " + CharsetUTF8
+	MIMETextCSS                          = "text/css"
+	MIMETextCSSCharsetUTF8               = MIMETextCSS + "; " + CharsetUTF8
 	MIMEMultipartForm                    = "multipart/form-data"
 	MIMEOctetStream                      = "application/octet-stream"
 	MIMEEventStream                      = "text/event-stream"
@@ -88,6 +92,7 @@ const (
 	HeaderVary                = "Vary"
 	HeaderWWWAuthenticate     = "WWW-Authenticate"
 	HeaderXForwardedProto     = "X-Forwarded-Proto"
+	HeaderXForwardedPort      = "X-Forwarded-Port"
 	HeaderXHTTPMethodOverride = "X-HTTP-Method-Override"
 	HeaderXForwardedFor       = "X-Forwarded-For"
 	HeaderXRealIP             = "X-Real-IP"
@@ -123,4 +128,8 @@ const (
 	ContentTypeJSONP = "jsonp"
 	ContentTypeXML   = "xml"
 	ContentTypeText  = "text"
+
+	// HTTP Scheme
+	SchemeHTTP  = "http"
+	SchemeHTTPS = "https"
 )

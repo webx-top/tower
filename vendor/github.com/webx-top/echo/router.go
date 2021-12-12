@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"fmt"
 	"net/url"
+	"regexp"
 	"sort"
 	"strings"
 )
@@ -44,14 +45,22 @@ type (
 	}
 
 	node struct {
-		kind          kind
-		label         byte
-		prefix        string
-		parent        *node
-		children      children
-		ppath         string
-		pnames        []string
-		methodHandler *methodHandler
+		kind           kind
+		label          byte
+		prefix         string
+		parent         *node
+		staticChildren children
+		ppath          string
+		pnames         []string
+		methodHandler  *methodHandler
+		regExp         *regexp.Regexp
+		regexChild     *node
+		paramChild     *node
+		anyChild       *node
+		// isLeaf indicates that node does not have child routes
+		isLeaf bool
+		// isHandler indicates that node has at least one handler registered to it
+		isHandler bool
 	}
 	kind          uint8
 	children      []*node
@@ -69,9 +78,14 @@ type (
 )
 
 const (
-	skind kind = iota
-	pkind
-	akind
+	staticKind kind = iota // static kind
+	regexKind              // regexp kind
+	paramKind              // param kind
+	anyKind                // any kind
+
+	regexLabel = byte('<')
+	paramLabel = byte(':')
+	anyLabel   = byte('*')
 )
 
 func (r Routes) SetName(name string) IRouter {
@@ -178,20 +192,22 @@ func (r *Route) GetStore(names ...string) H {
 	return res
 }
 
-func (r *Route) MakeURI(params ...interface{}) (uri string) {
+func (r *Route) MakeURI(defaultExtension string, params ...interface{}) (uri string) {
 	length := len(params)
 	if length == 1 {
 		switch val := params[0].(type) {
 		case url.Values:
 			uri = r.Path
-			for _, name := range r.Params {
-				tag := `:` + name
-				v := val.Get(name)
-				uri = strings.Replace(uri, tag+`/`, v+`/`, -1)
-				if strings.HasSuffix(uri, tag) {
-					uri = strings.TrimSuffix(uri, tag) + v
+			if len(r.Params) > 0 {
+				values := make([]interface{}, len(r.Params))
+				for index, name := range r.Params {
+					values[index] = val.Get(name)
+					val.Del(name)
 				}
-				val.Del(name)
+				uri = fmt.Sprintf(r.Format, values...)
+			}
+			if len(defaultExtension) > 0 && !strings.HasSuffix(uri, defaultExtension) {
+				uri += defaultExtension
 			}
 			q := val.Encode()
 			if len(q) > 0 {
@@ -199,16 +215,19 @@ func (r *Route) MakeURI(params ...interface{}) (uri string) {
 			}
 		case map[string]string:
 			uri = r.Path
-			for _, name := range r.Params {
-				tag := `:` + name
-				v, y := val[name]
-				if y {
-					delete(val, name)
+			if len(r.Params) > 0 {
+				values := make([]interface{}, len(r.Params))
+				for index, name := range r.Params {
+					var ok bool
+					values[index], ok = val[name]
+					if ok {
+						delete(val, name)
+					}
 				}
-				uri = strings.Replace(uri, tag+`/`, v+`/`, -1)
-				if strings.HasSuffix(uri, tag) {
-					uri = strings.TrimSuffix(uri, tag) + v
-				}
+				uri = fmt.Sprintf(r.Format, values...)
+			}
+			if len(defaultExtension) > 0 && !strings.HasSuffix(uri, defaultExtension) {
+				uri += defaultExtension
 			}
 			sep := `?`
 			keys := make([]string, 0, len(val))
@@ -222,11 +241,20 @@ func (r *Route) MakeURI(params ...interface{}) (uri string) {
 			}
 		case []interface{}:
 			uri = fmt.Sprintf(r.Format, val...)
+			if len(defaultExtension) > 0 && !strings.HasSuffix(uri, defaultExtension) {
+				uri += defaultExtension
+			}
 		default:
 			uri = fmt.Sprintf(r.Format, val)
+			if len(defaultExtension) > 0 && !strings.HasSuffix(uri, defaultExtension) {
+				uri += defaultExtension
+			}
 		}
 	} else {
 		uri = fmt.Sprintf(r.Format, params...)
+		if len(defaultExtension) > 0 && !strings.HasSuffix(uri, defaultExtension) {
+			uri += defaultExtension
+		}
 	}
 	return
 }
@@ -251,6 +279,54 @@ func (r *Route) apply(e *Echo) *Route {
 		handler = mw.Handle(handler)
 	}
 	r.Handler = handler
+	return r
+}
+
+func (e *endpoint) Map() H {
+	return H{`handler`: HandlerName(e.handler), `index`: e.rid}
+}
+
+func (m *methodHandler) isHandler() bool {
+	return m.connect != nil ||
+		m.delete != nil ||
+		m.get != nil ||
+		m.head != nil ||
+		m.options != nil ||
+		m.patch != nil ||
+		m.post != nil ||
+		m.put != nil ||
+		m.trace != nil
+}
+
+func (m *methodHandler) Map() H {
+	r := H{}
+	if m.get != nil {
+		r[`get`] = m.get.Map()
+	}
+	if m.post != nil {
+		r[`post`] = m.post.Map()
+	}
+	if m.put != nil {
+		r[`put`] = m.put.Map()
+	}
+	if m.delete != nil {
+		r[`delete`] = m.delete.Map()
+	}
+	if m.patch != nil {
+		r[`patch`] = m.patch.Map()
+	}
+	if m.options != nil {
+		r[`options`] = m.options.Map()
+	}
+	if m.head != nil {
+		r[`head`] = m.head.Map()
+	}
+	if m.connect != nil {
+		r[`connect`] = m.connect.Map()
+	}
+	if m.trace != nil {
+		r[`trace`] = m.trace.Map()
+	}
 	return r
 }
 
@@ -311,7 +387,7 @@ func (m *methodHandler) find(method string) *endpoint {
 	}
 }
 
-func (m *methodHandler) check405() HandlerFunc {
+func (m *methodHandler) checkMethodNotAllowed() HandlerFunc {
 	for _, method := range methods {
 		if r := m.findHandler(method); r != nil {
 			return MethodNotAllowedHandler
@@ -343,7 +419,25 @@ func NewRouter(e *Echo) *Router {
 }
 
 func (r *Router) Handle(c Context) Handler {
-	r.Find(c.Request().Method(), c.Request().URL().Path(), c)
+	return r.Dispatch(c, c.Request().URL().Path())
+}
+
+func (r *Router) Dispatch(c Context, path string, _method ...string) Handler {
+	method := c.Request().Method()
+	if len(_method) > 0 && len(_method[0]) > 0 {
+		method = _method[0]
+	}
+	found := r.Find(method, path, c)
+	if !found {
+		ext := c.DefaultExtension()
+		if len(ext) == 0 {
+			return c
+		}
+		if strings.HasSuffix(path, ext) {
+			path = strings.TrimSuffix(path, ext)
+			r.Find(method, path, c)
+		}
+	}
 	return c
 }
 
@@ -365,27 +459,62 @@ func (r *Router) Add(rt *Route, rid int) {
 		//Dump(rt)
 	}()
 	for i, l := 0, len(path); i < l; i++ {
-		if path[i] == ':' {
+		if path[i] == paramLabel {
+			if i > 0 && path[i-1] == '\\' {
+				continue
+			}
 			uri.WriteString(`%v`)
 			j := i + 1
-			r.insert(rt.Method, path[:i], nil, skind, "", nil, -1)
+			r.insert(rt.Method, path[:i], nil, staticKind, "", nil, -1)
 			for ; i < l && path[i] != '/'; i++ {
 			}
-
-			pnames = append(pnames, path[j:i])
+			pname := path[j:i]
+			pnames = append(pnames, pname)
 			path = path[:j] + path[i:]
 			i, l = j, len(path)
 
 			if i == l {
-				r.insert(rt.Method, path[:i], rt.Handler, pkind, ppath, pnames, rid)
+				// path node is last fragment of route path. ie. `/users/:id`
+				r.insert(rt.Method, path[:i], rt.Handler, paramKind, ppath, pnames, rid)
 			} else {
-				r.insert(rt.Method, path[:i], nil, pkind, "", nil, -1)
+				r.insert(rt.Method, path[:i], nil, paramKind, "", nil, -1)
 			}
+		} else if path[i] == regexLabel {
+			if i > 0 && path[i-1] == '\\' {
+				continue
+			}
+			uri.WriteString(`%v`)
+			j := i + 1
+			r.insert(rt.Method, path[:i], nil, staticKind, "", nil, -1)
+			for ; i < l && path[i] != '>'; i++ {
+			}
+			pname := path[j:i]
+			parts := strings.SplitN(pname, `:`, 2)
+			var regExpr string
+			if len(parts) == 2 {
+				pname = parts[0]
+				regExpr = `(` + parts[1] + `)`
+			} else {
+				regExpr = `([^/]+)`
+			}
+			pnames = append(pnames, pname)
+			if path[i] == '>' {
+				i++
+			}
+			if len(path) > i {
+				path = path[:j] + path[i:]
+			} else {
+				path = path[:j]
+			}
+			i, l = j, len(path)
+
+			r.insert(rt.Method, path[:i], rt.Handler, regexKind, ppath, pnames, rid, regExpr)
+
 		} else if path[i] == '*' {
 			uri.WriteString(`%v`)
-			r.insert(rt.Method, path[:i], nil, skind, "", nil, -1)
+			r.insert(rt.Method, path[:i], nil, staticKind, "", nil, -1)
 			pnames = append(pnames, "*")
-			r.insert(rt.Method, path[:i+1], rt.Handler, akind, ppath, pnames, rid)
+			r.insert(rt.Method, path[:i+1], rt.Handler, anyKind, ppath, pnames, rid)
 			continue
 		}
 
@@ -402,95 +531,134 @@ func (r *Router) Add(rt *Route, rid int) {
 		m.addHandler(rt.Method, rt.Handler, rid)
 		r.static[path] = m
 	}
-	r.insert(rt.Method, path, rt.Handler, skind, ppath, pnames, rid)
-	return
+	r.insert(rt.Method, path, rt.Handler, staticKind, ppath, pnames, rid)
 }
 
-func (r *Router) insert(method, path string, h Handler, t kind, ppath string, pnames []string, rid int) {
+func (r *Router) insert(method, path string, h Handler, t kind, ppath string, pnames []string, rid int, regExpr ...string) {
 	e := r.echo
 	// Adjust max param
-	l := len(pnames)
-	if *e.maxParam < l {
-		*e.maxParam = l
+	paramLen := len(pnames)
+	if *e.maxParam < paramLen {
+		*e.maxParam = paramLen
 	}
 
-	cn := r.tree // Current node as root
-	if cn == nil {
+	currentNode := r.tree // Current node as root
+	if currentNode == nil {
 		panic("echo: invalid method")
 	}
 	search := path
 
 	for {
-		sl := len(search)
-		pl := len(cn.prefix)
-		l := 0
+		searchLen := len(search)
+		prefixLen := len(currentNode.prefix)
+		lcpLen := 0
 
 		// LCP
-		max := pl
-		if sl < max {
-			max = sl
+		max := prefixLen
+		if searchLen < max {
+			max = searchLen
 		}
-		for ; l < max && search[l] == cn.prefix[l]; l++ {
+		for ; lcpLen < max && search[lcpLen] == currentNode.prefix[lcpLen]; lcpLen++ {
 		}
 
-		if l == 0 {
+		if lcpLen == 0 {
 			// At root node
 			if len(search) > 0 {
-				cn.label = search[0]
+				currentNode.label = search[0]
 			}
-			cn.prefix = search
+			currentNode.prefix = search
 			if h != nil {
-				cn.kind = t
-				cn.addHandler(method, h, rid)
-				cn.ppath = ppath
-				cn.pnames = pnames
+				currentNode.kind = t
+				currentNode.addHandler(method, h, rid)
+				currentNode.ppath = ppath
+				currentNode.pnames = pnames
 			}
-		} else if l < pl {
+			currentNode.isLeaf = currentNode.IsLeaf()
+		} else if lcpLen < prefixLen {
 			// Split node
-			n := newNode(cn.kind, cn.prefix[l:], cn, cn.children, cn.methodHandler, cn.ppath, cn.pnames)
+			n := newNode(
+				currentNode.kind,
+				currentNode.prefix[lcpLen:],
+				currentNode,
+				currentNode.staticChildren,
+				currentNode.methodHandler,
+				currentNode.ppath,
+				currentNode.pnames,
+				currentNode.regexChild,
+				currentNode.paramChild,
+				currentNode.anyChild,
+				regExpr...,
+			)
+			// Update parent path for all children to new node
+			for _, child := range currentNode.staticChildren {
+				child.parent = n
+			}
+			if currentNode.paramChild != nil {
+				currentNode.paramChild.parent = n
+			}
+			if currentNode.anyChild != nil {
+				currentNode.anyChild.parent = n
+			}
 
 			// Reset parent node
-			cn.kind = skind
-			cn.label = cn.prefix[0]
-			cn.prefix = cn.prefix[:l]
-			cn.children = nil
-			cn.methodHandler = new(methodHandler)
-			cn.ppath = ""
-			cn.pnames = nil
+			currentNode.kind = staticKind
+			currentNode.label = currentNode.prefix[0]
+			currentNode.prefix = currentNode.prefix[:lcpLen]
+			currentNode.staticChildren = nil
+			currentNode.methodHandler = new(methodHandler)
+			currentNode.ppath = ""
+			currentNode.pnames = nil
+			currentNode.regExp = nil
+			currentNode.paramChild = nil
+			currentNode.anyChild = nil
+			currentNode.isLeaf = false
+			currentNode.isHandler = false
 
-			cn.addChild(n)
+			currentNode.addStaticChild(n)
 
-			if l == sl {
+			if lcpLen == searchLen {
 				// At parent node
-				cn.kind = t
-				cn.addHandler(method, h, rid)
-				cn.ppath = ppath
-				cn.pnames = pnames
+				currentNode.kind = t
+				currentNode.addHandler(method, h, rid)
+				currentNode.ppath = ppath
+				currentNode.pnames = pnames
 			} else {
 				// Create child node
-				n = newNode(t, search[l:], cn, nil, new(methodHandler), ppath, pnames)
+				n = newNode(t, search[lcpLen:], currentNode, nil, new(methodHandler), ppath, pnames, nil, nil, nil, regExpr...)
 				n.addHandler(method, h, rid)
-				cn.addChild(n)
+				// Only Static children could reach here
+				currentNode.addStaticChild(n)
 			}
-		} else if l < sl {
-			search = search[l:]
-			c := cn.findChildWithLabel(search[0])
+			currentNode.isLeaf = currentNode.IsLeaf()
+		} else if lcpLen < searchLen {
+			search = search[lcpLen:]
+			c := currentNode.findChildWithLabel(search[0])
 			if c != nil {
 				// Go deeper
-				cn = c
+				currentNode = c
 				continue
 			}
 			// Create child node
-			n := newNode(t, search, cn, nil, new(methodHandler), ppath, pnames)
+			n := newNode(t, search, currentNode, nil, new(methodHandler), ppath, pnames, nil, nil, nil, regExpr...)
 			n.addHandler(method, h, rid)
-			cn.addChild(n)
+			switch t {
+			case staticKind:
+				currentNode.addStaticChild(n)
+			case regexKind:
+				currentNode.regexChild = n
+			case paramKind:
+				currentNode.paramChild = n
+			case anyKind:
+				currentNode.anyChild = n
+			}
+			currentNode.isLeaf = currentNode.IsLeaf()
 		} else {
 			// Node already exists
 			if h != nil {
-				cn.addHandler(method, h, rid)
-				cn.ppath = ppath
-				if len(cn.pnames) == 0 {
-					cn.pnames = pnames
+				currentNode.addHandler(method, h, rid)
+				currentNode.ppath = ppath
+				if len(currentNode.pnames) == 0 {
+					currentNode.pnames = pnames
 				}
 			}
 		}
@@ -498,55 +666,87 @@ func (r *Router) insert(method, path string, h Handler, t kind, ppath string, pn
 	}
 }
 
-func newNode(t kind, pre string, p *node, c children, mh *methodHandler, ppath string, pnames []string) *node {
-	return &node{
-		kind:          t,
-		label:         pre[0],
-		prefix:        pre,
-		parent:        p,
-		children:      c,
-		ppath:         ppath,
-		pnames:        pnames,
-		methodHandler: mh,
+func newNode(t kind, pre string, p *node, sc children, mh *methodHandler, ppath string, pnames []string, regexChildren, paramChildren, anyChildren *node, regExpr ...string) *node {
+	n := &node{
+		kind:           t,
+		label:          pre[0],
+		prefix:         pre,
+		parent:         p,
+		staticChildren: sc,
+		ppath:          ppath,
+		pnames:         pnames,
+		methodHandler:  mh,
+		regexChild:     regexChildren,
+		paramChild:     paramChildren,
+		anyChild:       anyChildren,
+		isHandler:      mh.isHandler(),
 	}
+	n.isLeaf = n.IsLeaf()
+	if len(regExpr) > 0 && len(regExpr[0]) > 0 {
+		if n.isLeaf && strings.HasSuffix(n.ppath, `:`+regExpr[0]+`>`) { // <name:regExpr>
+			n.regExp = regexp.MustCompile(`^` + regExpr[0] + `$`)
+		} else {
+			n.regExp = regexp.MustCompile(`^` + regExpr[0])
+		}
+	}
+	return n
 }
 
 func (n *node) String() string {
 	return Dump(n.Tree(), false)
 }
 
+func (n *node) IsLeaf() bool {
+	return n.staticChildren == nil && n.regexChild == nil && n.paramChild == nil && n.anyChild == nil
+}
+
 func (n *node) Tree() H {
-	children := make([]H, len(n.children))
-	for k, v := range n.children {
+	children := make([]H, len(n.staticChildren))
+	for k, v := range n.staticChildren {
 		children[k] = v.Tree()
 	}
+	var (
+		regExpr    string
+		regexChild H
+		paramChild H
+		anyChild   H
+	)
+	if n.regExp != nil {
+		regExpr = n.regExp.String()
+	}
+	if n.regexChild != nil {
+		regexChild = n.regexChild.Tree()
+	}
+	if n.paramChild != nil {
+		paramChild = n.paramChild.Tree()
+	}
+	if n.anyChild != nil {
+		anyChild = n.anyChild.Tree()
+	}
 	return H{
-		"kind":          n.kind,
-		"label":         string([]byte{n.label}),
-		"prefix":        n.prefix,
-		"parent":        n.parent,
-		"children":      children,
-		"ppath":         n.ppath,
-		"pnames":        n.pnames,
-		"methodHandler": n.methodHandler,
+		"kind":           n.kind,
+		"label":          string([]byte{n.label}),
+		"prefix":         n.prefix,
+		"parent":         n.parent,
+		"staticChildren": children,
+		"ppath":          n.ppath,
+		"pnames":         n.pnames,
+		"methodHandler":  n.methodHandler.Map(),
+		"regExpr":        regExpr,
+		"regexChild":     regexChild,
+		"paramChild":     paramChild,
+		"anyChild":       anyChild,
+		"isLeaf":         n.isLeaf,
+		"isHandler":      n.isHandler,
 	}
 }
 
-func (n *node) addChild(c *node) {
-	n.children = append(n.children, c)
+func (n *node) addStaticChild(c *node) {
+	n.staticChildren = append(n.staticChildren, c)
 }
 
-func (n *node) findChild(l byte, t kind) *node {
-	for _, c := range n.children {
-		if c.label == l && c.kind == t {
-			return c
-		}
-	}
-	return nil
-}
-
-func (n *node) findChildWithLabel(l byte) *node {
-	for _, c := range n.children {
+func (n *node) findStaticChild(l byte) *node {
+	for _, c := range n.staticChildren {
 		if c.label == l {
 			return c
 		}
@@ -554,17 +754,42 @@ func (n *node) findChildWithLabel(l byte) *node {
 	return nil
 }
 
-func (n *node) findChildByKind(t kind) *node {
-	for _, c := range n.children {
-		if c.kind == t {
+func (n *node) findChildWithLabel(l byte) *node {
+	for _, c := range n.staticChildren {
+		if c.label == l {
 			return c
 		}
+	}
+	if l == regexLabel {
+		return n.regexChild
+	}
+	if l == paramLabel {
+		return n.paramChild
+	}
+	if l == anyLabel {
+		return n.anyChild
 	}
 	return nil
 }
 
+func (n *node) findRegexChild(search string) (*node, []int) {
+	var matchIndex []int
+	c := n.regexChild
+	matchIndex = c.regExp.FindStringSubmatchIndex(search)
+	//fmt.Printf("%s => %s: %#v\n", search, c.regExp.String(), matchIndex)
+	if len(matchIndex) > 3 {
+		return c, matchIndex
+	}
+	return nil, matchIndex
+}
+
 func (n *node) addHandler(method string, h Handler, rid int) {
 	n.methodHandler.addHandler(method, h, rid)
+	if h != nil {
+		n.isHandler = true
+	} else {
+		n.isHandler = n.methodHandler.isHandler()
+	}
 }
 
 func (n *node) findHandler(method string) Handler {
@@ -575,8 +800,8 @@ func (n *node) find(method string) *endpoint {
 	return n.methodHandler.find(method)
 }
 
-func (n *node) check405() HandlerFunc {
-	return n.methodHandler.check405()
+func (n *node) checkMethodNotAllowed() Handler {
+	return n.methodHandler.checkMethodNotAllowed()
 }
 
 func (n *node) applyHandler(method string, ctx *xContext) {
@@ -585,142 +810,237 @@ func (n *node) applyHandler(method string, ctx *xContext) {
 	ctx.pnames = n.pnames
 }
 
-func (r *Router) Find(method, path string, context Context) {
+func (r *Router) Tree() H {
+	return r.tree.Tree()
+}
+
+func (r *Router) String() string {
+	return r.tree.String()
+}
+
+func (r *Router) Find(method, path string, context Context) (found bool) {
 	ctx := context.Object()
 	ctx.path = path
-	cn := r.tree // Current node as root
+	currentNode := r.tree // Current node as root
 
 	if m, ok := r.static[path]; ok {
 		m.applyHandler(method, ctx)
 		if ctx.handler == nil {
-			ctx.handler = m.check405()
+			ctx.handler = m.checkMethodNotAllowed()
+			return false
 		}
-		return
+		return true
 	}
 
 	var (
-		search  = path
-		c       *node  // Child node
-		n       int    // Param counter
-		nk      kind   // Next kind
-		nn      *node  // Next node
-		ns      string // Next search
-		pvalues = context.ParamValues()
+		previousBestMatchNode *node
+		matchedEndpoint       *endpoint
+		// search stores the remaining path to check for match. By each iteration we move from start of path to end of the path
+		// and search value gets shorter and shorter.
+		search      = path
+		searchIndex = 0
+		paramIndex  int // Param counter
+		paramValues = context.ParamValues()
+		matchIndex  []int
 	)
 
-	// Search order static > param > any
-	for {
-		if search == "" {
-			break
-		}
+	// Backtracking is needed when a dead end (leaf node) is reached in the router tree.
+	// To backtrack the current node will be changed to the parent node and the next kind for the
+	// router logic will be returned based on fromKind or kind of the dead end node (static > param > any).
+	// For example if there is no static node match we should check parent next sibling by kind (param).
+	// Backtracking itself does not check if there is a next sibling, this is done by the router logic.
+	backtrackToNextNodeKind := func(fromKind kind) (nextNodeKind kind, valid bool) {
+		previous := currentNode
+		currentNode = previous.parent
+		valid = currentNode != nil
 
-		pl := 0 // Prefix length
-		l := 0  // LCP length
-
-		if cn.label != ':' {
-			sl := len(search)
-			pl = len(cn.prefix)
-
-			// LCP
-			max := pl
-			if sl < max {
-				max = sl
-			}
-			for ; l < max && search[l] == cn.prefix[l]; l++ {
-			}
-		}
-
-		if l == pl {
-			// Continue search
-			search = search[l:]
+		// Next node type by priority
+		if previous.kind == anyKind {
+			nextNodeKind = staticKind
 		} else {
-			cn = nn
-			search = ns
-			if nk == pkind {
-				goto Param
-			} else if nk == akind {
-				goto Any
-			}
-			// Not found
+			nextNodeKind = previous.kind + 1
+		}
+
+		if fromKind == staticKind {
+			// when backtracking is done from static kind block we did not change search so nothing to restore
 			return
 		}
 
-		if search == "" {
-			break
+		// restore search to value it was before we move to current node we are backtracking from.
+		if previous.kind == staticKind {
+			searchIndex -= len(previous.prefix)
+		} else {
+			paramIndex--
+			// for param/any node.prefix value is always `:` so we can not deduce searchIndex from that and must use pValue
+			// for that index as it would also contain part of path we cut off before moving into node we are backtracking from
+			searchIndex -= len(paramValues[paramIndex])
+			paramValues[paramIndex] = ""
+		}
+		search = path[searchIndex:]
+		return
+	}
+
+	// Router tree is implemented by longest common prefix array (LCP array) https://en.wikipedia.org/wiki/LCP_array
+	// Tree search is implemented as for loop where one loop iteration is divided into 3 separate blocks
+	// Each of these blocks checks specific kind of node (static/param/any). Order of blocks reflex their priority in routing.
+	// Search order/priority is: static > param > any.
+	//
+	// Note: backtracking in tree is implemented by replacing/switching currentNode to previous node
+	// and hoping to (goto statement) next block by priority to check if it is the match.
+	for {
+		prefixLen := 0 // Prefix length
+		lcpLen := 0    // LCP length
+
+		if currentNode.kind == staticKind {
+			searchLen := len(search)
+			prefixLen = len(currentNode.prefix)
+
+			// LCP - Longest Common Prefix (https://en.wikipedia.org/wiki/LCP_array)
+			max := prefixLen
+			if searchLen < max {
+				max = searchLen
+			}
+			for ; lcpLen < max && search[lcpLen] == currentNode.prefix[lcpLen]; lcpLen++ {
+			}
+		}
+
+		if lcpLen != prefixLen {
+			// No matching prefix, let's backtrack to the first possible alternative node of the decision path
+			nk, ok := backtrackToNextNodeKind(staticKind)
+			if !ok {
+				return // No other possibilities on the decision path
+			}
+			if nk == regexKind {
+				goto Regex
+			} else if nk == paramKind {
+				goto Param
+				// NOTE: this case (backtracking from static node to previous any node) can not happen by current any matching logic. Any node is end of search currently
+				//} else if nk == anyKind {
+				//	goto Any
+			} else {
+				// Not found (this should never be possible for static node we are looking currently)
+				break
+			}
+		}
+
+		// The full prefix has matched, remove the prefix from the remaining search
+		search = search[lcpLen:]
+		searchIndex = searchIndex + lcpLen
+		//fmt.Println(`search:`, search, currentNode.String())
+		// Finish routing if no remaining search and we are on a node with handler and matching method type
+		if search == "" && currentNode.isHandler {
+			// check if current node has handler registered for http method we are looking for. we store currentNode as
+			// best matching in case we do no find no more routes matching this path+method
+			if previousBestMatchNode == nil {
+				previousBestMatchNode = currentNode
+			}
+			if matchedEndpoint = currentNode.find(method); matchedEndpoint != nil {
+				break
+			}
 		}
 
 		// Static node
-		if c = cn.findChild(search[0], skind); c != nil {
-			// Save next
-			if cn.prefix[len(cn.prefix)-1] == '/' {
-				nk = pkind
-				nn = cn
-				ns = search
-			}
-			cn = c
-			continue
-		}
-
-		// Param node
-	Param:
-		if c = cn.findChildByKind(pkind); c != nil {
-
-			if len(pvalues) == n {
+		if search != "" {
+			if child := currentNode.findStaticChild(search[0]); child != nil {
+				currentNode = child
 				continue
 			}
+		}
 
-			// Save next
-			if cn.prefix[len(cn.prefix)-1] == '/' {
-				nk = akind
-				nn = cn
-				ns = search
+	Regex:
+		// Regex node
+		if child := currentNode.regexChild; search != "" && child != nil {
+			child, matchIndex = currentNode.findRegexChild(search)
+			if child != nil {
+				currentNode = child
+				startIndex := matchIndex[2]
+				endIndex := matchIndex[3]
+				paramValues[paramIndex] = search[startIndex:endIndex]
+				paramIndex++
+				endIndex = matchIndex[1]
+				search = search[endIndex:]
+				searchIndex = searchIndex + endIndex
+				continue
+			}
+		}
+
+	Param:
+		// Param node
+		if child := currentNode.paramChild; search != "" && child != nil {
+			currentNode = child
+			i := 0
+			l := len(search)
+			if currentNode.isLeaf {
+				// when param node does not have any children then param node should act similarly to any node - consider all remaining search as match
+				i = l
+			} else {
+				for ; i < l && search[i] != '/'; i++ {
+				}
 			}
 
-			cn = c
-			i, l := 0, len(search)
-			for ; i < l && search[i] != '/'; i++ {
-			}
-			pvalues[n] = search[:i]
-			n++
+			paramValues[paramIndex] = search[:i]
+			paramIndex++
 			search = search[i:]
+			searchIndex = searchIndex + i
 			continue
 		}
 
-		// Any node
 	Any:
-		if cn = cn.findChildByKind(akind); cn == nil {
-			if nn != nil {
-				cn = nn
-				nn = cn.parent // Next
-				search = ns
-				if nk == pkind {
-					goto Param
-				} else if nk == akind {
-					goto Any
-				}
+		// Any node
+		if child := currentNode.anyChild; child != nil {
+			// If any node is found, use remaining path for paramValues
+			currentNode = child
+			paramValues[len(currentNode.pnames)-1] = search
+			// update indexes/search in case we need to backtrack when no handler match is found
+			paramIndex++
+			searchIndex += +len(search)
+			search = ""
+
+			// check if current node has handler registered for http method we are looking for. we store currentNode as
+			// best matching in case we do no find no more routes matching this path+method
+			if previousBestMatchNode == nil {
+				previousBestMatchNode = currentNode
 			}
-			// Not found
-			return
+			if matchedEndpoint = currentNode.find(method); matchedEndpoint != nil {
+				break
+			}
 		}
-		pvalues[len(cn.pnames)-1] = search
-		break
+
+		// Let's backtrack to the first possible alternative node of the decision path
+		nk, ok := backtrackToNextNodeKind(anyKind)
+		if !ok {
+			break // No other possibilities on the decision path
+		} else if nk == regexKind {
+			goto Regex
+		} else if nk == paramKind {
+			goto Param
+		} else if nk == anyKind {
+			goto Any
+		} else {
+			// Not found
+			break
+		}
 	}
 
-	cn.applyHandler(method, ctx)
+	if currentNode == nil && previousBestMatchNode == nil {
+		return // nothing matched at all
+	}
 
-	// NOTE: Slow zone...
+	if matchedEndpoint != nil {
+		ctx.handler = matchedEndpoint.handler
+		ctx.rid = matchedEndpoint.rid
+		found = true
+	} else if previousBestMatchNode != nil {
+		// use previous match as basis. although we have no matching handler we have path match.
+		// so we can send http.StatusMethodNotAllowed (405) instead of http.StatusNotFound (404)
+		currentNode = previousBestMatchNode
+		ctx.handler = currentNode.checkMethodNotAllowed()
+	}
+	ctx.path = currentNode.ppath
+	ctx.pnames = currentNode.pnames
+	//currentNode.applyHandler(method, ctx)
 	if ctx.handler == nil {
-		// Dig further for any, might have an empty value for *, e.g.
-		// serving a directory. Issue #207.
-		if child := cn.findChildByKind(akind); child != nil {
-			child.applyHandler(method, ctx)
-			if ctx.handler == nil {
-				ctx.handler = child.check405()
-			}
-			pvalues[len(child.pnames)-1] = ""
-			return
-		}
-		ctx.handler = cn.check405()
+		ctx.handler = currentNode.checkMethodNotAllowed()
 	}
 	return
 }

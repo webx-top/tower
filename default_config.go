@@ -19,10 +19,13 @@ app {
   # 指定app端口的参数名，例如：webx.exe -p 8080 其中的“-p”就是。如果为空，则代表不支持访问端口。
   portParamName : "-p"
 
+  # 是否在执行 go build 以前执行 go generate
+  generate : false
+
   # go build -o 命令生成的二进制文件保存位置
   buildDir : ""
 
-  # go build所需的其它参数，例如：-tags sqlite
+  # go build所需的其它参数，例如：-tags sqlite 或 -tags sqlite,zbar
   buildParams : ""
 
   # 运行app所需的其它参数，例如：webx.exe -p 8080 -e 90 -d 100 其中的“-e 90 -d 100”就是(注意：默认是以半角空格作为分隔符，也支持自己指定分隔符，只需要符合这样的格式“:<分割符>:<参数>”，即只需要在参数前面加上“:<分隔符>:”就可以了，其中的“<分隔符>”替换成你自己的分隔符，例如“:~:-e~90~-d~100”。上面的buildParams也遵循这样的规则)。
@@ -30,9 +33,9 @@ app {
 
   # 包路径替换规则，例如：{"^golang\\.org/x/(.*)$":"github.com/golang/$1"}
   pkgMirrors : {}
-  env : [ 
-	# 自定义环境变量。例如: "ENV_NAME_1=123"
-  ]
+
+  # 自定义环境变量。例如: ["ENV_NAME_1=value1","ENV_NAME_2=value2"]
+  env : []
 }
 
 proxy {

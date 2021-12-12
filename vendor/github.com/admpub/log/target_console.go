@@ -14,11 +14,13 @@ import (
 )
 
 var colorBrushes = map[Leveler]*color.Color{
-	LevelDebug: color.New(color.FgHiCyan),    // cyan
-	LevelInfo:  color.New(color.FgHiGreen),   // green
-	LevelWarn:  color.New(color.FgHiYellow),  // yellow
-	LevelError: color.New(color.FgHiRed),     // red
-	LevelFatal: color.New(color.FgHiMagenta), // magenta
+	LevelDebug:    color.New(color.FgHiCyan),    // cyan
+	LevelProgress: color.New(color.FgHiBlack),   // black
+	LevelInfo:     color.New(color.FgHiWhite),   // white
+	LevelOkay:     color.New(color.FgHiGreen),   // green
+	LevelWarn:     color.New(color.FgHiYellow),  // yellow
+	LevelError:    color.New(color.FgHiRed),     // red
+	LevelFatal:    color.New(color.FgHiMagenta), // magenta
 }
 
 const (
@@ -42,10 +44,10 @@ type ConsoleTarget struct {
 func NewConsoleTarget() *ConsoleTarget {
 	return &ConsoleTarget{
 		Filter:    &Filter{MaxLevel: LevelDebug},
-		ColorMode: true,
+		ColorMode: DefaultConsoleColorize,
 		ColorType: ColorFlag,
 		Writer:    os.Stdout,
-		close:     make(chan bool, 0),
+		close:     make(chan bool),
 	}
 }
 

@@ -33,26 +33,27 @@ var (
 )
 
 type App struct {
-	OfflineMode        bool
-	Cmds               map[string]*exec.Cmd
-	RunParams          []string
-	BuildParams        []string
-	MainFile           string
-	Port               string
-	Ports              map[string]int64
-	BuildDir           string
-	Name               string
-	Root               string
-	KeyPress           bool
-	LastError          string
-	PortParamName      string //端口参数名称(用于指定应用程序监听的端口，例如：webx.exe -p 8080，这里的-p就是端口参数名)
-	SwitchToNewPort    bool
-	DisabledBuild      bool
-	BuildStart         *sync.Once
-	AppRestart         *sync.Once
-	DisabledLogRequest bool
-	PkgMirrors         map[string]string
-	Env                []string
+	OfflineMode         bool
+	Cmds                map[string]*exec.Cmd
+	RunParams           []string
+	BuildParams         []string
+	MainFile            string
+	Port                string
+	Ports               map[string]int64
+	BuildDir            string
+	Name                string
+	Root                string
+	KeyPress            bool
+	LastError           string
+	PortParamName       string //端口参数名称(用于指定应用程序监听的端口，例如：webx.exe -p 8080，这里的-p就是端口参数名)
+	SwitchToNewPort     bool
+	DisabledBuild       bool
+	BeforeBuildGenerate bool
+	BuildStart          *sync.Once
+	AppRestart          *sync.Once
+	DisabledLogRequest  bool
+	PkgMirrors          map[string]string
+	Env                 []string
 
 	portBinFiles map[string]string
 	buildErr     error
@@ -498,10 +499,14 @@ func (this *App) Build() (err error) {
 	}
 	log.Info("== Building " + this.Name)
 	AppBin = BinPrefix + strconv.FormatInt(time.Now().Unix(), 10)
-	args := []string{"build"}
-	args = append(args, this.BuildParams...)
-	args = append(args, []string{"-o", this.BinFile(), this.MainFile}...)
 	build := func() (string, error) {
+		if this.BeforeBuildGenerate {
+			cmd := exec.Command("go", "generate")
+			cmd.Run()
+		}
+		args := []string{"build"}
+		args = append(args, this.BuildParams...)
+		args = append(args, []string{"-o", this.BinFile(), this.MainFile}...)
 		cmd := exec.Command("go", args...)
 		var b bytes.Buffer
 		cmd.Stderr = &b

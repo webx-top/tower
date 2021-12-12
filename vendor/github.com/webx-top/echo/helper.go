@@ -51,6 +51,9 @@ func Wd() string {
 
 // HandlerName returns the handler name
 func HandlerName(h interface{}) string {
+	if h == nil {
+		return `<nil>`
+	}
 	v := reflect.ValueOf(h)
 	t := v.Type()
 	if t.Kind() == reflect.Func {
@@ -218,4 +221,24 @@ func URLDecode(encoded string, rfc ...bool) (string, error) {
 		encoded = strings.Replace(encoded, `%20`, `+`, -1)
 	}
 	return url.QueryUnescape(encoded)
+}
+
+type HandlerFuncs map[string]func(Context) error
+
+func (h *HandlerFuncs) Register(key string, fn func(Context) error) {
+	(*h)[key] = fn
+}
+
+func (h *HandlerFuncs) Unregister(keys ...string) {
+	for _, key := range keys {
+		delete(*h, key)
+	}
+}
+
+func (h HandlerFuncs) Call(c Context, key string) error {
+	fn, ok := h[key]
+	if !ok {
+		return ErrNotFound
+	}
+	return fn(c)
 }

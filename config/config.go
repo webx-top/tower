@@ -12,6 +12,7 @@ type App struct {
 	MainFile      string            `json:"main"` //编译模式下有效
 	Port          string            `json:"port"`
 	PortParamName string            `json:"portParamName"`
+	Generate      bool              `json:"generate"` // 是否在执行 go build 以前执行 go generate
 	BuildDir      string            `json:"buildDir"`
 	BuildParams   string            `json:"buildParams"`
 	RunParams     string            `json:"params"`

@@ -17,6 +17,7 @@ package com
 import (
 	"errors"
 	"fmt"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -145,7 +146,7 @@ func StrToTime(str string, args ...string) (unixtime int) {
 	if len(args) > 0 {
 		layout = args[0]
 	}
-	t, err := time.Parse(layout, str)
+	t, err := time.ParseInLocation(layout, str, time.Local)
 	if err == nil {
 		unixtime = int(t.Unix())
 	} else {
@@ -161,7 +162,7 @@ func RestoreTime(str string, args ...string) time.Time {
 	if len(args) > 0 {
 		layout = args[0]
 	}
-	t, _ := time.Parse(layout, str)
+	t, _ := time.ParseInLocation(layout, str, time.Local)
 	return t
 }
 
@@ -173,14 +174,15 @@ func FormatByte(args ...interface{}) string {
 	return FormatBytes(args...)
 }
 
+var sizeUnits = [...]string{"YB", "ZB", "EB", "PB", "TB", "GB", "MB", "KB", "B"}
+
 // FormatBytes 格式化字节。 FormatBytes(字节整数，保留小数位数)
 // @param float64 size
 // @param int precision
 // @param bool trimRightZero
 func FormatBytes(args ...interface{}) string {
-	sizes := [...]string{"YB", "ZB", "EB", "PB", "TB", "GB", "MB", "KB", "B"}
 	var (
-		total         = len(sizes)
+		total         = len(sizeUnits)
 		size          float64
 		precision     int
 		trimRightZero bool
@@ -202,7 +204,7 @@ func FormatBytes(args ...interface{}) string {
 	if trimRightZero {
 		r = NumberTrimZero(r)
 	}
-	return r + sizes[total]
+	return r + sizeUnits[total]
 }
 
 //DateFormatShort 格式化耗时
@@ -223,17 +225,33 @@ func DateFormatShort(timestamp interface{}) string {
 	return DateFormat("06-01-02", timestamp)
 }
 
-//FormatPastTime 格式化耗时
+// FormatPastTime 格式化耗时
+// @param number timestamp
+// @param string args[0] 时间格式
+// @param string args[1] 已过去时间后缀
+// @param string args[2] 语种
 func FormatPastTime(timestamp interface{}, args ...string) string {
-	duration := time.Now().Sub(time.Unix(Int64(timestamp), 0))
-	if u := uint64(duration); u >= uint64(time.Hour)*24 {
+	argSize := len(args)
+	duration := time.Since(time.Unix(Int64(timestamp), 0))
+	if duration >= time.Hour*24 {
 		format := "Y-m-d H:i:s"
-		if len(args) > 0 {
+		if argSize > 0 && len(args[0]) > 0 {
 			format = args[0]
 		}
 		return DateFormat(format, timestamp)
 	}
-	return FriendlyTime(duration)
+	var suffix string
+	var language string
+	if argSize > 1 {
+		suffix = args[1]
+		if len(suffix) > 0 && !HasChineseFirst(suffix) {
+			suffix = ` ` + suffix
+		}
+		if argSize > 2 {
+			language = args[2]
+		}
+	}
+	return FriendlyTime(duration, suffix, 0, true, language)
 }
 
 // FriendlyTime 对人类友好的经历时间格式
@@ -321,7 +339,7 @@ var StartTime = time.Now()
 
 //TotalRunTime 总运行时长
 func TotalRunTime() string {
-	return FriendlyTime(time.Now().Sub(StartTime))
+	return FriendlyTime(time.Since(StartTime))
 }
 
 var (
@@ -524,4 +542,121 @@ func (t Time) IsAfter(timestamp interface{}, agoDays int, units ...int) bool {
 	}
 	st := t.ParseTimestamp(timestamp)
 	return t.Unix()-int64(agoDays*unit) <= st.Unix()
+}
+
+var numberSpitRule = regexp.MustCompile(`[^\d]+`)
+
+func FixDateString(dateStr string) string {
+	parts := numberSpitRule.Split(dateStr, 3)
+	dateArr := make([]string, 3)
+	switch len(parts) {
+	case 3:
+		// day
+		if len(parts[2]) < 2 {
+			parts[2] = `0` + parts[2]
+		} else {
+			day, _ := strconv.Atoi(strings.TrimPrefix(parts[2], `0`))
+			if day < 0 || day > 31 {
+				return ``
+			}
+		}
+		dateArr[2] = parts[2]
+		fallthrough
+	case 2:
+		// month
+		if len(parts[1]) < 2 {
+			parts[1] = `0` + parts[1]
+		} else {
+			month, _ := strconv.Atoi(strings.TrimPrefix(parts[1], `0`))
+			if month <= 0 || month > 12 {
+				return ``
+			}
+		}
+		dateArr[1] = parts[1]
+		fallthrough
+	case 1:
+		// year
+		year, _ := strconv.Atoi(parts[0])
+		if year <= 1000 || year > 9999 {
+			return ``
+		}
+		dateArr[0] = parts[0]
+	}
+	if len(dateArr[1]) == 0 {
+		dateArr[1] = `01`
+	}
+	if len(dateArr[2]) == 0 {
+		dateArr[2] = `01`
+	}
+	return strings.Join(dateArr, `-`)
+}
+
+func FixTimeString(timeStr string) string {
+	parts := numberSpitRule.Split(timeStr, 3)
+	timeArr := make([]string, 3)
+	switch len(parts) {
+	case 3:
+		// second
+		if len(parts[2]) < 2 {
+			parts[2] = `0` + parts[2]
+		} else {
+			seconds, _ := strconv.Atoi(strings.TrimPrefix(parts[2], `0`))
+			if seconds < 0 || seconds > 59 {
+				return ``
+			}
+		}
+		timeArr[2] = parts[2]
+		fallthrough
+	case 2:
+		// minute
+		if len(parts[1]) < 2 {
+			parts[1] = `0` + parts[1]
+		} else {
+			minutes, _ := strconv.Atoi(strings.TrimPrefix(parts[1], `0`))
+			if minutes < 0 || minutes > 59 {
+				return ``
+			}
+		}
+		timeArr[1] = parts[1]
+		fallthrough
+	case 1:
+		// hour
+		if len(parts[0]) < 2 {
+			parts[0] = `0` + parts[0]
+		} else {
+			hour, _ := strconv.Atoi(strings.TrimPrefix(parts[0], `0`))
+			if hour < 0 || hour > 23 {
+				return ``
+			}
+		}
+		timeArr[0] = parts[0]
+	}
+	if len(timeArr[1]) == 0 {
+		timeArr[1] = `00`
+	}
+	if len(timeArr[2]) == 0 {
+		timeArr[2] = `00`
+	}
+	return strings.Join(timeArr, `:`)
+}
+
+func FixDateTimeString(dateTimeStr string) []string {
+	parts := strings.SplitN(dateTimeStr, ` `, 2)
+	var dateStr string
+	if len(parts) == 2 {
+		dateStr = FixDateString(parts[0])
+		if len(dateStr) == 0 {
+			return nil
+		}
+		timeStr := FixTimeString(parts[1])
+		if len(timeStr) == 0 {
+			return []string{dateStr}
+		}
+		return []string{dateStr, timeStr}
+	}
+	dateStr = FixDateString(parts[0])
+	if len(dateStr) == 0 {
+		return nil
+	}
+	return []string{dateStr}
 }

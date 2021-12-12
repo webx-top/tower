@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"reflect"
 	"strings"
 	"sync"
 
@@ -22,6 +23,7 @@ type (
 		middleware        []interface{}
 		hosts             map[string]*Host
 		hostAlias         map[string]string
+		onHostFound       func(Context) (bool, error)
 		maxParam          *int
 		notFoundHandler   HandlerFunc
 		httpErrorHandler  HTTPErrorHandler
@@ -43,6 +45,7 @@ type (
 		Validator         Validator
 		FormSliceMaxIndex int
 		parseHeaderAccept bool
+		defaultExtension  string
 	}
 
 	Middleware interface {
@@ -141,6 +144,7 @@ func (e *Echo) Reset() *Echo {
 	e.Validator = DefaultNopValidate
 	e.FormSliceMaxIndex = 100
 	e.parseHeaderAccept = false
+	e.defaultExtension = ``
 	return e
 }
 
@@ -186,6 +190,14 @@ func (e *Echo) RemoveFormatRenderer(formats ...string) *Echo {
 		}
 	}
 	return e
+}
+
+func (e *Echo) SetDefaultExtension(ext string) {
+	e.defaultExtension = ext
+}
+
+func (e *Echo) DefaultExtension() string {
+	return e.defaultExtension
 }
 
 // Router returns router.
@@ -448,9 +460,7 @@ func (e *Echo) SetPrefix(prefix string) *Echo {
 	if !strings.HasPrefix(prefix, `/`) {
 		prefix = `/` + prefix
 	}
-	if strings.HasSuffix(prefix, `/`) {
-		prefix = strings.TrimSuffix(prefix, `/`)
-	}
+	prefix = strings.TrimSuffix(prefix, `/`)
 	e.prefix = prefix
 	return e
 }
@@ -479,13 +489,30 @@ func (e *Echo) Add(method, path string, handler interface{}, middleware ...inter
 }
 
 // MetaHandler Add meta information about endpoint
-func (e *Echo) MetaHandler(m H, handler interface{}, requests ...RequestValidator) Handler {
+func (e *Echo) MetaHandler(m H, handler interface{}, requests ...interface{}) Handler {
 	h := &MetaHandler{
 		meta:    m,
 		Handler: e.ValidHandler(handler),
 	}
 	if len(requests) > 0 {
-		h.request = requests[0]
+		switch r := requests[0].(type) {
+		case RequestValidator:
+			h.request = r
+		case func() MetaValidator:
+			h.request = r
+		case func() interface{}:
+			h.request = func() MetaValidator {
+				return NewBaseRequestValidator(r())
+			}
+		default:
+			t := reflect.Indirect(reflect.ValueOf(r)).Type()
+			if t.Kind() != reflect.Struct {
+				panic(fmt.Sprintf(`unsupported validate data: %T`, r))
+			}
+			h.request = func() MetaValidator {
+				return NewBaseRequestValidator(reflect.New(t).Interface())
+			}
+		}
 	}
 	return h
 }
@@ -568,6 +595,11 @@ func (e *Echo) TypeHost(alias string, args ...interface{}) (r TypeHost) {
 	return
 }
 
+func (e *Echo) OnHostFound(onHostFound func(Context) (bool, error)) *Echo {
+	e.onHostFound = onHostFound
+	return e
+}
+
 // Group creates a new sub-router with prefix.
 func (e *Echo) Group(prefix string, m ...interface{}) *Group {
 	g, y := e.groups[prefix]
@@ -598,7 +630,7 @@ func (e *Echo) URI(handler interface{}, params ...interface{}) string {
 	}
 	if indexes, ok := e.router.nroute[name]; ok && len(indexes) > 0 {
 		r := e.router.routes[indexes[0]]
-		uri = r.MakeURI(params...)
+		uri = r.MakeURI(e.defaultExtension, params...)
 	}
 	return uri
 }
@@ -628,7 +660,17 @@ func (e *Echo) applyMiddleware(h Handler, middleware ...interface{}) Handler {
 func (e *Echo) buildHandler(c Context) Handler {
 	if r, names, values, exist := e.findRouter(c.Host()); exist {
 		if len(names) > 0 {
-			c.setHostParamValues(names, values)
+			c.SetHostParamNames(names...)
+			c.SetHostParamValues(values...)
+		}
+		found, err := c.FireHostFound()
+		if err != nil {
+			return e.applyMiddleware(HandlerFunc(func(Context) error {
+				return err
+			}), e.middleware...)
+		}
+		if !found {
+			return e.applyMiddleware(e.router.Handle(c), e.middleware...)
 		}
 		return e.applyMiddleware(r.Handle(c), e.middleware...)
 	}

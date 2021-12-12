@@ -12,7 +12,9 @@ const (
 	LevelFatal Level = iota
 	LevelError
 	LevelWarn
+	LevelOkay
 	LevelInfo
+	LevelProgress
 	LevelDebug
 )
 
@@ -30,35 +32,42 @@ type (
 		Int() int
 		Tag() string
 		Color() *color.Color
+		Level() Level
 	}
 )
 
 var (
 	// LevelNames maps log levels to names
 	LevelNames = map[Leveler]string{
-		LevelDebug: "Debug",
-		LevelInfo:  "Info",
-		LevelWarn:  "Warn",
-		LevelError: "Error",
-		LevelFatal: "Fatal",
+		LevelDebug:    "Debug",
+		LevelProgress: "Progress",
+		LevelInfo:     "Info",
+		LevelOkay:     "Okay",
+		LevelWarn:     "Warn",
+		LevelError:    "Error",
+		LevelFatal:    "Fatal",
 	}
 
 	// LevelUppers 日志大写名称前缀
 	LevelUppers = map[string]string{
-		`Debug`: "DEBUG",
-		`Info`:  " INFO",
-		`Warn`:  " WARN",
-		`Error`: "ERROR",
-		`Fatal`: "FATAL",
+		`Debug`:    "DEBUG",
+		"Progress": "PROGR",
+		`Info`:     " INFO",
+		"Okay":     " OKAY",
+		`Warn`:     " WARN",
+		`Error`:    "ERROR",
+		`Fatal`:    "FATAL",
 	}
 
 	// Levels 所有日志等级
 	Levels = map[string]Leveler{
-		"Debug": LevelDebug,
-		"Info":  LevelInfo,
-		"Warn":  LevelWarn,
-		"Error": LevelError,
-		"Fatal": LevelFatal,
+		"Debug":    LevelDebug,
+		"Progress": LevelProgress,
+		"Info":     LevelInfo,
+		"Okay":     LevelOkay,
+		"Warn":     LevelWarn,
+		"Error":    LevelError,
+		"Fatal":    LevelFatal,
 	}
 )
 
@@ -99,6 +108,10 @@ func (l Level) IsEnabled(level Level) bool {
 // Int 等级数值
 func (l Level) Int() int {
 	return int(l)
+}
+
+func (l Level) Level() Level {
+	return l
 }
 
 // Tag 标签

@@ -9,6 +9,8 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"sort"
+	"sync"
 	"time"
 )
 
@@ -26,6 +28,8 @@ type Logger struct {
 	*coreLogger
 	Category   string    // the category associated with this logger
 	Formatter  Formatter // message formatter
+	Emoji      bool
+	catelock   sync.RWMutex
 	categories map[string]*Logger
 }
 
@@ -67,19 +71,50 @@ func New(args ...string) *Logger {
 // The formatter, if not specified, will inherit from the calling logger.
 // It will be used to format all messages logged through this logger.
 func (l *Logger) GetLogger(category string, formatter ...Formatter) *Logger {
-	l.lock.Lock()
-	defer l.lock.Unlock()
-
+	l.catelock.RLock()
 	logger, ok := l.categories[category]
+	l.catelock.RUnlock()
 	if !ok {
 		logger = l.clone()
 		logger.Category = category
+		l.catelock.Lock()
 		l.categories[category] = logger
+		l.catelock.Unlock()
 	}
 	if len(formatter) > 0 {
 		logger.Formatter = formatter[0]
 	}
 	return logger
+}
+
+func (l *Logger) Categories() []string {
+	categories := make([]string, len(l.categories))
+	var i int
+	for k := range l.categories {
+		categories[i] = k
+		i++
+	}
+	sort.Strings(categories)
+	return categories
+}
+
+func (l *Logger) HasCategory(category string) bool {
+	l.catelock.RLock()
+	_, ok := l.categories[category]
+	l.catelock.RUnlock()
+	return ok
+}
+
+func (l *Logger) SetEmoji(on bool) *Logger {
+	l.Emoji = on
+	return l
+}
+
+func (l *Logger) EmojiOfLevel(level Level) string {
+	if l.Emoji {
+		return GetLevelEmoji(level)
+	}
+	return ``
 }
 
 func (l *Logger) clone() *Logger {
@@ -88,6 +123,7 @@ func (l *Logger) clone() *Logger {
 		Category:   l.Category,
 		categories: make(map[string]*Logger),
 		Formatter:  l.Formatter,
+		Emoji:      l.Emoji,
 	}
 	return logger
 }
@@ -194,10 +230,20 @@ func (l *Logger) Warnf(format string, a ...interface{}) {
 	l.Logf(LevelWarn, format, a...)
 }
 
+// Okayf logs a message indicating an okay condition.
+func (l *Logger) Okayf(format string, a ...interface{}) {
+	l.Logf(LevelOkay, format, a...)
+}
+
 // Infof logs a message for informational purpose.
 // Please refer to Error() for how to use this method.
 func (l *Logger) Infof(format string, a ...interface{}) {
 	l.Logf(LevelInfo, format, a...)
+}
+
+// Progressf logs a message for how things are progressing.
+func (l *Logger) Progressf(format string, a ...interface{}) {
+	l.Logf(LevelProgress, format, a...)
 }
 
 // Debugf logs a message for debugging purpose.
@@ -245,10 +291,20 @@ func (l *Logger) Warn(a ...interface{}) {
 	l.Log(LevelWarn, a...)
 }
 
+// Okay logs a message indicating an okay condition.
+func (l *Logger) Okay(a ...interface{}) {
+	l.Log(LevelOkay, a...)
+}
+
 // Info logs a message for informational purpose.
 // Please refer to Error() for how to use this method.
 func (l *Logger) Info(a ...interface{}) {
 	l.Log(LevelInfo, a...)
+}
+
+// Progress logs a message for how things are progressing.
+func (l *Logger) Progress(a ...interface{}) {
+	l.Log(LevelProgress, a...)
 }
 
 // Debug logs a message for debugging purpose.

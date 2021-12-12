@@ -33,7 +33,8 @@ type Context interface {
 
 	//Standard Context
 	StdContext() context.Context
-	SetStdContext(context.Context)
+	WithContext(ctx context.Context) *http.Request
+	SetValue(key string, value interface{})
 
 	Validator
 	SetValidator(Validator)
@@ -47,6 +48,7 @@ type Context interface {
 	Echo() *Echo
 	Route() *Route
 	Reset(engine.Request, engine.Response)
+	Dispatch(route string) Handler
 
 	//----------------
 	// Param
@@ -58,13 +60,15 @@ type Context interface {
 	// ParamNames returns path parameter names.
 	ParamNames() []string
 	ParamValues() []string
+	SetParamNames(names ...string)
 	SetParamValues(values ...string)
 	// Host
-	HostNames() []string
-	HostValues() []string
+	HostParamNames() []string
+	HostParamValues() []string
 	HostParam(string, ...string) string
 	HostP(int, ...string) string
-	setHostParamValues([]string, []string)
+	SetHostParamNames(names ...string)
+	SetHostParamValues(values ...string)
 
 	// Queries returns the query parameters as map. It is an alias for `engine.URL#Query()`.
 	Queries() map[string][]string
@@ -107,7 +111,9 @@ type Context interface {
 	//----------------
 
 	Bind(interface{}, ...FormDataFilter) error
+	BindAndValidate(interface{}, ...FormDataFilter) error
 	MustBind(interface{}, ...FormDataFilter) error
+	MustBindAndValidate(interface{}, ...FormDataFilter) error
 
 	//----------------
 	// Response data
@@ -122,7 +128,7 @@ type Context interface {
 	JSONP(string, interface{}, ...int) error
 	XML(interface{}, ...int) error
 	XMLBlob([]byte, ...int) error
-	Stream(func(io.Writer) bool)
+	Stream(func(io.Writer) bool) error
 	SSEvent(string, chan interface{}) error
 	File(string, ...http.FileSystem) error
 	Attachment(io.Reader, string, ...bool) error
@@ -205,6 +211,8 @@ type Context interface {
 	IsUpload() bool
 	ResolveContentType() string
 	WithFormatExtension(bool)
+	SetDefaultExtension(string)
+	DefaultExtension() string
 	ResolveFormat() string
 	Accept() *Accepts
 	Protocol() string
@@ -221,7 +229,7 @@ type Context interface {
 
 	MapForm(i interface{}, names ...string) error
 	MapData(i interface{}, data map[string][]string, names ...string) error
-	SaveUploadedFile(fieldName string, saveAbsPath string, saveFileName ...string) (*multipart.FileHeader, error)
+	SaveUploadedFile(fieldName string, saveAbsPath string, saveFileName ...func(*multipart.FileHeader) (string, error)) (*multipart.FileHeader, error)
 	SaveUploadedFileToWriter(string, io.Writer) (*multipart.FileHeader, error)
 	//Multiple file upload
 	SaveUploadedFiles(fieldName string, savePath func(*multipart.FileHeader) (string, error)) error
@@ -233,4 +241,6 @@ type Context interface {
 
 	AddPreResponseHook(func() error) Context
 	SetPreResponseHook(...func() error) Context
+	OnHostFound(func(Context) (bool, error)) Context
+	FireHostFound() (bool, error)
 }

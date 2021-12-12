@@ -24,7 +24,7 @@ func (c *xContext) Path() string {
 
 // P returns path parameter by index.
 func (c *xContext) P(i int, defaults ...string) (value string) {
-	l := len(c.pnames)
+	l := len(c.pvalues)
 	if i < l {
 		value = c.pvalues[i]
 	}
@@ -40,9 +40,9 @@ func (c *xContext) Px(n int, defaults ...string) param.String {
 
 // Param returns path parameter by name.
 func (c *xContext) Param(name string, defaults ...string) (value string) {
-	l := len(c.pnames)
+	l := len(c.pvalues)
 	for i, n := range c.pnames {
-		if n == name && i < l {
+		if i < l && n == name {
 			value = c.pvalues[i]
 			break
 		}
@@ -63,11 +63,36 @@ func (c *xContext) ParamNames() []string {
 }
 
 func (c *xContext) ParamValues() []string {
-	return c.pvalues
+	return c.pvalues[:len(c.pvalues)]
+}
+
+func (c *xContext) SetParamNames(names ...string) {
+	c.pnames = names
+
+	l := len(names)
+	if *c.echo.maxParam < l {
+		*c.echo.maxParam = l
+	}
+
+	if len(c.pvalues) < l {
+		// Keeping the old pvalues just for backward compatibility, but it sounds that doesn't make sense to keep them,
+		// probably those values will be overriden in a Context#SetParamValues
+		newPvalues := make([]string, l)
+		copy(newPvalues, c.pvalues)
+		c.pvalues = newPvalues
+	}
 }
 
 func (c *xContext) SetParamValues(values ...string) {
-	c.pvalues = values
+	// NOTE: Don't just set c.pvalues = values, because it has to have length c.echo.maxParam at all times
+	// It will brake the Router#Find code
+	limit := len(values)
+	if limit > *c.echo.maxParam {
+		limit = *c.echo.maxParam
+	}
+	for i := 0; i < limit; i++ {
+		c.pvalues[i] = values[i]
+	}
 }
 
 func (c *xContext) AddHostParam(name string, value string) {
@@ -75,22 +100,25 @@ func (c *xContext) AddHostParam(name string, value string) {
 	c.hvalues = append(c.hvalues, value)
 }
 
-func (c *xContext) setHostParamValues(names []string, values []string) {
+func (c *xContext) SetHostParamNames(names ...string) {
 	c.hnames = names
+}
+
+func (c *xContext) SetHostParamValues(values ...string) {
 	c.hvalues = values
 }
 
-func (c *xContext) HostNames() []string {
+func (c *xContext) HostParamNames() []string {
 	return c.hnames
 }
 
-func (c *xContext) HostValues() []string {
-	return c.hvalues
+func (c *xContext) HostParamValues() []string {
+	return c.hvalues[:len(c.hvalues)]
 }
 
 // HostP returns host parameter by index.
 func (c *xContext) HostP(i int, defaults ...string) (value string) {
-	l := len(c.hnames)
+	l := len(c.hvalues)
 	if i < l {
 		value = c.hvalues[i]
 	}
@@ -102,9 +130,9 @@ func (c *xContext) HostP(i int, defaults ...string) (value string) {
 
 // HostParam returns host parameter by name.
 func (c *xContext) HostParam(name string, defaults ...string) (value string) {
-	l := len(c.hnames)
+	l := len(c.hvalues)
 	for i, n := range c.hnames {
-		if n == name && i < l {
+		if i < l && n == name {
 			value = c.hvalues[i]
 			break
 		}
@@ -172,8 +200,16 @@ func (c *xContext) Bind(i interface{}, filter ...FormDataFilter) error {
 	return c.echo.binder.Bind(i, c, filter...)
 }
 
+func (c *xContext) BindAndValidate(i interface{}, filter ...FormDataFilter) error {
+	return c.echo.binder.BindAndValidate(i, c, filter...)
+}
+
 func (c *xContext) MustBind(i interface{}, filter ...FormDataFilter) error {
 	return c.echo.binder.MustBind(i, c, filter...)
+}
+
+func (c *xContext) MustBindAndValidate(i interface{}, filter ...FormDataFilter) error {
+	return c.echo.binder.MustBindAndValidate(i, c, filter...)
 }
 
 func (c *xContext) Header(name string) string {
@@ -324,14 +360,11 @@ func (c *xContext) RequestURI() string {
 
 // Scheme returns request scheme as `http` or `https`.
 func (c *xContext) Scheme() string {
-	scheme := c.Request().Scheme()
+	scheme := c.Header(HeaderXForwardedProto)
 	if len(scheme) > 0 {
 		return scheme
 	}
-	if c.Request().IsTLS() == false {
-		return `http`
-	}
-	return `https`
+	return c.Request().Scheme()
 }
 
 // Domain returns host name.
@@ -346,13 +379,17 @@ func (c *xContext) Host() string {
 	host := c.Request().Host()
 	if len(host) > 0 {
 		delim := `:`
+		var isIPv6 bool
 		if host[0] == '[' {
-			host = strings.TrimPrefix(host, `[`)
+			isIPv6 = true
 			delim = `]:`
 		}
 		hostParts := strings.SplitN(host, delim, 2)
-		if len(hostParts) > 0 {
-			return hostParts[0]
+		if len(hostParts) == 2 {
+			host = hostParts[0]
+			if isIPv6 {
+				host += `]`
+			}
 		}
 		return host
 	}
@@ -414,7 +451,7 @@ func (c *xContext) MapForm(i interface{}, names ...string) error {
 	return c.MapData(i, c.Request().Form().All(), names...)
 }
 
-func (c *xContext) SaveUploadedFile(fieldName string, saveAbsPath string, saveFileName ...string) (*multipart.FileHeader, error) {
+func (c *xContext) SaveUploadedFile(fieldName string, saveAbsPath string, saveFileName ...func(*multipart.FileHeader) (string, error)) (*multipart.FileHeader, error) {
 	fileSrc, fileHdr, err := c.Request().FormFile(fieldName)
 	if err != nil {
 		return fileHdr, err
@@ -423,8 +460,11 @@ func (c *xContext) SaveUploadedFile(fieldName string, saveAbsPath string, saveFi
 
 	// Destination
 	fileName := fileHdr.Filename
-	if len(saveFileName) > 0 {
-		fileName = saveFileName[0]
+	if len(saveFileName) > 0 && saveFileName[0] != nil {
+		fileName, err = saveFileName[0](fileHdr)
+		if err != nil {
+			return fileHdr, err
+		}
 	}
 	fileDst, err := os.Create(filepath.Join(saveAbsPath, fileName))
 	if err != nil {

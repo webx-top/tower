@@ -35,6 +35,15 @@ type emptyInterface struct {
 	ptr unsafe.Pointer
 }
 
+type nonEmptyInterface struct {
+	itab *struct {
+		ityp *runtime.Type // static interface type
+		typ  *runtime.Type // dynamic concrete type
+		// unused fields...
+	}
+	ptr unsafe.Pointer
+}
+
 func errUnimplementedOp(op encoder.OpType) error {
 	return fmt.Errorf("encoder (indent): opcode %s has not been implemented", op)
 }
@@ -61,7 +70,19 @@ func loadNPtr(base uintptr, idx uint32, ptrNum uint8) uintptr {
 	return p
 }
 
-func ptrToUint64(p uintptr) uint64              { return **(**uint64)(unsafe.Pointer(&p)) }
+func ptrToUint64(p uintptr, bitSize uint8) uint64 {
+	switch bitSize {
+	case 8:
+		return (uint64)(**(**uint8)(unsafe.Pointer(&p)))
+	case 16:
+		return (uint64)(**(**uint16)(unsafe.Pointer(&p)))
+	case 32:
+		return (uint64)(**(**uint32)(unsafe.Pointer(&p)))
+	case 64:
+		return **(**uint64)(unsafe.Pointer(&p))
+	}
+	return 0
+}
 func ptrToFloat32(p uintptr) float32            { return **(**float32)(unsafe.Pointer(&p)) }
 func ptrToFloat64(p uintptr) float64            { return **(**float64)(unsafe.Pointer(&p)) }
 func ptrToBool(p uintptr) bool                  { return **(**bool)(unsafe.Pointer(&p)) }
@@ -107,45 +128,12 @@ func appendComma(_ *encoder.RuntimeContext, b []byte) []byte {
 	return append(b, ',', '\n')
 }
 
-func appendColon(_ *encoder.RuntimeContext, b []byte) []byte {
-	return append(b, ':', ' ')
+func appendNullComma(_ *encoder.RuntimeContext, b []byte) []byte {
+	return append(b, "null,\n"...)
 }
 
-func appendInterface(ctx *encoder.RuntimeContext, codeSet *encoder.OpcodeSet, code *encoder.Opcode, b []byte, iface *emptyInterface, ptrOffset uintptr) ([]byte, error) {
-	ctx.KeepRefs = append(ctx.KeepRefs, unsafe.Pointer(iface))
-	ifaceCodeSet, err := encoder.CompileToGetCodeSet(uintptr(unsafe.Pointer(iface.typ)))
-	if err != nil {
-		return nil, err
-	}
-
-	totalLength := uintptr(codeSet.CodeLength)
-	nextTotalLength := uintptr(ifaceCodeSet.CodeLength)
-
-	curlen := uintptr(len(ctx.Ptrs))
-	offsetNum := ptrOffset / uintptrSize
-
-	newLen := offsetNum + totalLength + nextTotalLength
-	if curlen < newLen {
-		ctx.Ptrs = append(ctx.Ptrs, make([]uintptr, newLen-curlen)...)
-	}
-	oldPtrs := ctx.Ptrs
-
-	newPtrs := ctx.Ptrs[(ptrOffset+totalLength*uintptrSize)/uintptrSize:]
-	newPtrs[0] = uintptr(iface.ptr)
-
-	ctx.Ptrs = newPtrs
-
-	oldBaseIndent := ctx.BaseIndent
-	ctx.BaseIndent = code.Indent
-	bb, err := Run(ctx, b, ifaceCodeSet)
-	if err != nil {
-		return nil, err
-	}
-	ctx.BaseIndent = oldBaseIndent
-
-	ctx.Ptrs = oldPtrs
-
-	return bb, nil
+func appendColon(_ *encoder.RuntimeContext, b []byte) []byte {
+	return append(b, ':', ' ')
 }
 
 func appendMapKeyValue(ctx *encoder.RuntimeContext, code *encoder.Opcode, b, key, value []byte) []byte {
@@ -229,7 +217,7 @@ func restoreIndent(ctx *encoder.RuntimeContext, code *encoder.Opcode, ctxptr uin
 }
 
 func storeIndent(ctxptr uintptr, code *encoder.Opcode, indent uintptr) {
-	store(ctxptr, code.End.Next.Length, indent)
+	store(ctxptr, code.Length, indent)
 }
 
 func appendArrayElemIndent(ctx *encoder.RuntimeContext, code *encoder.Opcode, b []byte) []byte {

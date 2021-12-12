@@ -4,6 +4,8 @@ import (
 	"encoding/xml"
 	"fmt"
 	"html/template"
+	"strconv"
+	"strings"
 	"time"
 )
 
@@ -134,6 +136,10 @@ func (s Store) Timestamp(key string, defaults ...interface{}) time.Time {
 	return AsTimestamp(s.Get(key, defaults...))
 }
 
+func (s Store) Duration(key string, defaults ...time.Duration) time.Duration {
+	return AsDuration(s.Get(key), defaults...)
+}
+
 func (s Store) DateTime(key string, layouts ...string) time.Time {
 	return AsDateTime(s.Get(key), layouts...)
 }
@@ -165,11 +171,17 @@ func (s Store) GetStoreByKeys(keys ...string) Store {
 	return r
 }
 
+func (s Store) Select(selectKeys ...string) Store {
+	r := Store{}
+	for _, key := range selectKeys {
+		r[key] = s.Get(key)
+	}
+	return r
+}
+
 func (s Store) Delete(keys ...string) Store {
 	for _, key := range keys {
-		if _, y := s[key]; y {
-			delete(s, key)
-		}
+		delete(s, key)
 	}
 	return s
 }
@@ -236,16 +248,135 @@ func (s Store) Clone() Store {
 func (s Store) Transform(transfers map[string]Transfer) Store {
 	rmap := Store{}
 	for key, transfer := range transfers {
-		value, _ := s[key]
+		var tempMap Store
+		keys := strings.Split(key, `.`)
+		value, ok := s[key]
+		if !ok {
+			if len(keys) > 1 {
+				tempMap = s
+				maxIndex := len(keys) - 1
+				var nextTransfer bool
+				for i, k := range keys {
+					value, ok = tempMap[k]
+					if maxIndex == i {
+						break
+					}
+					if !ok {
+						break
+					}
+					switch v := value.(type) {
+					case map[string]interface{}:
+						tempMap = Store(v)
+					case Store:
+						tempMap = v
+					case AsMap:
+						tempMap = v.AsMap()
+					case AsPartialMap:
+						tempMap = v.AsMap()
+					case []Store:
+						end := i + 1
+						if end <= maxIndex {
+							childrenKey := strings.Join(keys[end:], `.`)
+							parentKeys := keys[0:end]
+							newKeys := parentKeys
+							if transfer != nil {
+								newKey := transfer.Destination()
+								if len(newKey) > 0 {
+									newKeys = strings.Split(newKey, `.`)
+									if end < len(newKeys) {
+										newKeys = newKeys[0:end]
+									}
+								}
+							}
+							for cidx, child := range v {
+								child = child.Transform(map[string]Transfer{
+									childrenKey: transfer,
+								})
+								child = child.GetStoreByKeys(newKeys...)
+								v[cidx] = child
+							}
+							rmap.SetMKeys(newKeys, value)
+						}
+						nextTransfer = true
+					default:
+						break
+					}
+				}
+				if nextTransfer {
+					continue
+				}
+			}
+		}
+
 		if transfer == nil {
-			rmap[key] = value
+			rmap.SetMKeys(keys, value)
 			continue
 		}
 		newKey := transfer.Destination()
 		if len(newKey) == 0 {
-			newKey = key
+			if tempMap != nil {
+				tempMap[key] = transfer.Transform(value, tempMap)
+				continue
+			}
+		} else {
+			keys = strings.Split(newKey, `.`)
 		}
-		rmap[newKey] = transfer.Transform(value, s)
+		if tempMap != nil {
+			rmap.SetMKeys(keys, transfer.Transform(value, tempMap))
+		} else {
+			rmap.SetMKeys(keys, transfer.Transform(value, s))
+		}
 	}
 	return rmap
+}
+
+func (s Store) SetMKey(key string, value interface{}) Store {
+	return s.SetMKeys(strings.Split(key, `.`), value)
+}
+
+func (s Store) SetMKeys(keys []string, value interface{}) Store {
+	switch len(keys) {
+	case 0:
+		return s
+	case 1:
+		s[keys[0]] = value
+		return s
+	}
+	tempMap := s
+	keyList := keys[0 : len(keys)-1]
+	for idx, max := 0, len(keyList); idx < max; idx++ {
+		key := keyList[idx]
+		value, ok := tempMap[key]
+		if !ok {
+			value = Store{}
+			tempMap[key] = value
+		}
+		switch v := value.(type) {
+		case map[string]interface{}:
+			tempMap = Store(v)
+		case Store:
+			tempMap = v
+		case AsMap:
+			tempMap = v.AsMap()
+		case AsPartialMap:
+			tempMap = v.AsMap()
+		case []Store:
+			idx++
+			if idx >= len(keys) {
+				return s
+			}
+			index, err := strconv.Atoi(keyList[idx])
+			if err != nil {
+				return s
+			}
+			if index >= len(v) {
+				return s
+			}
+			tempMap = v[index]
+		default:
+			return s
+		}
+	}
+	tempMap[keys[len(keys)-1]] = value
+	return s
 }

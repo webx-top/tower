@@ -1,9 +1,11 @@
 package echo
 
 import (
-	"bytes"
 	"context"
 	"fmt"
+	"net/http"
+	"net/url"
+	"sync"
 	"time"
 
 	"github.com/admpub/events"
@@ -13,6 +15,7 @@ import (
 	"github.com/webx-top/echo/engine"
 	"github.com/webx-top/echo/logger"
 	"github.com/webx-top/echo/param"
+	"github.com/webx-top/poolx/bufferpool"
 )
 
 type xContext struct {
@@ -22,15 +25,15 @@ type xContext struct {
 	transaction         *BaseTransaction
 	sessioner           Sessioner
 	cookier             Cookier
-	context             context.Context
 	request             engine.Request
 	response            engine.Response
 	path                string
 	pnames              []string
 	pvalues             []string
-	hnames              []string
-	hvalues             []string
+	hnames              []string // host
+	hvalues             []string // host
 	store               Store
+	storeLock           sync.RWMutex
 	internal            *param.SafeMap
 	handler             Handler
 	route               *Route
@@ -40,12 +43,14 @@ type xContext struct {
 	renderer            Renderer
 	sessionOptions      *SessionOptions
 	withFormatExtension bool
+	defaultExtension    string
 	format              string
 	code                int
 	preResponseHook     []func() error
 	dataEngine          Data
 	accept              *Accepts
 	auto                bool
+	onHostFound         func(Context) (bool, error)
 }
 
 // NewContext creates a Context object.
@@ -55,7 +60,6 @@ func NewContext(req engine.Request, res engine.Response, e *Echo) Context {
 		Translator:  DefaultNopTranslate,
 		Emitter:     emitter.DefaultCondEmitter,
 		transaction: DefaultNopTransaction,
-		context:     context.Background(),
 		request:     req,
 		response:    res,
 		echo:        e,
@@ -65,6 +69,7 @@ func NewContext(req engine.Request, res engine.Response, e *Echo) Context {
 		handler:     NotFoundHandler,
 		funcs:       make(map[string]interface{}),
 		sessioner:   DefaultSession,
+		onHostFound: e.onHostFound,
 	}
 	c.cookier = NewCookier(c)
 	c.dataEngine = NewData(c)
@@ -72,15 +77,19 @@ func NewContext(req engine.Request, res engine.Response, e *Echo) Context {
 }
 
 func (c *xContext) StdContext() context.Context {
-	return c.context
+	return c.request.Context()
+}
+
+func (c *xContext) WithContext(ctx context.Context) *http.Request {
+	return c.request.WithContext(ctx)
+}
+
+func (c *xContext) SetValue(key string, value interface{}) {
+	c.request.SetValue(key, value)
 }
 
 func (c *xContext) Internal() *param.SafeMap {
 	return c.internal
-}
-
-func (c *xContext) SetStdContext(ctx context.Context) {
-	c.context = ctx
 }
 
 func (c *xContext) SetEmitter(emitter events.Emitter) {
@@ -92,19 +101,19 @@ func (c *xContext) Handler() Handler {
 }
 
 func (c *xContext) Deadline() (deadline time.Time, ok bool) {
-	return c.context.Deadline()
+	return c.StdContext().Deadline()
 }
 
 func (c *xContext) Done() <-chan struct{} {
-	return c.context.Done()
+	return c.StdContext().Done()
 }
 
 func (c *xContext) Err() error {
-	return c.context.Err()
+	return c.StdContext().Err()
 }
 
 func (c *xContext) Value(key interface{}) interface{} {
-	return c.context.Value(key)
+	return c.StdContext().Value(key)
 }
 
 func (c *xContext) Handle(ctx Context) error {
@@ -133,17 +142,22 @@ func (c *xContext) Error(err error) {
 }
 
 func (c *xContext) NewError(code pkgCode.Code, msg string, args ...interface{}) *Error {
-	return NewError(c.T(msg, args...), code)
+	if len(msg) > 0 {
+		msg = c.T(msg, args...)
+	}
+	return NewError(msg, code)
 }
 
 func (c *xContext) NewErrorWith(err error, code pkgCode.Code, args ...interface{}) *Error {
 	var msg string
 	if len(args) > 0 {
 		msg = param.AsString(args[0])
-		if len(args) > 1 {
-			msg = c.T(msg, args[1:]...)
-		} else {
-			msg = c.T(msg)
+		if len(msg) > 0 {
+			if len(args) > 1 {
+				msg = c.T(msg, args[1:]...)
+			} else {
+				msg = c.T(msg)
+			}
 		}
 	}
 	return NewErrorWith(err, msg, code)
@@ -168,6 +182,20 @@ func (c *xContext) SetTranslator(t Translator) {
 	c.Translator = t
 }
 
+func (c *xContext) SetDefaultExtension(ext string) {
+	c.defaultExtension = ext
+}
+
+func (c *xContext) DefaultExtension() string {
+	if c.withFormatExtension {
+		return `.` + c.Format()
+	}
+	if len(c.defaultExtension) > 0 {
+		return c.defaultExtension
+	}
+	return c.echo.defaultExtension
+}
+
 func (c *xContext) Reset(req engine.Request, res engine.Response) {
 	c.Validator = c.echo.Validator
 	c.Emitter = emitter.DefaultCondEmitter
@@ -175,7 +203,6 @@ func (c *xContext) Reset(req engine.Request, res engine.Response) {
 	c.transaction = DefaultNopTransaction
 	c.sessioner = DefaultSession
 	c.cookier = NewCookier(c)
-	c.context = context.Background()
 	c.request = req
 	c.response = res
 	c.internal = param.NewMap()
@@ -191,14 +218,18 @@ func (c *xContext) Reset(req engine.Request, res engine.Response) {
 	c.rid = -1
 	c.sessionOptions = nil
 	c.withFormatExtension = false
+	c.defaultExtension = ""
 	c.format = ""
 	c.code = 0
 	c.auto = false
 	c.preResponseHook = nil
 	c.accept = nil
 	c.dataEngine = NewData(c)
+	c.onHostFound = c.echo.onHostFound
 	// NOTE: Don't reset because it has to have length c.echo.maxParam at all times
-	// c.pvalues = nil
+	for i := 0; i < *c.echo.maxParam; i++ {
+		c.pvalues[i] = ""
+	}
 }
 
 func (c *xContext) GetFunc(key string) interface{} {
@@ -231,7 +262,8 @@ func (c *xContext) Fetch(name string, data interface{}) (b []byte, err error) {
 		}
 		c.renderer = c.echo.renderer
 	}
-	buf := new(bytes.Buffer)
+	buf := bufferpool.Get()
+	defer bufferpool.Release(buf)
 	err = c.renderer.Render(buf, name, data, c)
 	if err != nil {
 		return
@@ -312,6 +344,18 @@ func (c *xContext) SetPreResponseHook(hook ...func() error) Context {
 	return c
 }
 
+func (c *xContext) OnHostFound(onHostFound func(Context) (bool, error)) Context {
+	c.onHostFound = onHostFound
+	return c
+}
+
+func (c *xContext) FireHostFound() (bool, error) {
+	if c.onHostFound == nil {
+		return true, nil
+	}
+	return c.onHostFound(c)
+}
+
 func (c *xContext) preResponse() error {
 	if c.preResponseHook == nil {
 		c.cookier.Send()
@@ -330,4 +374,23 @@ func (c *xContext) PrintFuncs() {
 	for key, fn := range c.Funcs() {
 		fmt.Printf("[Template Func](%p) %-15s -> %s \n", fn, key, HandlerName(fn))
 	}
+}
+
+func (c *xContext) Dispatch(route string) Handler {
+	u, err := url.Parse(route)
+	if err != nil {
+		return ErrorHandler(err)
+	}
+	c.Request().URL().SetRawQuery(u.RawQuery)
+	for key, values := range u.Query() {
+		for index, value := range values {
+			if index == 0 {
+				c.Request().URL().Query().Set(key, value)
+			} else {
+				c.Request().URL().Query().Add(key, value)
+			}
+		}
+	}
+	c.handler = NotFoundHandler
+	return c.Echo().Router().Dispatch(c, u.Path)
 }

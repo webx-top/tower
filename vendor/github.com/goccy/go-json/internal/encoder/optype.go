@@ -36,7 +36,7 @@ var opTypeStrings = [400]string{
 	"Recursive",
 	"RecursivePtr",
 	"RecursiveEnd",
-	"StructAnonymousEnd",
+	"InterfaceEnd",
 	"Int",
 	"Uint",
 	"Float32",
@@ -441,7 +441,7 @@ const (
 	OpRecursive                              OpType = 10
 	OpRecursivePtr                           OpType = 11
 	OpRecursiveEnd                           OpType = 12
-	OpStructAnonymousEnd                     OpType = 13
+	OpInterfaceEnd                           OpType = 13
 	OpInt                                    OpType = 14
 	OpUint                                   OpType = 15
 	OpFloat32                                OpType = 16
@@ -894,7 +894,7 @@ func (t OpType) HeadToOmitEmptyHead() OpType {
 }
 
 func (t OpType) PtrHeadToHead() OpType {
-	idx := strings.Index(t.String(), "Ptr")
+	idx := strings.Index(t.String(), "PtrHead")
 	if idx == -1 {
 		return t
 	}

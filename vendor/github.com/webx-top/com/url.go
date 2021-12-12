@@ -94,19 +94,34 @@ func AbsURL(pageURL string, relURL string) string {
 	if err != nil {
 		return ``
 	}
-	siteURL := urlInfo.Scheme + `://` + urlInfo.Host
+	return AbsURLx(urlInfo, relURL, true)
+}
+
+func AbsURLx(pageURLInfo *url.URL, relURL string, onlyRelative ...bool) string {
+	if (len(onlyRelative) == 0 || !onlyRelative[0]) && strings.Contains(relURL, `://`) {
+		return relURL
+	}
+	siteURL := pageURLInfo.Scheme + `://` + pageURLInfo.Host
 	if strings.HasPrefix(relURL, `/`) {
 		return siteURL + relURL
 	}
 	for strings.HasPrefix(relURL, `./`) {
 		relURL = strings.TrimPrefix(relURL, `./`)
 	}
-	urlPath := path.Dir(urlInfo.Path)
+	urlPath := path.Dir(pageURLInfo.Path)
 	for strings.HasPrefix(relURL, `../`) {
 		urlPath = path.Dir(urlPath)
 		relURL = strings.TrimPrefix(relURL, `../`)
 	}
 	return siteURL + path.Join(urlPath, relURL)
+}
+
+func URLSeparator(pageURL string) string {
+	sep := `?`
+	if strings.Contains(pageURL, sep) {
+		sep = `&`
+	}
+	return sep
 }
 
 var localIPRegexp = regexp.MustCompile(`^127(?:\.(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)){3}$`)
@@ -121,4 +136,37 @@ func IsLocalhost(host string) bool {
 	default:
 		return localIPRegexp.MatchString(host)
 	}
+}
+
+// SplitHost localhost:8080 => localhost
+func SplitHost(hostport string) string {
+	host, _ := SplitHostPort(hostport)
+	return host
+}
+
+func SplitHostPort(hostport string) (host string, port string) {
+	if strings.HasSuffix(hostport, `]`) {
+		host = hostport
+		return
+	}
+	sep := `]:`
+	pos := strings.LastIndex(hostport, sep)
+	if pos > -1 {
+		host = hostport[0 : pos+1]
+		if len(hostport) > pos+2 {
+			port = hostport[pos+2:]
+		}
+		return
+	}
+	sep = `:`
+	pos = strings.LastIndex(hostport, sep)
+	if pos > -1 {
+		host = hostport[0:pos]
+		if len(hostport) > pos+1 {
+			port = hostport[pos+1:]
+		}
+		return
+	}
+	host = hostport
+	return
 }

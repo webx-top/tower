@@ -15,10 +15,14 @@ type (
 )
 
 func (t TypeHost) URI(handler interface{}, params ...interface{}) string {
-	if t.router == nil {
+	if t.router == nil || t.echo == nil {
 		return ``
 	}
 	return t.prefix + t.echo.URI(handler, params...)
+}
+
+func (t TypeHost) String() string {
+	return t.prefix
 }
 
 func (h *Host) Host(args ...interface{}) (r TypeHost) {

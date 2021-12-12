@@ -7,6 +7,7 @@ import (
 	"net"
 	"net/http"
 	"net/url"
+	"time"
 
 	"github.com/webx-top/echo/logger"
 )
@@ -23,6 +24,10 @@ type (
 
 	// Request defines an interface for HTTP request.
 	Request interface {
+		Context() context.Context
+		WithContext(ctx context.Context) *http.Request
+		SetValue(key string, value interface{})
+
 		// Scheme returns the HTTP protocol scheme, `http` or `https`.
 		Scheme() string
 
@@ -132,7 +137,8 @@ type (
 		NotFound()
 		SetCookie(*http.Cookie)
 		ServeFile(string)
-		Stream(func(io.Writer) bool)
+		ServeContent(content io.ReadSeeker, name string, modtime time.Time)
+		Stream(func(io.Writer) bool) error
 		Error(string, ...int)
 
 		StdResponseWriter() http.ResponseWriter
@@ -150,6 +156,7 @@ type (
 		// Get gets the first value associated with the given key. If there are
 		// no values associated with the key, Get returns "".
 		Get(string) string
+		Values(string) []string
 
 		// Set sets the header entries associated with key to the single element value.
 		// It replaces any existing values associated with key.

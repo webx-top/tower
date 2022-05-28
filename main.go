@@ -12,6 +12,7 @@ import (
 
 	"github.com/admpub/confl"
 	"github.com/admpub/log"
+	"github.com/webx-top/com"
 	c "github.com/webx-top/tower/config"
 )
 
@@ -32,6 +33,8 @@ var (
 )
 
 func main() {
+	log.SetEmoji(com.IsMac)
+	defer log.Close()
 	flag.StringVar(&c.Conf.App.ExecFile, "f", "tower-app-*.exe", "path to your app's main file.")
 	flag.StringVar(&c.Conf.App.MainFile, "m", "", "path to your app's main file.")
 	flag.StringVar(&c.Conf.App.Port, "p", "5001-5050", "port range of your app.")

@@ -9,8 +9,6 @@ import (
 	"strconv"
 	"strings"
 	"time"
-
-	"github.com/admpub/map2struct"
 )
 
 var e = fmt.Errorf
@@ -266,19 +264,14 @@ func (md *MetaData) unifyMap(mapping interface{}, rv reflect.Value) error {
 	if !ok {
 		return badtype("map", mapping)
 	}
-	if rv.IsNil() {
+	isNil := rv.IsNil()
+	if isNil {
 		rv.Set(reflect.MakeMap(rv.Type()))
 	}
 	for k, v := range tmap {
 		md.decoded[md.context.add(k).String()] = true
 		md.context = append(md.context, k)
-
 		rvkey := indirect(reflect.New(rv.Type().Key()))
-		rvval := reflect.Indirect(reflect.New(rv.Type().Elem()))
-		if err := md.unify(v, rvval); err != nil {
-			return err
-		}
-		md.context = md.context[0 : len(md.context)-1]
 		keyType := rvkey.Kind()
 		if keyType >= reflect.Int && keyType <= reflect.Uint64 {
 			i, err := strconv.ParseInt(k, 10, 64)
@@ -297,17 +290,28 @@ func (md *MetaData) unifyMap(mapping interface{}, rv reflect.Value) error {
 					keyType, mapping)
 			}
 		}
-		if mv, ok := rvval.Interface().(map[string]interface{}); ok {
-			index := reflect.ValueOf(k)
-			originalValue := rv.MapIndex(index)
-			if originalValue.IsValid() && originalValue.Kind() == reflect.Interface {
-				err := map2struct.Scan(originalValue.Interface(), mv, `confl`, `json`)
-				if err == nil {
-					rv.SetMapIndex(rvkey, originalValue)
-					continue
+		var rvval reflect.Value
+		destType := rv.Type().Elem()
+		if !isNil {
+			prval := rv.MapIndex(rvkey)
+			if prval.IsValid() {
+				if prval.Kind() == reflect.Interface {
+					prval = reflect.ValueOf(prval.Interface())
 				}
+				destType = prval.Type()
+				if destType.Kind() == reflect.Map {
+					rvval = prval
+				}
+				//fmt.Printf("[confl] %v(%v) =====> %v\n", k, rv.Type().Key().Kind(), destType.Kind())
 			}
 		}
+		if rvval.Kind() == reflect.Invalid {
+			rvval = reflect.Indirect(reflect.New(destType))
+		}
+		if err := md.unify(v, rvval); err != nil {
+			return err
+		}
+		md.context = md.context[0 : len(md.context)-1]
 		rv.SetMapIndex(rvkey, rvval)
 	}
 	return nil
@@ -359,8 +363,24 @@ func (md *MetaData) unifyDatetime(data interface{}, rv reflect.Value) error {
 }
 
 func (md *MetaData) unifyString(data interface{}, rv reflect.Value) error {
-	if s, ok := data.(string); ok {
-		rv.SetString(s)
+	switch v := data.(type) {
+	case string:
+		rv.SetString(v)
+		return nil
+	case int:
+		rv.SetString(strconv.Itoa(v))
+		return nil
+	case int64:
+		rv.SetString(strconv.FormatInt(v, 10))
+		return nil
+	case float32:
+		rv.SetString(strconv.FormatFloat(float64(v), 'f', -1, 32))
+		return nil
+	case float64:
+		rv.SetString(strconv.FormatFloat(v, 'f', -1, 64))
+		return nil
+	case bool:
+		rv.SetString(strconv.FormatBool(v))
 		return nil
 	}
 	return badtype("string", data)
@@ -464,11 +484,11 @@ func (md *MetaData) unifyText(data interface{}, v TextUnmarshaler) error {
 	case string:
 		s = sdata
 	case bool:
-		s = fmt.Sprintf("%v", sdata)
+		s = strconv.FormatBool(sdata)
 	case int64:
-		s = fmt.Sprintf("%d", sdata)
+		s = strconv.FormatInt(sdata, 10)
 	case float64:
-		s = fmt.Sprintf("%f", sdata)
+		s = strconv.FormatFloat(sdata, 'f', -1, 64)
 	default:
 		return badtype("primitive (string-like)", data)
 	}

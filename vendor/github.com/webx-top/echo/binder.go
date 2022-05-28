@@ -139,6 +139,10 @@ func FormNames(s string) []string {
 	return res
 }
 
+type BinderFormTopNamer interface {
+	BinderFormTopName() string
+}
+
 // NamedStructMap 自动将map值映射到结构体
 func NamedStructMap(e *Echo, m interface{}, data map[string][]string, topName string, filters ...FormDataFilter) error {
 	vc := reflect.ValueOf(m)
@@ -156,19 +160,43 @@ func NamedStructMap(e *Echo, m interface{}, data map[string][]string, topName st
 	if bkn, ok := m.(BinderKeyNormalizer); ok {
 		keyNormalizer = bkn.BinderKeyNormalizer
 	}
+	topNameLen := len(topName)
+	if topNameLen == 0 {
+		if topNamer, ok := m.(BinderFormTopNamer); ok {
+			topName = topNamer.BinderFormTopName()
+			topNameLen = len(topName)
+		}
+	}
 	for key, values := range data {
 
-		if len(topName) > 0 {
-			if !strings.HasPrefix(key, topName) {
+		if topNameLen > 0 {
+			if topNameLen+1 >= len(key) { //key = topName.field
 				continue
 			}
-			key = key[len(topName)+1:]
+			if key[0:topNameLen] != topName {
+				continue
+			}
+			key = key[topNameLen:]
+			if key[0] == '.' {
+				if len(key) <= 1 {
+					continue
+				}
+				key = key[1:]
+			} else if key[0] == '[' {
+				if len(key) <= 1 {
+					continue
+				}
+				key = key[1:]
+			}
 		}
 
 		names := strings.Split(key, `.`)
 		var propPath, checkPath string
 		if len(names) == 1 && strings.HasSuffix(key, `]`) {
 			key = strings.TrimSuffix(key, `[]`)
+			if len(key) == 0 {
+				continue
+			}
 			names = FormNames(key)
 		}
 		err := parseFormItem(keyNormalizer, e, m, tc, vc, names, propPath, checkPath, key, values, filters...)

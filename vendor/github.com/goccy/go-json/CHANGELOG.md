@@ -1,3 +1,65 @@
+# v0.9.6 - 2022/03/22
+
+### Fix bugs
+
+* Correct the handling of the minimum value of int type for decoder ( #344 )
+* Fix bugs of stream decoder's bufferSize ( #349 )
+* Add a guard to use typeptr more safely ( #351 )
+
+### Improve decoder performance
+
+* Improve escapeString's performance ( #345 )
+
+### Others
+
+* Update go version for CI ( #347 )
+
+# v0.9.5 - 2022/03/04
+
+### Fix bugs
+
+* Fix panic when decoding time.Time with context ( #328 )
+* Fix reading the next character in buffer to nul consideration ( #338 )
+* Fix incorrect handling on skipValue ( #341 )
+
+### Improve decoder performance
+
+* Improve performance when a payload contains escape sequence ( #334 )
+
+# v0.9.4 - 2022/01/21
+
+* Fix IsNilForMarshaler for string type with omitempty ( #323 )
+* Fix the case where the embedded field is at the end ( #326 )
+
+# v0.9.3 - 2022/01/14
+
+* Fix logic of removing struct field for decoder ( #322 )
+
+# v0.9.2 - 2022/01/14
+
+* Add invalid decoder to delay type error judgment at decode ( #321 )
+
+# v0.9.1 - 2022/01/11
+
+* Fix encoding of MarshalText/MarshalJSON operation with head offset ( #319 )
+
+# v0.9.0 - 2022/01/05
+
+### New feature
+
+* Supports dynamic filtering of struct fields ( #314 )
+
+### Improve encoding performance
+
+* Improve map encoding performance ( #310 )
+* Optimize encoding path for escaped string ( #311 )
+* Add encoding option for performance ( #312 )
+
+### Fix bugs
+
+* Fix panic at encoding map value on 1.18 ( #310 )
+* Fix MarshalIndent for interface type ( #317 )
+
 # v0.8.1 - 2021/12/05
 
 * Fix operation conversion from PtrHead to Head in Recursive type ( #305 )

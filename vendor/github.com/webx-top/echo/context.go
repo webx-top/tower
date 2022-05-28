@@ -19,8 +19,8 @@ import (
 // response objects, path parameters, data and registered handler.
 type Context interface {
 	context.Context
-	events.Emitter
-	SetEmitter(events.Emitter)
+	events.Emitterer
+	SetEmitterer(events.Emitterer)
 	Handler() Handler
 
 	//Transaction
@@ -131,7 +131,7 @@ type Context interface {
 	Stream(func(io.Writer) bool) error
 	SSEvent(string, chan interface{}) error
 	File(string, ...http.FileSystem) error
-	Attachment(io.Reader, string, ...bool) error
+	Attachment(io.Reader, string, time.Time, ...bool) error
 	NoContent(...int) error
 	Redirect(string, ...int) error
 	Error(err error)

@@ -18,7 +18,7 @@ import (
 
 func init() {
 	log.DefaultLog.Category = `tower`
-	log.Sync(true)
+	log.SetEmoji(com.IsMac).Sync(true)
 	log.DefaultLog.Formatter = func(_ *log.Logger, e *log.Entry) string {
 		return e.Message
 	}
@@ -33,8 +33,6 @@ var (
 )
 
 func main() {
-	log.SetEmoji(com.IsMac)
-	defer log.Close()
 	flag.StringVar(&c.Conf.App.ExecFile, "f", "tower-app-*.exe", "path to your app's main file.")
 	flag.StringVar(&c.Conf.App.MainFile, "m", "", "path to your app's main file.")
 	flag.StringVar(&c.Conf.App.Port, "p", "5001-5050", "port range of your app.")

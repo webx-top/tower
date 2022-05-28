@@ -19,8 +19,8 @@ import (
 func init() {
 	log.DefaultLog.Category = `tower`
 	log.SetEmoji(com.IsMac).Sync(true)
-	log.DefaultLog.Formatter = func(_ *log.Logger, e *log.Entry) string {
-		return e.Message
+	log.DefaultLog.Formatter = func(l *log.Logger, e *log.Entry) string {
+		return l.EmojiOfLevel(e.Level.Level()) + e.Message
 	}
 	log.SetFatalAction(log.ActionExit)
 }

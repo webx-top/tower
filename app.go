@@ -504,7 +504,7 @@ func (this *App) Build() (err error) {
 			cmd := exec.Command("go", "generate")
 			cmd.Run()
 		}
-		args := []string{"build"}
+		args := []string{"build", "-buildvcs=false"}
 		args = append(args, this.BuildParams...)
 		args = append(args, []string{"-o", this.BinFile(), this.MainFile}...)
 		cmd := exec.Command("go", args...)

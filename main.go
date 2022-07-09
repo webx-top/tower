@@ -281,7 +281,17 @@ func startTower() {
 
 	log.DefaultLog.SetLevel(c.Conf.LogLevel)
 	if len(c.Conf.Proxy.Port) > 0 {
-		err := dialAddress("127.0.0.1:"+c.Conf.Proxy.Port, 1)
+		var listenAddr string
+		if len(c.Conf.Proxy.IP) == 0 {
+			if strings.Contains(c.Conf.Proxy.Port, `:`) {
+				listenAddr = c.Conf.Proxy.Port
+			} else {
+				listenAddr = "127.0.0.1:" + c.Conf.Proxy.Port
+			}
+		} else {
+			listenAddr = c.Conf.Proxy.IP + ":" + c.Conf.Proxy.Port
+		}
+		err := dialAddress(listenAddr, 1)
 		if err == nil {
 			log.Error("Error: port (" + c.Conf.Proxy.Port + ") already in used.")
 			os.Exit(1)

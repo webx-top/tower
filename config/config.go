@@ -21,6 +21,7 @@ type App struct {
 }
 
 type Proxy struct {
+	IP     string `json:"ip"`
 	Port   string `json:"port"`
 	Engine string `json:"engine"`
 }

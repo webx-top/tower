@@ -2,13 +2,13 @@ package main
 
 import (
 	"errors"
-	"fmt"
 	"net"
 	"os"
 	"path/filepath"
 	"strings"
 	"time"
 
+	"github.com/admpub/log"
 	"github.com/webx-top/com"
 )
 
@@ -32,54 +32,40 @@ func SelfDir() string {
 }
 
 func dialAddress(address string, timeOut int, args ...func() bool) (err error) {
-	seconds := 0
 	var fn func() bool
 	if len(args) > 0 {
 		fn = args[0]
 	}
 	oneSecondTimer := time.NewTimer(1 * time.Second)
-	fiveSecondTimer := time.NewTimer(5 * time.Second)
-	timeoutTimer := time.NewTimer(time.Duration(timeOut) * time.Second)
 	defer func() {
 		oneSecondTimer.Stop()
-		fiveSecondTimer.Stop()
-		timeoutTimer.Stop()
 	}()
-	for {
-		select {
-		case <-oneSecondTimer.C:
-			conn, err := net.Dial("tcp", address)
-			if err == nil {
-				conn.Close()
-				return err
-			}
-			//fmt.Println(`[`, seconds, `]`, err)
-			if seconds > timeOut {
-				return errors.New("Time out")
-			}
-			seconds++
-			if fn != nil && !fn() {
-				return nil
-			}
-		case <-fiveSecondTimer.C:
-			fmt.Println("== Waiting for " + address)
-			if seconds > timeOut {
-				return errors.New("Time out")
-			}
-			seconds += 5
-			if fn != nil && !fn() {
-				return
-			}
-		case <-timeoutTimer.C:
-			return errors.New("Time out")
+	startTime := time.Now()
+	timeoutDur := time.Duration(timeOut) * time.Second
+	for range oneSecondTimer.C {
+		conn, err := net.DialTimeout("tcp", address, timeoutDur)
+		if err == nil {
+			conn.Close()
+			return err
 		}
+		if fn != nil && !fn() {
+			return nil
+		}
+		if time.Now().After(startTime.Add(timeoutDur)) {
+			return errors.New(`Time out`)
+		}
+		log.Warn(`failed to listen on %s: %v, starting retry`, err)
 	}
-	return
+	return err
 }
 
 func isFreePort(port string) bool {
-	_, err := net.Dial("tcp", "127.0.0.1:"+port)
-	return err != nil
+	conn, err := net.Dial("tcp", "127.0.0.1:"+port)
+	if err == nil {
+		conn.Close()
+		return true
+	}
+	return false
 }
 
 func mustSuccess(err error) {

@@ -28,15 +28,24 @@ func init() {
 const ConfigName = "tower.yml"
 
 var (
-	app             App
-	build           = "1"
-	proxyListenAddr string
-	proxyListenPort uint
+	app               App
+	build             = "1"
+	proxyListenAddr   string
+	proxyListenPort   uint
+	buildParams       string
+	runParams         string
+	buildAppendParams string
+	runAppendParams   string
 )
 
 func main() {
+	flag.StringVar(&c.Conf.ConfigFile, "c", ConfigName, "yaml configuration file location.")
 	flag.StringVar(&proxyListenAddr, "proxy.listenAddr", proxyListenAddr, "")
 	flag.UintVar(&proxyListenPort, "proxy.listenPort", proxyListenPort, "")
+	flag.StringVar(&buildParams, "build.params", buildParams, "")
+	flag.StringVar(&runParams, "run.params", runParams, "")
+	flag.StringVar(&buildAppendParams, "build.appendParams", buildAppendParams, "")
+	flag.StringVar(&runAppendParams, "run.appendParams", runAppendParams, "")
 	prod := flag.String("prod", "", "Production mode")
 
 	flag.Parse()
@@ -267,6 +276,26 @@ func startTower() {
 	}
 	if proxyListenPort > 0 {
 		c.Conf.Proxy.Port = strconv.FormatUint(uint64(proxyListenPort), 10)
+	}
+	if len(buildParams) > 0 {
+		c.Conf.App.BuildParams = buildParams
+	}
+	if len(runParams) > 0 {
+		c.Conf.App.RunParams = runParams
+	}
+	if len(buildAppendParams) > 0 {
+		var sep string
+		if len(c.Conf.App.BuildParams) > 0 {
+			sep = ` `
+		}
+		c.Conf.App.BuildParams += sep + buildAppendParams
+	}
+	if len(runAppendParams) > 0 {
+		var sep string
+		if len(c.Conf.App.RunParams) > 0 {
+			sep = ` `
+		}
+		c.Conf.App.RunParams += sep + runAppendParams
 	}
 
 	log.DefaultLog.SetLevel(c.Conf.LogLevel)

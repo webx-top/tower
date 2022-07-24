@@ -1,10 +1,29 @@
 package config
 
-var Conf = &Config{
-	App:   App{},
-	Proxy: Proxy{},
-	Admin: Admin{},
-	Watch: Watch{},
+var Conf = NewConfig()
+
+func NewConfig() *Config {
+	return &Config{
+		App: App{
+			ExecFile: `tower-app-*.exe`,
+			Port:     `5001-5050`,
+		},
+		Proxy: Proxy{
+			Port:   `8080`,
+			Engine: `standard`,
+		},
+		Admin: Admin{
+			IPs: `127.0.0.1,::1`,
+		},
+		Watch: Watch{
+			FileExtension: `go`,
+			IgnoredPath:   `/\.git`,
+		},
+		AutoClear:  true,
+		LogLevel:   `Debug`,
+		Offline:    true,
+		LogRequest: true,
+	}
 }
 
 type App struct {

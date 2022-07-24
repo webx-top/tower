@@ -28,31 +28,15 @@ func init() {
 const ConfigName = "tower.yml"
 
 var (
-	app   App
-	build = "1"
+	app             App
+	build           = "1"
+	proxyListenAddr string
+	proxyListenPort uint
 )
 
 func main() {
-	flag.StringVar(&c.Conf.App.ExecFile, "f", "tower-app-*.exe", "path to your app's main file.")
-	flag.StringVar(&c.Conf.App.MainFile, "m", "", "path to your app's main file.")
-	flag.StringVar(&c.Conf.App.Port, "p", "5001-5050", "port range of your app.")
-	flag.StringVar(&c.Conf.Proxy.Port, "r", "8080", "proxy port of your app.")
-	flag.StringVar(&c.Conf.Proxy.Engine, "e", "standard", "fast/standard")
-	flag.StringVar(&c.Conf.App.BuildDir, "o", "", "save the executable file the folder.")
-	flag.StringVar(&c.Conf.App.PortParamName, "n", "", "app's port param name.")
-	flag.StringVar(&c.Conf.App.RunParams, "s", "", "app's run params.")
-	flag.StringVar(&c.Conf.App.BuildParams, "b", "", "build params.")
-	flag.BoolVar(&c.Conf.Verbose, "v", false, "show more stuff.")
-	flag.StringVar(&c.Conf.ConfigFile, "c", ConfigName, "yaml configuration file location.")
-	flag.StringVar(&c.Conf.Admin.Password, "w", "", "admin password.")
-	flag.StringVar(&c.Conf.Admin.IPs, "i", "127.0.0.1,::1", "admin allow IP.")
-	flag.BoolVar(&c.Conf.AutoClear, "a", true, "automatically deletes previously compiled files when you startup Tower in the compile mode")
-	flag.StringVar(&c.Conf.LogLevel, "logLevel", "Debug", "logger level(Debug/Info/Warn/Error/Fatal)")
-	flag.BoolVar(&c.Conf.Offline, "offline", true, "offline mode")
-	flag.BoolVar(&c.Conf.LogRequest, "logRequest", true, "")
-	flag.StringVar(&c.Conf.Watch.FileExtension, "fileExtention", "go", "")
-	flag.StringVar(&c.Conf.Watch.OtherDir, "watchOtherDir", "", "")
-	flag.StringVar(&c.Conf.Watch.IgnoredPath, "watchIgnoredPath", "/\\.git", "")
+	flag.StringVar(&proxyListenAddr, "proxy.listenAddr", proxyListenAddr, "")
+	flag.UintVar(&proxyListenPort, "proxy.listenPort", proxyListenPort, "")
 	prod := flag.String("prod", "", "Production mode")
 
 	flag.Parse()
@@ -277,6 +261,12 @@ func startTower() {
 	}
 	if c.Conf.Verbose {
 		c.Conf.LogLevel = `Debug`
+	}
+	if len(proxyListenAddr) > 0 {
+		c.Conf.Proxy.IP = proxyListenAddr
+	}
+	if proxyListenPort > 0 {
+		c.Conf.Proxy.Port = strconv.FormatUint(uint64(proxyListenPort), 10)
 	}
 
 	log.DefaultLog.SetLevel(c.Conf.LogLevel)

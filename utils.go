@@ -37,9 +37,17 @@ func dialAddress(address string, timeOut int, args ...func() bool) (err error) {
 	if len(args) > 0 {
 		fn = args[0]
 	}
+	oneSecondTimer := time.NewTimer(1 * time.Second)
+	fiveSecondTimer := time.NewTimer(5 * time.Second)
+	timeoutTimer := time.NewTimer(time.Duration(timeOut) * time.Second)
+	defer func() {
+		oneSecondTimer.Stop()
+		fiveSecondTimer.Stop()
+		timeoutTimer.Stop()
+	}()
 	for {
 		select {
-		case <-time.After(1 * time.Second):
+		case <-oneSecondTimer.C:
 			conn, err := net.Dial("tcp", address)
 			if err == nil {
 				conn.Close()
@@ -53,7 +61,7 @@ func dialAddress(address string, timeOut int, args ...func() bool) (err error) {
 			if fn != nil && !fn() {
 				return nil
 			}
-		case <-time.After(5 * time.Second):
+		case <-fiveSecondTimer.C:
 			fmt.Println("== Waiting for " + address)
 			if seconds > timeOut {
 				return errors.New("Time out")
@@ -62,7 +70,7 @@ func dialAddress(address string, timeOut int, args ...func() bool) (err error) {
 			if fn != nil && !fn() {
 				return
 			}
-		case <-time.After(time.Duration(timeOut) * time.Second):
+		case <-timeoutTimer.C:
 			return errors.New("Time out")
 		}
 	}

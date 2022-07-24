@@ -48,7 +48,7 @@ github.com/davecgh/go-spew/spew
 # github.com/francoispqt/gojay v1.2.13
 ## explicit
 github.com/francoispqt/gojay
-# github.com/goccy/go-json v0.9.8
+# github.com/goccy/go-json v0.9.10
 ## explicit
 github.com/goccy/go-json
 github.com/goccy/go-json/internal/decoder
@@ -62,7 +62,7 @@ github.com/goccy/go-json/internal/runtime
 # github.com/json-iterator/go v1.1.12
 ## explicit
 github.com/json-iterator/go
-# github.com/klauspost/compress v1.15.7
+# github.com/klauspost/compress v1.15.9
 ## explicit
 github.com/klauspost/compress/flate
 github.com/klauspost/compress/gzip
@@ -104,7 +104,7 @@ github.com/webx-top/captcha
 ## explicit
 github.com/webx-top/com
 github.com/webx-top/com/encoding/json
-# github.com/webx-top/echo v2.26.8+incompatible
+# github.com/webx-top/echo v2.26.9+incompatible
 ## explicit
 github.com/webx-top/echo
 github.com/webx-top/echo/code
@@ -129,18 +129,18 @@ github.com/webx-top/tagfast
 # github.com/webx-top/validation v0.0.3
 ## explicit
 github.com/webx-top/validation
-# golang.org/x/crypto v0.0.0-20220622213112-05595931fe9d
+# golang.org/x/crypto v0.0.0-20220722155217-630584e8d5aa
 ## explicit
 golang.org/x/crypto/acme
 golang.org/x/crypto/acme/autocert
-# golang.org/x/net v0.0.0-20220708220712-1185a9018129
+# golang.org/x/net v0.0.0-20220722155237-a158d28d115b
 ## explicit
 golang.org/x/net/idna
-# golang.org/x/sync v0.0.0-20220601150217-0de741cfad7f
+# golang.org/x/sync v0.0.0-20220722155255-886fb9371eb4
 ## explicit
 golang.org/x/sync/errgroup
 golang.org/x/sync/semaphore
-# golang.org/x/sys v0.0.0-20220708085239-5a0f0661e09d
+# golang.org/x/sys v0.0.0-20220722155257-8c9f86f7a55f
 ## explicit
 golang.org/x/sys/internal/unsafeheader
 golang.org/x/sys/unix

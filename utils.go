@@ -35,13 +35,13 @@ func dialAddress(address string, timeOut int, args ...func() bool) (err error) {
 	if len(args) > 0 {
 		fn = args[0]
 	}
-	oneSecondTimer := time.NewTimer(1 * time.Second)
+	ticker := time.NewTicker(1 * time.Second)
 	defer func() {
-		oneSecondTimer.Stop()
+		ticker.Stop()
 	}()
 	startTime := time.Now()
 	timeoutDur := time.Duration(timeOut) * time.Second
-	for range oneSecondTimer.C {
+	for range ticker.C {
 		conn, err := net.DialTimeout("tcp", address, timeoutDur)
 		if err == nil {
 			conn.Close()

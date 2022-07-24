@@ -1,14 +1,13 @@
 package main
 
 import (
-	"errors"
+	"fmt"
 	"net"
 	"os"
 	"path/filepath"
 	"strings"
 	"time"
 
-	"github.com/admpub/log"
 	"github.com/webx-top/com"
 )
 
@@ -52,8 +51,7 @@ func dialAddress(address string, timeOut int, args ...func() bool) (err error) {
 			return nil
 		}
 		if time.Now().After(startTime.Add(timeoutDur)) {
-			log.Errorf(`failed to listen on %s: %v`, address, err)
-			return errors.New(`Time out`)
+			return fmt.Errorf(`failed to listen on %s: %w`, address, err)
 		}
 	}
 	return err

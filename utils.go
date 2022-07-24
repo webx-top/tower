@@ -54,7 +54,7 @@ func dialAddress(address string, timeOut int, args ...func() bool) (err error) {
 		if time.Now().After(startTime.Add(timeoutDur)) {
 			return errors.New(`Time out`)
 		}
-		log.Warn(`failed to listen on %s: %v, starting retry`, err)
+		log.Warnf(`failed to listen on %s: %v, starting retry`, address, err)
 	}
 	return err
 }

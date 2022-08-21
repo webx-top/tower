@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"errors"
 	"flag"
 	"fmt"
@@ -113,7 +114,8 @@ func main() {
 		build = "0"
 	}
 	if debugPort > 0 {
-		go startPprof(debugPort)
+		server := startPprof(debugPort)
+		defer server.Shutdown(context.Background())
 	}
 	startTower()
 }

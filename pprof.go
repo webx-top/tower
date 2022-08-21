@@ -8,5 +8,7 @@ import (
 )
 
 func startPprof(port int) {
-	log.Println(http.ListenAndServe(fmt.Sprintf("127.0.0.1:%d", port), nil))
+	addr := fmt.Sprintf("127.0.0.1:%d", port)
+	log.Printf("debug server: http://%s/debug/pprof/\n", addr)
+	log.Println(http.ListenAndServe(addr, nil))
 }

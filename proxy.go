@@ -7,8 +7,6 @@ import (
 	"sync"
 	"time"
 
-	"net/http"
-
 	"github.com/admpub/log"
 	"github.com/webx-top/reverseproxy"
 )
@@ -90,55 +88,19 @@ func (this *Proxy) Listen() error {
 		ResponseBefore: func(ctx reverseproxy.Context) bool {
 			switch ctx.RequestPath() {
 			case "/tower-proxy/watch/restart":
-				status := `done`
-				code := 200
-				if !this.authAdmin(ctx) {
-					code = http.StatusUnauthorized
-					status = `Authentication failed`
-				} else {
-					err := this.App.Restart()
-					if err != nil {
-						code = http.StatusInternalServerError
-						status = err.Error()
-					}
-				}
-				ctx.SetStatusCode(code)
-				ctx.SetBody([]byte(status))
+				this.handleWatchRestart(ctx)
 				return true
 
 			case "/tower-proxy/watch/pause":
-				status := `done`
-				code := 200
-				if !this.authAdmin(ctx) {
-					code = http.StatusUnauthorized
-					status = `Authentication failed`
-				} else {
-					this.Watcher.Paused = true
-				}
-				ctx.SetStatusCode(code)
-				ctx.SetBody([]byte(status))
+				this.handleWatchPause(ctx)
 				return true
 
 			case "/tower-proxy/watch/begin":
-				status := `done`
-				code := 200
-				if !this.authAdmin(ctx) {
-					code = http.StatusUnauthorized
-					status = `Authentication failed`
-				} else {
-					this.Watcher.Paused = false
-				}
-				ctx.SetStatusCode(code)
-				ctx.SetBody([]byte(status))
+				this.handleWatchBegin(ctx)
 				return true
 
 			case "/tower-proxy/watch":
-				status := `OK`
-				if this.Watcher.Paused {
-					status = `Pause`
-				}
-				ctx.SetStatusCode(200)
-				ctx.SetBody([]byte(`Watcher Status: ` + status))
+				this.handleWatchStatus(ctx)
 				return true
 			}
 

@@ -36,6 +36,7 @@ var (
 	runParams         string
 	buildAppendParams string
 	runAppendParams   string
+	debugPort         int
 )
 
 func main() {
@@ -46,6 +47,7 @@ func main() {
 	flag.StringVar(&runParams, "run.params", runParams, "")
 	flag.StringVar(&buildAppendParams, "build.appendParams", buildAppendParams, "")
 	flag.StringVar(&runAppendParams, "run.appendParams", runAppendParams, "")
+	flag.IntVar(&debugPort, `debug.port`, 0, "--debug.port 8844")
 	prod := flag.String("prod", "", "Production mode")
 
 	flag.Parse()
@@ -108,6 +110,9 @@ func main() {
 	}
 	if len(*prod) > 0 && atob(*prod) {
 		build = "0"
+	}
+	if debugPort > 0 {
+		go startPprof(debugPort)
 	}
 	startTower()
 }

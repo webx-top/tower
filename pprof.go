@@ -9,6 +9,6 @@ import (
 
 func startPprof(port int) {
 	addr := fmt.Sprintf("127.0.0.1:%d", port)
-	log.Printf("debug server: http://%s/debug/pprof/\n", addr)
+	log.Printf("== Debug server URL: http://%s/debug/pprof/\n", addr)
 	log.Println(http.ListenAndServe(addr, nil))
 }

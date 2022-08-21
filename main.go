@@ -18,7 +18,7 @@ import (
 
 func init() {
 	log.DefaultLog.Category = `tower`
-	log.SetEmoji(com.IsMac).Sync(true)
+	log.SetEmoji(com.IsMac)
 	log.DefaultLog.Formatter = func(l *log.Logger, e *log.Entry) string {
 		return l.EmojiOfLevel(e.Level.Level()) + e.Message
 	}
@@ -40,6 +40,7 @@ var (
 )
 
 func main() {
+	defer log.Close()
 	flag.StringVar(&c.Conf.ConfigFile, "c", ConfigName, "yaml configuration file location.")
 	flag.StringVar(&proxyListenAddr, "proxy.listenAddr", proxyListenAddr, "")
 	flag.UintVar(&proxyListenPort, "proxy.listenPort", proxyListenPort, "")

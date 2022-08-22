@@ -59,6 +59,7 @@ type App struct {
 	buildErr     error
 	startErr     error
 	restartErr   error
+	_goVersion   string
 }
 
 type StderrCapturer struct {
@@ -491,6 +492,42 @@ func (this *App) fetchPkg(matches [][]string, isRetry bool, args ...string) bool
 		}
 	}
 	return alldl
+}
+
+func (this *App) goVersion() (string, error) {
+	if len(this._goVersion) > 0 {
+		return this._goVersion, nil
+	}
+	b, err := exec.Command("go", "version").CombinedOutput()
+	if err != nil {
+		return "", err
+	}
+	v := string(b)
+	v = strings.TrimPrefix(v, `go version go`)
+	v = strings.SplitN(v, ` `, 2)[0]
+	this._goVersion = v
+	return v, nil
+}
+
+func (this *App) fillDefaultBuildParams(args []string) ([]string, error) {
+	gover, err := this.goVersion()
+	if err != nil {
+		return args, err
+	}
+	if com.VersionComparex(gover, `1.18.0`, ">=") {
+		var hasBuildVCSArg bool
+		for _, arg := range args {
+			arg = strings.TrimLeft(arg, `-`)
+			if strings.HasPrefix(arg, `buildvcs=`) {
+				hasBuildVCSArg = true
+				break
+			}
+		}
+		if !hasBuildVCSArg {
+			args = append(args, "-buildvcs=false")
+		}
+	}
+	return args, nil
 }
 
 func (this *App) Build() (err error) {

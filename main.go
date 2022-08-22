@@ -378,6 +378,10 @@ func startTower() {
 	}
 	if len(c.Conf.App.BuildParams) > 0 {
 		app.BuildParams = parseParams(c.Conf.App.BuildParams)
+		app.BuildParams, err = app.fillDefaultBuildParams(app.BuildParams)
+		if err != nil {
+			log.Error(err)
+		}
 	}
 	app.BeforeBuildGenerate = c.Conf.App.Generate
 	watchedDir := app.Root

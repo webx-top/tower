@@ -9,3 +9,4 @@ tmp
 /.vscode
 /debug.test
 tower-app-*
+/tower

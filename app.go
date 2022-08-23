@@ -509,27 +509,6 @@ func (this *App) goVersion() (string, error) {
 	return v, nil
 }
 
-func (this *App) fillDefaultBuildParams(args []string) ([]string, error) {
-	gover, err := this.goVersion()
-	if err != nil {
-		return args, err
-	}
-	if com.VersionComparex(gover, `1.18.0`, ">=") {
-		var hasBuildVCSArg bool
-		for _, arg := range args {
-			arg = strings.TrimLeft(arg, `-`)
-			if strings.HasPrefix(arg, `buildvcs=`) {
-				hasBuildVCSArg = true
-				break
-			}
-		}
-		if !hasBuildVCSArg {
-			args = append(args, "-buildvcs=false")
-		}
-	}
-	return args, nil
-}
-
 func (this *App) Build() (err error) {
 	if this.DisabledBuild {
 		return nil
@@ -541,7 +520,7 @@ func (this *App) Build() (err error) {
 			cmd := exec.Command("go", "generate")
 			cmd.Run()
 		}
-		args := []string{"build", "-buildvcs=false"}
+		args := []string{"build"}
 		args = append(args, this.BuildParams...)
 		args = append(args, []string{"-o", this.BinFile(), this.MainFile}...)
 		cmd := exec.Command("go", args...)

@@ -80,9 +80,12 @@ func (this *Proxy) Listen() error {
 		this.ReserveProxy = &reverseproxy.NativeReverseProxy{PassingBrowsingURL: true}
 		engine = `Standard`
 	}
-
+	listenAddr := this.Port
+	if !strings.Contains(listenAddr, `:`) {
+		listenAddr = `:` + listenAddr
+	}
 	config := reverseproxy.ReverseProxyConfig{
-		Listen:          `:` + this.Port,
+		Listen:          listenAddr,
 		Router:          router,
 		RequestIDHeader: "X-Request-ID",
 		ResponseBefore: func(ctx reverseproxy.Context) bool {

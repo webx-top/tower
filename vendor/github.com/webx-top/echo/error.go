@@ -42,14 +42,7 @@ const (
 // ==========================================
 
 func NewError(msg string, code ...pkgCode.Code) *Error {
-	e := &Error{Code: pkgCode.Failure, Message: msg, Extra: H{}}
-	if len(code) > 0 {
-		e.Code = code[0]
-	}
-	if len(msg) == 0 {
-		e.Message = e.Code.String()
-	}
-	return e
+	return NewErrorWith(nil, msg, code...)
 }
 
 func NewErrorWith(err error, msg string, code ...pkgCode.Code) *Error {
@@ -67,12 +60,29 @@ func NewErrorWith(err error, msg string, code ...pkgCode.Code) *Error {
 	return e
 }
 
+func IsErrorCode(err error, code pkgCode.Code) bool {
+	val, ok := err.(*Error)
+	if !ok && !errors.As(err, &val) {
+		return false
+	}
+	return val.Code.Is(code)
+}
+
+func InErrorCode(err error, codes ...pkgCode.Code) bool {
+	val, ok := err.(*Error)
+	if !ok && !errors.As(err, &val) {
+		return false
+	}
+	return val.Code.In(codes...)
+}
+
 type Error struct {
 	Code    pkgCode.Code
 	Message string
 	Zone    string
 	Extra   H
 	cause   error
+	cloned  bool
 }
 
 // Error returns message.
@@ -80,22 +90,72 @@ func (e *Error) Error() string {
 	return e.Message
 }
 
+func (e *Error) NoClone() *Error {
+	e.cloned = true
+	return e
+}
+
+func (e *Error) Clone() *Error {
+	var extra H
+	if e.Extra != nil {
+		extra = e.Extra.Clone()
+	}
+	return &Error{
+		Code:    e.Code,
+		Message: e.Message,
+		Zone:    e.Zone,
+		Extra:   extra,
+		cause:   e.cause,
+		cloned:  true,
+	}
+}
+
 func (e *Error) Set(key string, value interface{}) *Error {
+	if !e.cloned {
+		e2 := e.Clone()
+		e2.Extra.Set(key, value)
+		return e2
+	}
 	e.Extra.Set(key, value)
 	return e
 }
 
+func (e *Error) SetMessage(message string) *Error {
+	if !e.cloned {
+		e2 := e.Clone()
+		e2.Message = message
+		return e2
+	}
+	e.Message = message
+	return e
+}
+
 func (e *Error) SetZone(zone string) *Error {
+	if !e.cloned {
+		e2 := e.Clone()
+		e2.Zone = zone
+		return e2
+	}
 	e.Zone = zone
 	return e
 }
 
 func (e *Error) SetError(err error) *Error {
+	if !e.cloned {
+		e2 := e.Clone()
+		e2.cause = err
+		return e2
+	}
 	e.cause = err
 	return e
 }
 
 func (e *Error) Delete(keys ...string) *Error {
+	if !e.cloned {
+		e2 := e.Clone()
+		e2.Extra.Delete(keys...)
+		return e2
+	}
 	e.Extra.Delete(keys...)
 	return e
 }
@@ -299,26 +359,33 @@ func (p *PanicError) HTML() template.HTML {
 	return template.HTML(table)
 }
 
-func (p *PanicError) AddTrace(trace *Trace) *PanicError {
+func (p *PanicError) AddTrace(trace *Trace, content ...string) *PanicError {
 	if len(p.Snippets) == 0 {
-		var index int
-		if strings.Index(trace.File, workDir) != -1 {
+		if !trace.HasErr && strings.Contains(trace.File, workDir) {
 			trace.HasErr = true
-			index = len(p.Traces)
 		}
 		if trace.HasErr {
-			p.ExtractSnippets(trace.File, trace.Line, index)
+			index := len(p.Traces)
+			if len(content) > 0 {
+				p.ExtractSnippets(content[0], trace.File, trace.Line, index)
+			} else {
+				p.ExtractFileSnippets(trace.File, trace.Line, index)
+			}
 		}
 	}
 	p.Traces = append(p.Traces, trace)
 	return p
 }
 
-func (p *PanicError) ExtractSnippets(file string, curLineNum int, index int) error {
+func (p *PanicError) ExtractFileSnippets(file string, curLineNum int, index int) error {
 	content, err := ioutil.ReadFile(file)
 	if err != nil {
 		return err
 	}
+	return p.ExtractSnippets(string(content), file, curLineNum, index)
+}
+
+func (p *PanicError) ExtractSnippets(content string, file string, curLineNum int, index int) error {
 	half := SnippetLineNumbers / 2
 	lines := strings.Split(string(content), "\n")
 	group := &SnippetGroup{
@@ -327,7 +394,7 @@ func (p *PanicError) ExtractSnippets(file string, curLineNum int, index int) err
 		Snippet: []*Snippet{},
 	}
 	for lineNum := curLineNum - half; lineNum <= curLineNum+half; lineNum++ {
-		if len(lines) >= lineNum {
+		if len(lines) >= lineNum && lineNum > 0 {
 			group.Snippet = append(group.Snippet, &Snippet{
 				Number:  lineNum,
 				Code:    lines[lineNum-1],

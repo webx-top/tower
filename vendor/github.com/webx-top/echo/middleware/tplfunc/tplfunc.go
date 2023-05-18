@@ -52,6 +52,7 @@ var TplFuncMap template.FuncMap = template.FuncMap{
 	// time
 	// ======================
 	"Now":             Now,
+	"UnixTime":        UnixTime,
 	"ElapsedMemory":   com.ElapsedMemory, //内存消耗
 	"TotalRunTime":    com.TotalRunTime,  //运行时长(从启动服务时算起)
 	"CaptchaForm":     CaptchaForm,       //验证码图片
@@ -160,6 +161,8 @@ var TplFuncMap template.FuncMap = template.FuncMap{
 	"JSONDecode":       JSONDecode,
 	"URLEncode":        com.URLEncode,
 	"URLDecode":        URLDecode,
+	"RawURLEncode":     com.RawURLEncode,
+	"RawURLDecode":     URLDecode,
 	"Base64Encode":     com.Base64Encode,
 	"Base64Decode":     Base64Decode,
 	"UnicodeDecode":    UnicodeDecode,
@@ -173,6 +176,7 @@ var TplFuncMap template.FuncMap = template.FuncMap{
 	// map & slice
 	// ======================
 	"MakeMap":        MakeMap,
+	"InSet":          com.InSet,
 	"InSlice":        com.InSlice,
 	"InSlicex":       com.InSliceIface,
 	"Set":            Set,
@@ -182,6 +186,8 @@ var TplFuncMap template.FuncMap = template.FuncMap{
 	"URLValues":      URLValues,
 	"ToSlice":        ToSlice,
 	"StrToSlice":     StrToSlice,
+	"GetByIndex":     param.GetByIndex,
+	"ToParamString":  func(v string) param.String { return param.String(v) },
 
 	// ======================
 	// regexp
@@ -192,8 +198,11 @@ var TplFuncMap template.FuncMap = template.FuncMap{
 	// ======================
 	// other
 	// ======================
-	"Ignore":  Ignore,
-	"Default": Default,
+	"Ignore":        Ignore,
+	"Default":       Default,
+	"WithURLParams": com.WithURLParams,
+	"FullURL":       com.FullURL,
+	"IsFullURL":     com.IsFullURL,
 }
 
 var (
@@ -377,17 +386,17 @@ func Append(renderArgs map[string]interface{}, key string, value interface{}) st
 	return ``
 }
 
-//NlToBr Replaces newlines with <br />
+// NlToBr Replaces newlines with <br />
 func NlToBr(text string) template.HTML {
 	return template.HTML(Nl2br(text))
 }
 
-//CaptchaForm 验证码表单域
+// CaptchaForm 验证码表单域
 func CaptchaForm(args ...interface{}) template.HTML {
 	return CaptchaFormWithURLPrefix(``, args...)
 }
 
-//CaptchaFormWithURLPrefix 验证码表单域
+// CaptchaFormWithURLPrefix 验证码表单域
 func CaptchaFormWithURLPrefix(urlPrefix string, args ...interface{}) template.HTML {
 	id := "captcha"
 	msg := "页面验证码已经失效，必须重新请求当前页面。确定要刷新本页面吗？"
@@ -456,14 +465,14 @@ func CaptchaFormWithURLPrefix(urlPrefix string, args ...interface{}) template.HT
 	return template.HTML(fmt.Sprintf(format, cid, id, onErr))
 }
 
-//CaptchaVerify 验证码验证
+// CaptchaVerify 验证码验证
 func CaptchaVerify(captchaSolution string, idGet func(string, ...string) string) bool {
 	//id := r.FormValue("captchaId")
 	id := idGet("captchaId")
 	return captcha.VerifyString(id, captchaSolution)
 }
 
-//Nl2br 将换行符替换为<br />
+// Nl2br 将换行符替换为<br />
 func Nl2br(text string) string {
 	return com.Nl2br(template.HTMLEscapeString(text))
 }
@@ -695,6 +704,10 @@ func ToFixed(value interface{}, precision interface{}) string {
 
 func Now() time.Time {
 	return time.Now()
+}
+
+func UnixTime() int64 {
+	return time.Now().Unix()
 }
 
 func Eq(left interface{}, right interface{}) bool {

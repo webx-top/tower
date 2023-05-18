@@ -223,6 +223,15 @@ func URLDecode(encoded string, rfc ...bool) (string, error) {
 	return url.QueryUnescape(encoded)
 }
 
+func InSliceFold(value string, items []string) bool {
+	for _, item := range items {
+		if strings.EqualFold(item, value) {
+			return true
+		}
+	}
+	return false
+}
+
 type HandlerFuncs map[string]func(Context) error
 
 func (h *HandlerFuncs) Register(key string, fn func(Context) error) {
@@ -241,4 +250,76 @@ func (h HandlerFuncs) Call(c Context, key string) error {
 		return ErrNotFound
 	}
 	return fn(c)
+}
+
+var DefaultNextURLVarName = `next`
+
+func GetNextURL(ctx Context, varNames ...string) string {
+	varName := DefaultNextURLVarName
+	if len(varNames) > 0 && len(varNames[0]) > 0 {
+		varName = varNames[0]
+	}
+	next := ctx.Form(varName)
+	if next == ctx.Request().URL().Path() {
+		next = ``
+	}
+	return next
+}
+
+func ReturnToCurrentURL(ctx Context, varNames ...string) string {
+	varName := DefaultNextURLVarName
+	if len(varNames) > 0 && len(varNames[0]) > 0 {
+		varName = varNames[0]
+	}
+	next := ctx.Form(varName)
+	if len(next) == 0 {
+		next = ctx.Request().URI()
+	}
+	return next
+}
+
+func WithNextURL(ctx Context, urlStr string, varNames ...string) string {
+	varName := DefaultNextURLVarName
+	if len(varNames) > 0 && len(varNames[0]) > 0 {
+		varName = varNames[0]
+	}
+	withVarName := varName
+	if len(varNames) > 1 && len(varNames[1]) > 0 {
+		withVarName = varNames[1]
+	}
+
+	next := GetNextURL(ctx, varName)
+	if len(next) == 0 || next == urlStr {
+		return urlStr
+	}
+	if next[0] == '/' {
+		if len(urlStr) > 8 {
+			var urlCopy string
+			switch strings.ToLower(urlStr[0:7]) {
+			case `https:/`:
+				urlCopy = urlStr[8:]
+			case `http://`:
+				urlCopy = urlStr[7:]
+			}
+			if len(urlCopy) > 0 {
+				p := strings.Index(urlCopy, `/`)
+				if p > 0 && urlCopy[p:] == next {
+					return urlStr
+				}
+			}
+		}
+	}
+
+	return com.WithURLParams(urlStr, withVarName, next)
+}
+
+func GetOtherURL(ctx Context, next string) string {
+	if len(next) == 0 {
+		return next
+	}
+	urlInfo, _ := url.Parse(next)
+	if urlInfo == nil || urlInfo.Path == ctx.Request().URL().Path() {
+		next = ``
+	}
+	return next
 }

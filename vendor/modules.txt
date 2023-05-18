@@ -1,11 +1,9 @@
-# github.com/admpub/color v1.8.0
+# github.com/admpub/color v1.8.1
+## explicit
 github.com/admpub/color
 # github.com/admpub/confl v0.2.2
 ## explicit
 github.com/admpub/confl
-# github.com/admpub/copier v0.0.2
-## explicit
-github.com/admpub/copier
 # github.com/admpub/decimal v1.3.1
 ## explicit
 github.com/admpub/decimal
@@ -20,7 +18,7 @@ github.com/admpub/fasthttp/stackless
 # github.com/admpub/fsnotify v1.5.0
 ## explicit
 github.com/admpub/fsnotify
-# github.com/admpub/go-isatty v0.0.10
+# github.com/admpub/go-isatty v0.0.11
 ## explicit
 github.com/admpub/go-isatty
 # github.com/admpub/go-reuseport v0.0.4
@@ -37,7 +35,11 @@ github.com/admpub/log
 github.com/admpub/manners
 # github.com/admpub/realip v0.0.0-20210421084339-374cf5df122d
 ## explicit
-# github.com/andybalholm/brotli v1.0.4
+# github.com/admpub/timeago v1.2.1
+## explicit
+github.com/admpub/timeago
+# github.com/andybalholm/brotli v1.0.5
+## explicit
 github.com/andybalholm/brotli
 # github.com/araddon/gou v0.0.0-20190110011759-c797efecbb61
 ## explicit
@@ -48,7 +50,7 @@ github.com/davecgh/go-spew/spew
 # github.com/francoispqt/gojay v1.2.13
 ## explicit
 github.com/francoispqt/gojay
-# github.com/goccy/go-json v0.9.11
+# github.com/goccy/go-json v0.10.2
 ## explicit
 github.com/goccy/go-json
 github.com/goccy/go-json/internal/decoder
@@ -59,10 +61,13 @@ github.com/goccy/go-json/internal/encoder/vm_color_indent
 github.com/goccy/go-json/internal/encoder/vm_indent
 github.com/goccy/go-json/internal/errors
 github.com/goccy/go-json/internal/runtime
+# github.com/hashicorp/go-version v1.6.0
+## explicit
+github.com/hashicorp/go-version
 # github.com/json-iterator/go v1.1.12
 ## explicit
 github.com/json-iterator/go
-# github.com/klauspost/compress v1.15.9
+# github.com/klauspost/compress v1.16.5
 ## explicit
 github.com/klauspost/compress/flate
 github.com/klauspost/compress/gzip
@@ -70,9 +75,9 @@ github.com/klauspost/compress/zlib
 # github.com/kr/text v0.2.0
 ## explicit
 # github.com/mattn/go-colorable v0.1.13
-## explicit
 github.com/mattn/go-colorable
-# github.com/mattn/go-isatty v0.0.16
+# github.com/mattn/go-isatty v0.0.18
+## explicit
 github.com/mattn/go-isatty
 # github.com/mitchellh/go-homedir v1.1.0
 ## explicit
@@ -84,8 +89,6 @@ github.com/modern-go/reflect2
 # github.com/nu7hatch/gouuid v0.0.0-20131221200532-179d4d0c4d8d
 ## explicit
 github.com/nu7hatch/gouuid
-# github.com/onsi/ginkgo v1.16.5
-## explicit
 # github.com/onsi/gomega v1.19.0
 ## explicit
 # github.com/pkg/errors v0.9.1
@@ -97,14 +100,14 @@ github.com/pmezard/go-difflib/difflib
 github.com/stretchr/testify/assert
 # github.com/valyala/bytebufferpool v1.0.0
 github.com/valyala/bytebufferpool
-# github.com/webx-top/captcha v0.0.1
+# github.com/webx-top/captcha v0.1.0
 ## explicit
 github.com/webx-top/captcha
-# github.com/webx-top/com v0.6.0
+# github.com/webx-top/com v0.9.4
 ## explicit
 github.com/webx-top/com
 github.com/webx-top/com/encoding/json
-# github.com/webx-top/echo v2.26.9+incompatible
+# github.com/webx-top/echo v2.35.1+incompatible
 ## explicit
 github.com/webx-top/echo
 github.com/webx-top/echo/code
@@ -129,23 +132,27 @@ github.com/webx-top/tagfast
 # github.com/webx-top/validation v0.0.3
 ## explicit
 github.com/webx-top/validation
-# golang.org/x/crypto v0.0.0-20220817201139-bc19a97f63c8
+# golang.org/x/crypto v0.9.0
 ## explicit
 golang.org/x/crypto/acme
 golang.org/x/crypto/acme/autocert
-# golang.org/x/net v0.0.0-20220812174116-3211cb980234
-## explicit
+# golang.org/x/net v0.10.0
 golang.org/x/net/idna
-# golang.org/x/sync v0.0.0-20220819030929-7fc1605a5dde
+# golang.org/x/sync v0.2.0
 ## explicit
 golang.org/x/sync/errgroup
 golang.org/x/sync/semaphore
-# golang.org/x/sys v0.0.0-20220818161305-2296e01440c6
-## explicit
+# golang.org/x/sys v0.8.0
 golang.org/x/sys/internal/unsafeheader
 golang.org/x/sys/unix
 golang.org/x/sys/windows
-# golang.org/x/text v0.3.7
+# golang.org/x/text v0.9.0
+golang.org/x/text/cases
+golang.org/x/text/internal
+golang.org/x/text/internal/language
+golang.org/x/text/internal/language/compact
+golang.org/x/text/internal/tag
+golang.org/x/text/language
 golang.org/x/text/secure/bidirule
 golang.org/x/text/transform
 golang.org/x/text/unicode/bidi

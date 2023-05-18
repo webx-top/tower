@@ -33,6 +33,16 @@ func URLDecode(str string) (string, error) {
 	return url.QueryUnescape(str)
 }
 
+// RawURLEncode rawurlencode()
+func RawURLEncode(str string) string {
+	return strings.Replace(url.QueryEscape(str), "+", "%20", -1)
+}
+
+// RawURLDecode rawurldecode()
+func RawURLDecode(str string) (string, error) {
+	return url.QueryUnescape(str)
+}
+
 // Base64Encode base64 encode
 func Base64Encode(str string) string {
 	return base64.StdEncoding.EncodeToString([]byte(str))
@@ -44,32 +54,43 @@ func Base64Decode(str string) (string, error) {
 	return string(s), e
 }
 
+var urlSafeBase64EncodeReplacer = strings.NewReplacer(`/`, `_`, `+`, `-`)
+var urlSafeBase64DecodeReplacer = strings.NewReplacer(`_`, `/`, `-`, `+`)
+
 // URLSafeBase64 base64字符串编码为URL友好的字符串
 func URLSafeBase64(str string, encode bool) string {
 	if encode { // 编码后处理
 		str = strings.TrimRight(str, `=`)
-		str = strings.Replace(str, `/`, `_`, -1)
-		str = strings.Replace(str, `+`, `-`, -1)
+		str = urlSafeBase64EncodeReplacer.Replace(str)
 		return str
 	}
 	// 解码前处理
-	str = strings.Replace(str, `_`, `/`, -1)
-	str = strings.Replace(str, `-`, `+`, -1)
+	str = urlSafeBase64DecodeReplacer.Replace(str)
 	var missing = (4 - len(str)%4) % 4
-	str += strings.Repeat(`=`, missing)
+	if missing > 0 {
+		str += strings.Repeat(`=`, missing)
+	}
 	return str
 }
 
 // SafeBase64Encode base64 encode
 func SafeBase64Encode(str string) string {
-	str = Base64Encode(str)
-	return URLSafeBase64(str, true)
+	str = base64.URLEncoding.EncodeToString([]byte(str))
+	str = strings.TrimRight(str, `=`)
+	return str
 }
 
 // SafeBase64Decode base64 decode
 func SafeBase64Decode(str string) (string, error) {
-	str = URLSafeBase64(str, false)
-	return Base64Decode(str)
+	var missing = (4 - len(str)%4) % 4
+	if missing > 0 {
+		str += strings.Repeat(`=`, missing)
+	}
+	b, err := base64.URLEncoding.DecodeString(str)
+	if err != nil {
+		return ``, err
+	}
+	return string(b), nil
 }
 
 // TotalPages 总页数
@@ -169,4 +190,55 @@ func SplitHostPort(hostport string) (host string, port string) {
 	}
 	host = hostport
 	return
+}
+
+func WithURLParams(urlStr string, key string, value string, args ...string) string {
+	if strings.Contains(urlStr, `?`) {
+		urlStr += `&`
+	} else {
+		urlStr += `?`
+	}
+	urlStr += key + `=` + url.QueryEscape(value)
+	var k string
+	for i, j := 0, len(args); i < j; i++ {
+		if i%2 == 0 {
+			k = args[i]
+			continue
+		}
+		urlStr += `&` + k + `=` + url.QueryEscape(args[i])
+		k = ``
+	}
+	if len(k) > 0 {
+		urlStr += `&` + k + `=`
+	}
+	return urlStr
+}
+
+func FullURL(domianURL string, myURL string) string {
+	if IsFullURL(myURL) {
+		return myURL
+	}
+	if !strings.HasPrefix(myURL, `/`) && !strings.HasSuffix(domianURL, `/`) {
+		myURL = `/` + myURL
+	}
+	myURL = domianURL + myURL
+	return myURL
+}
+
+func IsFullURL(purl string) bool {
+	if len(purl) == 0 {
+		return false
+	}
+	if purl[0] == '/' {
+		return false
+	}
+	// find "://"
+	firstPos := strings.Index(purl, `/`)
+	if firstPos < 0 || firstPos == len(purl)-1 {
+		return false
+	}
+	if firstPos > 1 && purl[firstPos-1] == ':' && purl[firstPos+1] == '/' {
+		return true
+	}
+	return false
 }

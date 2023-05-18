@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
-	"sync"
 	"time"
 
 	"github.com/admpub/events"
@@ -18,10 +17,10 @@ import (
 )
 
 type xContext struct {
-	Validator
 	Translator
 	events.Emitterer
 	transaction         *BaseTransaction
+	validator           Validator
 	sessioner           Sessioner
 	cookier             Cookier
 	request             engine.Request
@@ -31,8 +30,7 @@ type xContext struct {
 	pvalues             []string
 	hnames              []string // host
 	hvalues             []string // host
-	store               Store
-	storeLock           sync.RWMutex
+	store               *param.SafeStore
 	internal            *param.SafeMap
 	handler             Handler
 	route               *Route
@@ -40,6 +38,7 @@ type xContext struct {
 	echo                *Echo
 	funcs               map[string]interface{}
 	renderer            Renderer
+	renderDataWrapper   DataWrapper
 	sessionOptions      *SessionOptions
 	withFormatExtension bool
 	defaultExtension    string
@@ -55,23 +54,24 @@ type xContext struct {
 // NewContext creates a Context object.
 func NewContext(req engine.Request, res engine.Response, e *Echo) Context {
 	c := &xContext{
-		Validator:   e.Validator,
-		Translator:  DefaultNopTranslate,
-		Emitterer:   events.Default,
-		transaction: DefaultNopTransaction,
-		request:     req,
-		response:    res,
-		echo:        e,
-		pvalues:     make([]string, *e.maxParam),
-		internal:    param.NewMap(),
-		store:       make(Store),
-		handler:     NotFoundHandler,
-		funcs:       make(map[string]interface{}),
-		sessioner:   DefaultSession,
-		onHostFound: e.onHostFound,
+		validator:         e.Validator,
+		Translator:        DefaultNopTranslate,
+		Emitterer:         events.Default,
+		transaction:       DefaultNopTransaction,
+		request:           req,
+		response:          res,
+		echo:              e,
+		pvalues:           make([]string, *e.maxParam),
+		internal:          param.NewMap(),
+		store:             param.NewSafeStore(),
+		handler:           NotFoundHandler,
+		sessioner:         DefaultSession,
+		onHostFound:       e.onHostFound,
+		renderDataWrapper: e.renderDataWrapper,
 	}
 	c.cookier = NewCookier(c)
 	c.dataEngine = NewData(c)
+	c.ResetFuncs(e.FuncMap)
 	return c
 }
 
@@ -144,7 +144,7 @@ func (c *xContext) NewError(code pkgCode.Code, msg string, args ...interface{}) 
 	if len(msg) > 0 {
 		msg = c.T(msg, args...)
 	}
-	return NewError(msg, code)
+	return NewError(msg, code).NoClone()
 }
 
 func (c *xContext) NewErrorWith(err error, code pkgCode.Code, args ...interface{}) *Error {
@@ -159,7 +159,7 @@ func (c *xContext) NewErrorWith(err error, code pkgCode.Code, args ...interface{
 			}
 		}
 	}
-	return NewErrorWith(err, msg, code)
+	return NewErrorWith(err, msg, code).NoClone()
 }
 
 // Logger returns the `Logger` instance.
@@ -197,7 +197,7 @@ func (c *xContext) DefaultExtension() string {
 
 func (c *xContext) Reset(req engine.Request, res engine.Response) {
 	req.SetMaxSize(c.echo.MaxRequestBodySize())
-	c.Validator = c.echo.Validator
+	c.validator = c.echo.Validator
 	c.Emitterer = events.Default
 	c.Translator = DefaultNopTranslate
 	c.transaction = DefaultNopTransaction
@@ -206,12 +206,11 @@ func (c *xContext) Reset(req engine.Request, res engine.Response) {
 	c.request = req
 	c.response = res
 	c.internal = param.NewMap()
-	c.store = make(Store)
+	c.store = param.NewSafeStore()
 	c.path = ""
 	c.pnames = nil
 	c.hnames = nil
 	c.hvalues = nil
-	c.funcs = make(map[string]interface{})
 	c.renderer = nil
 	c.handler = NotFoundHandler
 	c.route = nil
@@ -226,6 +225,8 @@ func (c *xContext) Reset(req engine.Request, res engine.Response) {
 	c.accept = nil
 	c.dataEngine = NewData(c)
 	c.onHostFound = c.echo.onHostFound
+	c.renderDataWrapper = c.echo.renderDataWrapper
+	c.ResetFuncs(c.echo.FuncMap)
 	// NOTE: Don't reset because it has to have length c.echo.maxParam at all times
 	for i := 0; i < *c.echo.maxParam; i++ {
 		c.pvalues[i] = ""
@@ -237,11 +238,17 @@ func (c *xContext) GetFunc(key string) interface{} {
 }
 
 func (c *xContext) SetFunc(key string, val interface{}) {
+	if ctxFunc, ok := val.(func(Context) interface{}); ok {
+		val = ctxFunc(c)
+	}
 	c.funcs[key] = val
 }
 
 func (c *xContext) ResetFuncs(funcs map[string]interface{}) {
-	c.funcs = funcs
+	c.funcs = map[string]interface{}{}
+	for name, fn := range funcs {
+		c.SetFunc(name, fn)
+	}
 }
 
 func (c *xContext) Funcs() map[string]interface{} {
@@ -264,6 +271,9 @@ func (c *xContext) Fetch(name string, data interface{}) (b []byte, err error) {
 	}
 	buf := bufferpool.Get()
 	defer bufferpool.Release(buf)
+	if c.renderDataWrapper != nil {
+		data = c.renderDataWrapper(c, data)
+	}
 	err = c.renderer.Render(buf, name, data, c)
 	if err != nil {
 		return
@@ -272,13 +282,31 @@ func (c *xContext) Fetch(name string, data interface{}) (b []byte, err error) {
 	return
 }
 
+func (c *xContext) Validate(item interface{}, args ...interface{}) error {
+	return Validate(c, item, args...)
+}
+
+func (c *xContext) Validator() Validator {
+	return c.validator
+}
+
 func (c *xContext) SetValidator(v Validator) {
-	c.Validator = v
+	c.validator = v
 }
 
 // SetRenderer registers an HTML template renderer.
 func (c *xContext) SetRenderer(r Renderer) {
 	c.renderer = r
+}
+
+// SetRenderDataWrapper .
+func (c *xContext) SetRenderDataWrapper(dataWrapper DataWrapper) {
+	c.renderDataWrapper = dataWrapper
+}
+
+// RenderDataWrapper .
+func (c *xContext) RenderDataWrapper() DataWrapper {
+	return c.renderDataWrapper
 }
 
 func (c *xContext) SetSessioner(s Sessioner) {

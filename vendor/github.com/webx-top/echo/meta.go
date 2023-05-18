@@ -18,14 +18,20 @@
 
 package echo
 
+type MetaValidator interface {
+	Methods() []string
+	Filters(Context) []FormDataFilter
+}
+
 type RequestValidator func() MetaValidator
 
-func NewBaseRequestValidator(data interface{}) *BaseRequestValidator {
-	return &BaseRequestValidator{data: data}
+func NewBaseRequestValidator(data interface{}, method ...string) *BaseRequestValidator {
+	return &BaseRequestValidator{data: data, methods: method}
 }
 
 type BaseRequestValidator struct {
-	data interface{}
+	methods []string
+	data    interface{}
 }
 
 func (b *BaseRequestValidator) SetStruct(data interface{}) *BaseRequestValidator {
@@ -33,9 +39,8 @@ func (b *BaseRequestValidator) SetStruct(data interface{}) *BaseRequestValidator
 	return b
 }
 
-func (b *BaseRequestValidator) Validate(c Context) error {
-	result := c.Validate(b.data)
-	return result.Error()
+func (b *BaseRequestValidator) Methods() []string {
+	return b.methods
 }
 
 func (b *BaseRequestValidator) Filters(c Context) []FormDataFilter {
@@ -55,9 +60,8 @@ func (m *MetaHandler) Name() string {
 	return HandlerName(m.Handler)
 }
 
-type MetaValidator interface {
-	Validate(Context) error
-	Filters(Context) []FormDataFilter
+func (m *MetaHandler) Meta() H {
+	return m.meta
 }
 
 func (m *MetaHandler) Handle(c Context) error {
@@ -65,27 +69,18 @@ func (m *MetaHandler) Handle(c Context) error {
 		return m.Handler.Handle(c)
 	}
 	recv := m.request()
+	methods := recv.Methods()
 	var data interface{}
 	if bs, ok := recv.(*BaseRequestValidator); ok {
 		data = bs.data
 	} else {
 		data = recv
 	}
-	if err := c.MustBind(data, recv.Filters(c)...); err != nil {
+	if len(methods) > 0 && !InSliceFold(c.Method(), methods) {
+		return m.Handler.Handle(c)
+	}
+	if err := c.MustBindAndValidate(data, recv.Filters(c)...); err != nil {
 		return err
-	}
-	if before, ok := data.(BeforeValidate); ok {
-		if err := before.BeforeValidate(c); err != nil {
-			return err
-		}
-	}
-	if err := recv.Validate(c); err != nil {
-		return err
-	}
-	if after, ok := data.(AfterValidate); ok {
-		if err := after.AfterValidate(c); err != nil {
-			return err
-		}
 	}
 	c.Internal().Set(`validated`, data)
 	return m.Handler.Handle(c)
@@ -93,8 +88,4 @@ func (m *MetaHandler) Handle(c Context) error {
 
 func GetValidated(c Context, defaults ...interface{}) interface{} {
 	return c.Internal().Get(`validated`, defaults...)
-}
-
-func (m *MetaHandler) Meta() H {
-	return m.meta
 }

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -17,7 +18,7 @@ const (
 )
 
 var (
-	eventTime    = make(map[string]int64)
+	eventTime    = make(map[string]time.Time)
 	scheduleTime time.Time
 )
 
@@ -52,7 +53,7 @@ func NewWatcher(dir, filePattern, ignoredPathPattern string) (w Watcher) {
 	return
 }
 
-func (this *Watcher) Watch() (err error) {
+func (this *Watcher) Watch(ctx context.Context) (err error) {
 	for _, dir := range this.dirsToWatch() {
 		err = this.Watcher.Add(dir)
 		if err != nil {
@@ -64,6 +65,26 @@ func (this *Watcher) Watch() (err error) {
 		filePattern = regexp.QuoteMeta(BinPrefix) + `[\d]+(\.exe)?$`
 	}
 	expectedFileReg := regexp.MustCompile(filePattern)
+	defer this.Watcher.Close()
+	ch := make(chan string, 1)
+	go func() {
+		for {
+			select {
+			case filePath, ok := <-ch:
+				if !ok {
+					return
+				}
+				scheduleTime = time.Now().Add(time.Second)
+				log.Warn("== Change detected: ", filePath)
+				this.Changed = true
+				if this.OnChanged != nil {
+					this.OnChanged(filePath)
+				}
+			case <-ctx.Done():
+				return
+			}
+		}
+	}()
 	for {
 		select {
 		case file := <-this.Watcher.Events:
@@ -75,7 +96,7 @@ func (this *Watcher) Watch() (err error) {
 			if checkTMPFile(file.Name) {
 				continue
 			}
-			if expectedFileReg.MatchString(file.Name) == false {
+			if !expectedFileReg.MatchString(file.Name) {
 				if this.OnlyWatchBin {
 					log.Info("== [IGNORE]", file.Name)
 				}
@@ -85,33 +106,21 @@ func (this *Watcher) Watch() (err error) {
 			if file.Op == fsnotify.Create && isDir {
 				this.Watcher.Add(file.Name)
 			}
-			if t := eventTime[file.Name]; mt == t {
+			if t := eventTime[file.Name]; mt.Unix() == t.Unix() {
 				log.Debugf("== [SKIP] # %s #", file.String())
 				continue
 			}
 			log.Infof("== [EVEN] %s", file)
 			eventTime[file.Name] = mt
-			go func() {
-				// Wait 1s before autobuild util there is no file change.
-				scheduleTime = time.Now().Add(1 * time.Second)
-				for {
-					time.Sleep(scheduleTime.Sub(time.Now()))
-					if time.Now().After(scheduleTime) {
-						break
-					}
-					return
-				}
-				log.Warn("== Change detected: ", file.Name)
-				this.Changed = true
-				if this.OnChanged != nil {
-					this.OnChanged(file.Name)
-				}
-			}()
+			if scheduleTime.Before(time.Now()) {
+				ch <- file.Name
+			}
 		case err := <-this.Watcher.Errors:
 			log.Warn(err) // No need to exit here
+		case <-ctx.Done():
+			return nil
 		}
 	}
-	return nil
 }
 
 func (this *Watcher) dirsToWatch() (dirs []string) {
@@ -149,7 +158,7 @@ func (this *Watcher) dirsToWatch() (dirs []string) {
 			if !info.IsDir() || ignoredPathReg.MatchString(filePath) || ignoredPathReg.MatchString(filePath+`/`) {
 				return
 			}
-			if mch, _ := matchedDirs[filePath]; mch {
+			if matchedDirs[filePath] {
 				return
 			}
 			log.Debug("    ->", filePath)
@@ -171,27 +180,23 @@ func (this *Watcher) Reset() {
 
 // checkTMPFile returns true if the event was for TMP files.
 func checkTMPFile(name string) bool {
-	if strings.HasSuffix(strings.ToLower(name), ".tmp") {
-		return true
-	}
-	return false
+	return strings.HasSuffix(strings.ToLower(name), ".tmp")
 }
 
 // getFileModTime retuens unix timestamp of `os.File.ModTime` by given path.
-func getFileModTime(path string) (int64, bool) {
+func getFileModTime(path string) (time.Time, bool) {
 	path = strings.Replace(path, "\\", "/", -1)
 	f, err := os.Open(path)
-	defer f.Close()
 	if err != nil {
 		log.Errorf("Fail to open file[ %s ]", err)
-		return time.Now().Unix(), false
+		return time.Now(), false
 	}
-
+	defer f.Close()
 	fi, err := f.Stat()
 	if err != nil {
 		log.Errorf("Fail to get file information[ %s ]", err)
-		return time.Now().Unix(), false
+		return time.Now(), false
 	}
 
-	return fi.ModTime().Unix(), fi.IsDir()
+	return fi.ModTime(), fi.IsDir()
 }

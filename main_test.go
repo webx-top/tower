@@ -1,8 +1,9 @@
 package main
 
 import (
+	"context"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"testing"
 	"time"
@@ -16,7 +17,9 @@ import (
 func TestCmd(t *testing.T) {
 	confFile := `test/dev/configs/tower.yml`
 	c.Conf.ConfigFile = confFile
-	go startTower()
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	go startTower(ctx)
 	err := dialAddress("127.0.0.1:8080", 60)
 	if err != nil {
 		panic(err)
@@ -103,15 +106,15 @@ func get(url string) string {
 	if err != nil {
 		panic(err)
 	}
-	b, _ := ioutil.ReadAll(resp.Body)
+	b, _ := io.ReadAll(resp.Body)
 	return string(b)
 }
 
 func copy(src string, dest string) error {
-	b, e := ioutil.ReadFile(src)
+	b, e := os.ReadFile(src)
 	if e != nil {
 		return e
 	}
-	e = ioutil.WriteFile(dest, b, os.ModePerm)
+	e = os.WriteFile(dest, b, os.ModePerm)
 	return e
 }

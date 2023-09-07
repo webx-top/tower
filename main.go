@@ -117,7 +117,10 @@ func main() {
 		server := startPprof(debugPort)
 		defer server.Shutdown(context.Background())
 	}
-	startTower()
+	ctx, cancel := context.WithCancel(context.Background())
+	startTower(ctx)
+	cancel()
+	os.Exit(0)
 }
 
 func fileExist(path string) bool {
@@ -228,7 +231,7 @@ func checkBinFile(appMainFile string, suffix string, _suffix *string, appBuildDi
 	return nil
 }
 
-func startTower() {
+func startTower(ctx context.Context) {
 	var (
 		allowBuild = atob(build)
 		suffix     = ".exe"
@@ -262,9 +265,7 @@ func startTower() {
 			log.Error(err.Error())
 		}
 	} else {
-		if strings.Contains(c.Conf.Watch.IgnoredPath, `\\`) {
-			c.Conf.Watch.IgnoredPath = strings.Replace(c.Conf.Watch.IgnoredPath, `\\`, `\`, -1)
-		}
+		c.Conf.Watch.IgnoredPath = strings.Replace(c.Conf.Watch.IgnoredPath, `\\`, `\`, -1)
 		if len(c.Conf.App.BuildDir) == 0 {
 			c.Conf.App.BuildDir, _ = os.Getwd()
 		}
@@ -458,9 +459,9 @@ func startTower() {
 		app.DisabledBuild = true
 	}
 	proxy.Port = c.Conf.Proxy.Port
-	go func() {
-		mustSuccess(watcher.Watch())
-	}()
+	go func(ctx context.Context) {
+		mustSuccess(watcher.Watch(ctx))
+	}(ctx)
 	err = app.Start(true, app.Port)
 	if err != nil {
 		log.Error(err)

@@ -82,15 +82,8 @@ func (p StringSlice) SplitAny(sep string, limit ...int) StringSlice {
 	return result
 }
 
-func defaultStringFilterFunc(s *string) bool {
-	if s == nil {
-		return false
-	}
-	return len(*s) > 0
-}
-
 func (p StringSlice) Filter(filterFuncs ...func(s *string) bool) StringSlice {
-	filterFunc := defaultStringFilterFunc
+	filterFunc := IsNotEmptyString
 	if len(filterFuncs) > 0 {
 		filterFunc = filterFuncs[0]
 		if filterFunc == nil {
@@ -191,8 +184,40 @@ func (p StringSlice) Uint(filters ...func(int, uint) bool) []uint {
 	}
 	var ids []uint
 	for idx, id := range p {
-		i, _ := strconv.ParseUint(strings.TrimSpace(id), 10, 64)
+		i, _ := strconv.ParseUint(strings.TrimSpace(id), 10, 0)
 		iv := uint(i)
+		if filter == nil || filter(idx, iv) {
+			ids = append(ids, iv)
+		}
+	}
+	return ids
+}
+
+func (p StringSlice) Int16(filters ...func(int, int16) bool) []int16 {
+	var filter func(int, int16) bool
+	if len(filters) > 0 {
+		filter = filters[0]
+	}
+	var ids []int16
+	for idx, id := range p {
+		i, _ := strconv.ParseInt(strings.TrimSpace(id), 10, 16)
+		iv := int16(i)
+		if filter == nil || filter(idx, iv) {
+			ids = append(ids, iv)
+		}
+	}
+	return ids
+}
+
+func (p StringSlice) Int8(filters ...func(int, int8) bool) []int8 {
+	var filter func(int, int8) bool
+	if len(filters) > 0 {
+		filter = filters[0]
+	}
+	var ids []int8
+	for idx, id := range p {
+		i, _ := strconv.ParseInt(strings.TrimSpace(id), 10, 8)
+		iv := int8(i)
 		if filter == nil || filter(idx, iv) {
 			ids = append(ids, iv)
 		}
@@ -224,6 +249,38 @@ func (p StringSlice) Uint32(filters ...func(int, uint32) bool) []uint32 {
 	for idx, id := range p {
 		i, _ := strconv.ParseUint(strings.TrimSpace(id), 10, 32)
 		iv := uint32(i)
+		if filter == nil || filter(idx, iv) {
+			ids = append(ids, iv)
+		}
+	}
+	return ids
+}
+
+func (p StringSlice) Uint16(filters ...func(int, uint16) bool) []uint16 {
+	var filter func(int, uint16) bool
+	if len(filters) > 0 {
+		filter = filters[0]
+	}
+	var ids []uint16
+	for idx, id := range p {
+		i, _ := strconv.ParseUint(strings.TrimSpace(id), 10, 16)
+		iv := uint16(i)
+		if filter == nil || filter(idx, iv) {
+			ids = append(ids, iv)
+		}
+	}
+	return ids
+}
+
+func (p StringSlice) Uint8(filters ...func(int, uint8) bool) []uint8 {
+	var filter func(int, uint8) bool
+	if len(filters) > 0 {
+		filter = filters[0]
+	}
+	var ids []uint8
+	for idx, id := range p {
+		i, _ := strconv.ParseUint(strings.TrimSpace(id), 10, 8)
+		iv := uint8(i)
 		if filter == nil || filter(idx, iv) {
 			ids = append(ids, iv)
 		}

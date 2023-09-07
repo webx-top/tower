@@ -317,7 +317,7 @@ func (this *App) Run(port string) (err error) {
 	} else {
 		log.Info("== Running " + this.Name)
 		cmd := this.GetCmd(port)
-		bin, _ := this.portBinFiles[port]
+		bin := this.portBinFiles[port]
 		if cmd != nil && len(bin) > 0 {
 			defer func() {
 				if !CmdIsRunning(cmd) {

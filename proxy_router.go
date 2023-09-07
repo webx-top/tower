@@ -35,7 +35,7 @@ func (r *ProxyRouter) ChooseBackend(host string) (*reverseproxy.RequestData, err
 	} else if !app.IsRunning() || this.Watcher.Changed {
 		this.FirstRequest.Do(func() {
 			this.Watcher.Reset()
-			err = app.Restart()
+			err = app.Restart(this.ctx)
 			this.FirstRequest = &sync.Once{}
 		})
 	}

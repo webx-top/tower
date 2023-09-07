@@ -13,7 +13,7 @@ func (this *Proxy) handleWatchRestart(ctx reverseproxy.Context) error {
 		code = http.StatusUnauthorized
 		status = `Authentication failed`
 	} else {
-		err := this.App.Restart()
+		err := this.App.Restart(this.ctx)
 		if err != nil {
 			code = http.StatusInternalServerError
 			status = err.Error()

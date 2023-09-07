@@ -390,7 +390,7 @@ func startTower(ctx context.Context) {
 		watchedDir = c.Conf.Watch.OtherDir + "|" + watchedDir
 	}
 	watcher := NewWatcher(watchedDir, c.Conf.Watch.FileExtension, c.Conf.Watch.IgnoredPath)
-	proxy := NewProxy(&app, &watcher)
+	proxy := NewProxy(ctx, &app, &watcher)
 	proxy.AdminPwd = c.Conf.Admin.Password
 	proxy.Engine = c.Conf.Proxy.Engine
 	if len(c.Conf.Admin.IPs) > 0 {
@@ -409,7 +409,7 @@ func startTower(ctx context.Context) {
 				log.Error(err)
 				return
 			}
-			err = app.Start(true, port)
+			err = app.Start(ctx, true, port)
 			if err != nil {
 				log.Error(err)
 			}
@@ -449,7 +449,7 @@ func startTower(ctx context.Context) {
 				return
 			}
 			AppBin = newAppBin
-			err = app.Start(true, port)
+			err = app.Start(ctx, true, port)
 			if err != nil {
 				log.Error(err)
 			}
@@ -461,7 +461,7 @@ func startTower(ctx context.Context) {
 	go func(ctx context.Context) {
 		mustSuccess(watcher.Watch(ctx))
 	}(ctx)
-	err = app.Start(true, app.Port)
+	err = app.Start(ctx, true, app.Port)
 	if err != nil {
 		log.Error(err)
 	}

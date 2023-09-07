@@ -3,7 +3,6 @@ package main
 import (
 	"html"
 	"html/template"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -100,11 +99,14 @@ func renderPage(ctx reverseproxy.Context, info ErrorInfo) {
 
 // Example output
 // message:
+//
 //	[2013/02/12 18:24:15 http: panic serving 127.0.0.1:54114: Panic !!]
+//
 // trace:
-//  [
-//	 [test/server1.go:16 (0x211e), Panic: panic(errors.New("Panic !!"))]
-//	]
+//
+//	 [
+//		 [test/server1.go:16 (0x211e), Panic: panic(errors.New("Panic !!"))]
+//		]
 func extractAppErrorInfo(errMessage string) (message []string, trace []Trace, appIndex int) {
 	// from: /Users/user/tower/test/server1.go:16 (0x211e)
 	// 		   Panic: panic(errors.New("Panic !!"))
@@ -150,7 +152,7 @@ func extractAppErrorInfo(errMessage string) (message []string, trace []Trace, ap
 }
 
 func extractAppSnippet(appFile string, curLineNum int) (snippet []Snippet, err error) {
-	content, err := ioutil.ReadFile(appFile)
+	content, err := os.ReadFile(appFile)
 	if err != nil {
 		return nil, err
 	}

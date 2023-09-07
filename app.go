@@ -3,6 +3,7 @@ package main
 import (
 	"bufio"
 	"bytes"
+	"context"
 	"errors"
 	"fmt"
 	"io"
@@ -154,7 +155,7 @@ func (this *App) UseRandPort() string {
 	return this.Port
 }
 
-func (this *App) Start(build bool, args ...string) error {
+func (this *App) Start(ctx context.Context, build bool, args ...string) error {
 	this.BuildStart.Do(func() {
 		if build {
 			this.buildErr = this.Build()
@@ -175,19 +176,19 @@ func (this *App) Start(build bool, args ...string) error {
 			this.BuildStart = &sync.Once{}
 			return
 		}
-		this.RestartOnReturn()
+		this.RestartOnReturn(ctx)
 		this.BuildStart = &sync.Once{}
 	})
 
 	return this.startErr
 }
 
-func (this *App) Restart() error {
+func (this *App) Restart(ctx context.Context) error {
 	this.AppRestart.Do(func() {
 		log.Warn(`== Restart the application.`)
 		this.Clean()
 		this.Stop(this.Port)
-		this.restartErr = this.Start(true)
+		this.restartErr = this.Start(ctx, true)
 		this.AppRestart = &sync.Once{} // Assign new Once to allow calling Start again.
 	})
 
@@ -571,7 +572,7 @@ func (this *App) IsQuit(args ...string) bool {
 	return CmdIsQuit(this.GetCmd(args...))
 }
 
-func (this *App) RestartOnReturn() {
+func (this *App) RestartOnReturn(ctx context.Context) {
 	if this.KeyPress {
 		return
 	}
@@ -587,7 +588,7 @@ func (this *App) RestartOnReturn() {
 				return
 			}
 			if input == "\n" {
-				this.Restart()
+				this.Restart(ctx)
 			}
 		}
 	}()
@@ -596,9 +597,18 @@ func (this *App) RestartOnReturn() {
 	go func() {
 		sig := make(chan os.Signal, 1)
 		signal.Notify(sig, os.Interrupt)
-		<-sig // wait for the "^C" signal
-		fmt.Println("")
-		this.Stop(this.Port)
-		os.Exit(0)
+		defer func() {
+			fmt.Println("")
+			this.Stop(this.Port)
+			os.Exit(0)
+		}()
+		for {
+			select {
+			case <-sig: // wait for the "^C" signal
+				return
+			case <-ctx.Done():
+				return
+			}
+		}
 	}()
 }

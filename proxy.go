@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"strings"
@@ -29,15 +30,17 @@ type Proxy struct {
 	AutoRestartMaxTimes int
 	autoRestartTimes    int
 	waiting             *sync.Once
+	ctx                 context.Context
 }
 
-func NewProxy(app *App, watcher *Watcher) (proxy Proxy) {
+func NewProxy(ctx context.Context, app *App, watcher *Watcher) (proxy Proxy) {
 	proxy.App = app
 	proxy.Watcher = watcher
 	proxy.Port = ProxyPort
 	proxy.AdminIPs = []string{`127.0.0.1`, `::1`}
 	proxy.AutoRestartMaxTimes = 3
 	proxy.waiting = &sync.Once{}
+	proxy.ctx = ctx
 	return
 }
 
@@ -128,7 +131,7 @@ func (this *Proxy) Listen() error {
 						var port string
 						port, err = getPort()
 						if err == nil {
-							err = this.App.Start(true, port)
+							err = this.App.Start(this.ctx, true, port)
 						}
 						if err == nil {
 							this.autoRestartTimes = 0

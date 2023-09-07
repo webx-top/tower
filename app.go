@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
 	"os/signal"
@@ -269,7 +270,7 @@ func (this *App) Clean(excludePorts ...string) {
 				this.Ports[port] = 0
 				continue
 			}
-			go func() {
+			go func(port string) {
 				for i := 0; i < 10; i++ {
 					time.Sleep(time.Second * time.Duration(i+1))
 					err = os.Remove(bin)
@@ -281,7 +282,7 @@ func (this *App) Clean(excludePorts ...string) {
 						return
 					}
 				}
-			}()
+			}(port)
 		}
 	}
 }
@@ -580,7 +581,11 @@ func (this *App) RestartOnReturn() {
 	go func() {
 		in := bufio.NewReader(os.Stdin)
 		for {
-			input, _ := in.ReadString('\n')
+			input, err := in.ReadString('\n')
+			if err != nil && err != io.EOF {
+				log.Error(`watchingSignal:`, err.Error())
+				return
+			}
 			if input == "\n" {
 				this.Restart()
 			}

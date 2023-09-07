@@ -120,7 +120,6 @@ func main() {
 	ctx, cancel := context.WithCancel(context.Background())
 	startTower(ctx)
 	cancel()
-	os.Exit(0)
 }
 
 func fileExist(path string) bool {

@@ -68,12 +68,12 @@ type StderrCapturer struct {
 	app *App
 }
 
-func (this StderrCapturer) Write(p []byte) (n int, err error) {
+func (a StderrCapturer) Write(p []byte) (n int, err error) {
 	s := string(p)
 	httpError := strings.Contains(s, HttpPanicMessage)
 
 	if httpError {
-		this.app.LastError = s
+		a.app.LastError = s
 		os.Stdout.Write([]byte("----------- Application Error -----------\n"))
 		n, err = os.Stdout.Write(p)
 		os.Stdout.Write([]byte("-----------------------------------------\n"))
@@ -112,13 +112,13 @@ func NewApp(mainFile, port, buildDir, portParamName string) (app App) {
 	return
 }
 
-func (this *App) DisabledVisitPort() bool {
-	return len(this.Port) == 0 || len(this.PortParamName) == 0
+func (a *App) DisabledVisitPort() bool {
+	return len(a.Port) == 0 || len(a.PortParamName) == 0
 }
 
-func (this *App) ParseMutiPort(port string) {
+func (a *App) ParseMutiPort(port string) {
 	p := strings.Split(port, `,`)
-	this.Ports = make(map[string]int64)
+	a.Ports = make(map[string]int64)
 	for _, v := range p {
 		r := strings.Split(v, `-`)
 		if len(r) > 1 {
@@ -126,23 +126,23 @@ func (this *App) ParseMutiPort(port string) {
 			j, _ := strconv.Atoi(r[1])
 			for ; i <= j; i++ {
 				port := fmt.Sprintf("%v", i)
-				this.Ports[port] = 0
+				a.Ports[port] = 0
 			}
 		} else {
-			this.Ports[r[0]] = 0
+			a.Ports[r[0]] = 0
 		}
 	}
 }
 
-func (this *App) SupportMutiPort() bool {
-	return this.Ports != nil && len(this.Ports) > 1 && this.PortParamName != ``
+func (a *App) SupportMutiPort() bool {
+	return a.Ports != nil && len(a.Ports) > 1 && a.PortParamName != ``
 }
 
-func (this *App) UseRandPort() string {
+func (a *App) UseRandPort() string {
 	var lastRunTime []int64
 	lastRunPorts := make(map[int64]string, 0)
-	for port, runningTime := range this.Ports {
-		if runningTime == 0 || this.IsRunning(port) == false || isFreePort(port) {
+	for port, runningTime := range a.Ports {
+		if runningTime == 0 || a.IsRunning(port) == false || isFreePort(port) {
 			return port
 		}
 		lastRunTime = append(lastRunTime, runningTime)
@@ -152,56 +152,56 @@ func (this *App) UseRandPort() string {
 	for _, runningTime := range lastRunTime {
 		return lastRunPorts[runningTime]
 	}
-	return this.Port
+	return a.Port
 }
 
-func (this *App) Start(ctx context.Context, build bool, args ...string) error {
-	this.BuildStart.Do(func() {
+func (a *App) Start(ctx context.Context, build bool, args ...string) error {
+	a.BuildStart.Do(func() {
 		if build {
-			this.buildErr = this.Build()
-			if this.buildErr != nil {
-				log.Error("== Fail to build " + this.Name + ": " + this.buildErr.Error())
-				this.startErr = this.buildErr
-				this.BuildStart = &sync.Once{}
+			a.buildErr = a.Build()
+			if a.buildErr != nil {
+				log.Error("== Fail to build " + a.Name + ": " + a.buildErr.Error())
+				a.startErr = a.buildErr
+				a.BuildStart = &sync.Once{}
 				return
 			}
 		}
-		port := this.Port
+		port := a.Port
 		if len(args) > 0 {
 			port = args[0]
 		}
-		this.startErr = this.Run(port)
-		if this.startErr != nil {
-			this.startErr = errors.New("== Fail to run " + this.Name + ": " + this.startErr.Error())
-			this.BuildStart = &sync.Once{}
+		a.startErr = a.Run(port)
+		if a.startErr != nil {
+			a.startErr = errors.New("== Fail to run " + a.Name + ": " + a.startErr.Error())
+			a.BuildStart = &sync.Once{}
 			return
 		}
-		this.RestartOnReturn(ctx)
-		this.BuildStart = &sync.Once{}
+		a.RestartOnReturn(ctx)
+		a.BuildStart = &sync.Once{}
 	})
 
-	return this.startErr
+	return a.startErr
 }
 
-func (this *App) Restart(ctx context.Context) error {
-	this.AppRestart.Do(func() {
+func (a *App) Restart(ctx context.Context) error {
+	a.AppRestart.Do(func() {
 		log.Warn(`== Restart the application.`)
-		this.Clean()
-		this.Stop(this.Port)
-		this.restartErr = this.Start(ctx, true)
-		this.AppRestart = &sync.Once{} // Assign new Once to allow calling Start again.
+		a.Clean()
+		a.Stop(a.Port)
+		a.restartErr = a.Start(ctx, true)
+		a.AppRestart = &sync.Once{} // Assign new Once to allow calling Start again.
 	})
 
-	return this.restartErr
+	return a.restartErr
 }
 
-func (this *App) BinFile(args ...string) (f string) {
+func (a *App) BinFile(args ...string) (f string) {
 	binFileName := AppBin
 	if len(args) > 0 {
 		binFileName = args[0]
 	}
-	if len(this.BuildDir) > 0 {
-		f = filepath.Join(this.BuildDir, binFileName)
+	if len(a.BuildDir) > 0 {
+		f = filepath.Join(a.BuildDir, binFileName)
 	} else {
 		f = binFileName
 	}
@@ -211,24 +211,27 @@ func (this *App) BinFile(args ...string) (f string) {
 	return
 }
 
-func (this *App) Stop(port string, args ...string) {
-	if !this.IsRunning(port) {
+func (a *App) Stop(port string, args ...string) {
+	if !a.IsRunning(port) {
 		return
 	}
-	log.Info("== Stopping " + this.Name)
-	cmd := this.GetCmd(port)
+	log.Info("== Stopping " + a.Name)
+	cmd := a.GetCmd(port)
+	if cmd == nil || cmd.Process == nil {
+		return
+	}
 	err := cmd.Process.Kill()
 	if err != nil {
 		log.Error(err)
 	}
 	cmd = nil
-	if port == this.Port && this.DisabledBuild {
+	if port == a.Port && a.DisabledBuild {
 		return
 	}
-	bin := this.BinFile(args...)
+	bin := a.BinFile(args...)
 	err = os.Remove(bin)
 	if err == nil {
-		this.Ports[port] = 0
+		a.Ports[port] = 0
 		return
 	}
 	go func() {
@@ -237,26 +240,29 @@ func (this *App) Stop(port string, args ...string) {
 			err = os.Remove(bin)
 			if err != nil {
 				if os.IsNotExist(err) {
-					this.Ports[port] = 0
+					a.Ports[port] = 0
 					return
 				}
 				log.Error(err)
 			} else {
 				log.Info(`== Remove ` + bin + `: Success.`)
-				this.Ports[port] = 0
+				a.Ports[port] = 0
 				return
 			}
 		}
 	}()
 }
 
-func (this *App) Clean(excludePorts ...string) {
-	excludePort := this.Port
+func (a *App) Clean(excludePorts ...string) {
+	excludePort := a.Port
 	if len(excludePorts) > 0 {
 		excludePort = excludePorts[0]
 	}
-	for port, cmd := range this.Cmds {
+	for port, cmd := range a.Cmds {
 		if port == excludePort || !CmdIsRunning(cmd) {
+			continue
+		}
+		if cmd == nil || cmd.Process == nil {
 			continue
 		}
 		log.Info("== Stopping app at port: " + port)
@@ -265,10 +271,10 @@ func (this *App) Clean(excludePorts ...string) {
 			log.Error(err)
 		}
 		cmd = nil
-		if bin, ok := this.portBinFiles[port]; ok && bin != "" {
+		if bin, ok := a.portBinFiles[port]; ok && bin != "" {
 			err := os.Remove(bin)
 			if err == nil {
-				this.Ports[port] = 0
+				a.Ports[port] = 0
 				continue
 			}
 			go func(port string) {
@@ -279,7 +285,7 @@ func (this *App) Clean(excludePorts ...string) {
 						log.Error(err)
 					} else {
 						log.Info(`== Remove ` + bin + `: Success.`)
-						this.Ports[port] = 0
+						a.Ports[port] = 0
 						return
 					}
 				}
@@ -288,40 +294,43 @@ func (this *App) Clean(excludePorts ...string) {
 	}
 }
 
-func (this *App) GetCmd(args ...string) (cmd *exec.Cmd) {
+func (a *App) GetCmd(args ...string) (cmd *exec.Cmd) {
 	var port string
 	if len(args) > 0 {
 		port = args[0]
 	} else {
-		port = this.Port
+		port = a.Port
 	}
-	cmd, _ = this.Cmds[port]
+	cmd = a.Cmds[port]
 	return
 }
 
-func (this *App) SetCmd(port string, cmd *exec.Cmd) {
-	this.Cmds[port] = cmd
+func (a *App) SetCmd(port string, cmd *exec.Cmd) {
+	a.Cmds[port] = cmd
 }
 
-func (this *App) Run(port string) (err error) {
-	bin := this.BinFile()
+func (a *App) Run(port string) (err error) {
+	bin := a.BinFile()
 	_, err = os.Stat(bin)
 	if err != nil {
 		return
 	}
 	ableSwitch := true
-	disabledVisitPort := this.DisabledVisitPort()
+	disabledVisitPort := a.DisabledVisitPort()
 	if !disabledVisitPort {
-		log.Info("== Running at port " + port + ": " + this.Name)
-		ableSwitch = this.Port != port
-		this.Port = port //记录被使用的端口，避免下次使用
+		log.Info("== Running at port " + port + ": " + a.Name)
+		ableSwitch = a.Port != port
+		a.Port = port //记录被使用的端口，避免下次使用
 	} else {
-		log.Info("== Running " + this.Name)
-		cmd := this.GetCmd(port)
-		bin := this.portBinFiles[port]
+		log.Info("== Running " + a.Name)
+		cmd := a.GetCmd(port)
+		bin := a.portBinFiles[port]
 		if cmd != nil && len(bin) > 0 {
 			defer func() {
 				if !CmdIsRunning(cmd) {
+					return
+				}
+				if cmd == nil || cmd.Process == nil {
 					return
 				}
 				log.Info("== Stopping app: " + bin)
@@ -354,53 +363,53 @@ func (this *App) Run(port string) (err error) {
 	}
 
 	var cmd *exec.Cmd
-	this.portBinFiles[port] = bin
-	this.Ports[port] = time.Now().Unix()
+	a.portBinFiles[port] = bin
+	a.Ports[port] = time.Now().Unix()
 	params := []string{}
-	if !disabledVisitPort && this.SupportMutiPort() {
-		params = append(params, this.PortParamName)
+	if !disabledVisitPort && a.SupportMutiPort() {
+		params = append(params, a.PortParamName)
 		params = append(params, port)
 	}
-	params = append(params, this.RunParams...)
+	params = append(params, a.RunParams...)
 	cmd = exec.Command(bin, params...)
-	this.SetCmd(this.Port, cmd)
+	a.SetCmd(a.Port, cmd)
 	cmd.Stdout = os.Stdout
-	cmd.Stderr = StderrCapturer{this}
-	cmd.Env = append(os.Environ(), this.Env...)
+	cmd.Stderr = StderrCapturer{a}
+	cmd.Env = append(os.Environ(), a.Env...)
 	var hasError bool
 	go func() {
 		err := cmd.Run()
 		if err != nil {
-			if this.Port == port {
+			if a.Port == port {
 				log.Error(`== cmd.Run Error:`, err)
 			}
 			hasError = true
 		}
 	}()
 	if !disabledVisitPort {
-		err = dialAddress("127.0.0.1:"+this.Port, 60, func() bool {
+		err = dialAddress("127.0.0.1:"+a.Port, 60, func() bool {
 			return !hasError
 		})
 	}
 	if err == nil && ableSwitch {
-		this.SwitchToNewPort = true
-		if this.OfflineMode {
-			this.Clean()
+		a.SwitchToNewPort = true
+		if a.OfflineMode {
+			a.Clean()
 		}
 	}
 	return
 }
 
-func (this *App) fetchPkg(matches [][]string, isRetry bool, args ...string) bool {
+func (a *App) fetchPkg(matches [][]string, isRetry bool, args ...string) bool {
 	alldl := true
-	currt := filepath.ToSlash(this.BuildDir)
+	currt := filepath.ToSlash(a.BuildDir)
 	for _, match := range matches {
 		pkg := match[1]
 		if strings.Contains(currt, pkg) {
 			continue
 		}
 		moveTo := pkg
-		for rule, rep := range this.PkgMirrors {
+		for rule, rep := range a.PkgMirrors {
 			re, err := regexp.Compile(rule)
 			if err != nil {
 				log.Error(err)
@@ -438,12 +447,12 @@ func (this *App) fetchPkg(matches [][]string, isRetry bool, args ...string) bool
 		cmd.Stdin = os.Stdin
 		cmd.Stderr = os.Stderr
 		cmd.Stdout = os.Stdout
-		cmd.Env = append(os.Environ(), this.Env...)
+		cmd.Env = append(os.Environ(), a.Env...)
 		err := cmd.Run()
 		if err != nil && !isRetry {
 			matches2 := findPackage2.FindAllStringSubmatch(err.Error(), -1)
 			if len(matches2) > 0 {
-				if this.fetchPkg(matches2, true, args...) {
+				if a.fetchPkg(matches2, true, args...) {
 					err = nil
 				}
 			}
@@ -496,9 +505,9 @@ func (this *App) fetchPkg(matches [][]string, isRetry bool, args ...string) bool
 	return alldl
 }
 
-func (this *App) goVersion() (string, error) {
-	if len(this._goVersion) > 0 {
-		return this._goVersion, nil
+func (a *App) goVersion() (string, error) {
+	if len(a._goVersion) > 0 {
+		return a._goVersion, nil
 	}
 	b, err := exec.Command("go", "version").CombinedOutput()
 	if err != nil {
@@ -507,29 +516,29 @@ func (this *App) goVersion() (string, error) {
 	v := string(b)
 	v = strings.TrimPrefix(v, `go version go`)
 	v = strings.SplitN(v, ` `, 2)[0]
-	this._goVersion = v
+	a._goVersion = v
 	return v, nil
 }
 
-func (this *App) Build() (err error) {
-	if this.DisabledBuild {
+func (a *App) Build() (err error) {
+	if a.DisabledBuild {
 		return nil
 	}
-	log.Info("== Building " + this.Name)
+	log.Info("== Building " + a.Name)
 	AppBin = BinPrefix + strconv.FormatInt(time.Now().Unix(), 10)
 	build := func() (string, error) {
-		if this.BeforeBuildGenerate {
+		if a.BeforeBuildGenerate {
 			cmd := exec.Command("go", "generate")
 			cmd.Run()
 		}
 		args := []string{"build"}
-		args = append(args, this.BuildParams...)
-		args = append(args, []string{"-o", this.BinFile(), this.MainFile}...)
+		args = append(args, a.BuildParams...)
+		args = append(args, []string{"-o", a.BinFile(), a.MainFile}...)
 		cmd := exec.Command("go", args...)
 		var b bytes.Buffer
 		cmd.Stderr = &b
 		cmd.Stdout = os.Stdout
-		cmd.Env = append(os.Environ(), this.Env...)
+		cmd.Env = append(os.Environ(), a.Env...)
 		err := cmd.Run()
 		out := b.String()
 		return out, err
@@ -539,7 +548,7 @@ func (this *App) Build() (err error) {
 	for i := 0; err != nil && len(out) > 0 && lastOut != out && i < 10; i++ {
 		matches := findPackage.FindAllStringSubmatch(out, -1)
 		if len(matches) > 0 {
-			if this.fetchPkg(matches, false) {
+			if a.fetchPkg(matches, false) {
 				lastOut = out
 				out, err = build()
 				continue
@@ -556,8 +565,8 @@ func (this *App) Build() (err error) {
 	return nil
 }
 
-func (this *App) IsRunning(args ...string) bool {
-	return CmdIsRunning(this.GetCmd(args...))
+func (a *App) IsRunning(args ...string) bool {
+	return CmdIsRunning(a.GetCmd(args...))
 }
 
 func CmdIsRunning(cmd *exec.Cmd) bool {
@@ -568,15 +577,15 @@ func CmdIsQuit(cmd *exec.Cmd) bool {
 	return cmd != nil && cmd.ProcessState != nil
 }
 
-func (this *App) IsQuit(args ...string) bool {
-	return CmdIsQuit(this.GetCmd(args...))
+func (a *App) IsQuit(args ...string) bool {
+	return CmdIsQuit(a.GetCmd(args...))
 }
 
-func (this *App) RestartOnReturn(ctx context.Context) {
-	if this.KeyPress {
+func (a *App) RestartOnReturn(ctx context.Context) {
+	if a.KeyPress {
 		return
 	}
-	this.KeyPress = true
+	a.KeyPress = true
 
 	// Listen to keypress of "return" and restart the app automatically
 	go func() {
@@ -588,7 +597,7 @@ func (this *App) RestartOnReturn(ctx context.Context) {
 				return
 			}
 			if input == "\n" {
-				this.Restart(ctx)
+				a.Restart(ctx)
 			}
 		}
 	}()
@@ -599,7 +608,7 @@ func (this *App) RestartOnReturn(ctx context.Context) {
 		signal.Notify(sig, os.Interrupt)
 		defer func() {
 			fmt.Println("")
-			this.Stop(this.Port)
+			a.Stop(a.Port)
 			os.Exit(0)
 		}()
 		for {

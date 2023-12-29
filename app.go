@@ -367,7 +367,7 @@ func (a *App) Run(port string) (err error) {
 	a.Ports[port] = time.Now().Unix()
 	params := []string{}
 	if !disabledVisitPort && a.SupportMutiPort() {
-		params = append(params, a.PortParamName)
+		params = append(params, com.ParseArgs(a.PortParamName)...)
 		params = append(params, port)
 	}
 	params = append(params, a.RunParams...)

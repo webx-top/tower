@@ -176,7 +176,8 @@ func FormatByte(args ...interface{}) string {
 
 var sizeUnits = [...]string{"YB", "ZB", "EB", "PB", "TB", "GB", "MB", "KB", "B"}
 
-// FormatBytes 格式化字节。 FormatBytes(字节整数，保留小数位数)
+// FormatBytes 格式化字节。 FormatBytes(字节整数，保留小数位数, 是否裁剪掉小数中的后缀0)
+// 不设置 参数 2 和 参数 3 时，默认保留2为小数并裁剪小数中的后缀0
 // @param float64 size
 // @param int precision
 // @param bool trimRightZero
@@ -193,8 +194,10 @@ func FormatBytes(args ...interface{}) string {
 		fallthrough
 	case 2:
 		precision = Int(args[1])
-		fallthrough
+		size = Float64(args[0])
 	case 1:
+		trimRightZero = true
+		precision = 2
 		size = Float64(args[0])
 	}
 	for total--; total > 0 && size > 1024.0; total-- {

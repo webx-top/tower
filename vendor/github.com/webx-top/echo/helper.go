@@ -8,7 +8,9 @@ import (
 	"path"
 	"path/filepath"
 	"reflect"
+	"regexp"
 	"runtime"
+	"strconv"
 	"strings"
 
 	"github.com/admpub/log"
@@ -223,6 +225,20 @@ func URLDecode(encoded string, rfc ...bool) (string, error) {
 	return url.QueryUnescape(encoded)
 }
 
+func SetAttachmentHeader(c Context, name string, setContentType bool, inline ...bool) {
+	var typ string
+	if len(inline) > 0 && inline[0] {
+		typ = `inline`
+	} else {
+		typ = `attachment`
+	}
+	if setContentType {
+		c.Response().Header().Set(HeaderContentType, ContentTypeByExtension(name))
+	}
+	encodedName := URLEncode(name, true)
+	c.Response().Header().Set(HeaderContentDisposition, typ+"; filename="+encodedName+"; filename*=utf-8''"+encodedName)
+}
+
 func InSliceFold(value string, items []string) bool {
 	for _, item := range items {
 		if strings.EqualFold(item, value) {
@@ -322,4 +338,23 @@ func GetOtherURL(ctx Context, next string) string {
 		next = ``
 	}
 	return next
+}
+
+var regErrorTemplateFile = regexp.MustCompile(`template: ([^:]+)\:([\d]+)\:(?:([\d]+)\:)? `)
+
+func ParseTemplateError(err error, sourceContent string) *PanicError {
+	content := err.Error()
+	p := NewPanicError(content, err)
+	matches := regErrorTemplateFile.FindAllStringSubmatch(content, -1)
+	for _, match := range matches {
+		line, _ := strconv.Atoi(match[2])
+		t := &Trace{
+			File:   match[1],
+			Line:   line,
+			Func:   ``,
+			HasErr: true,
+		}
+		p.AddTrace(t, sourceContent)
+	}
+	return p
 }

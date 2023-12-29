@@ -103,6 +103,8 @@ type Context interface {
 
 	Set(string, interface{})
 	Get(string, ...interface{}) interface{}
+	Incr(key string, n interface{}, defaults ...interface{}) int64
+	Decr(key string, n interface{}, defaults ...interface{}) int64
 	Delete(...string)
 	Stored() Store
 	Internal() *param.SafeMap
@@ -115,6 +117,10 @@ type Context interface {
 	BindAndValidate(interface{}, ...FormDataFilter) error
 	MustBind(interface{}, ...FormDataFilter) error
 	MustBindAndValidate(interface{}, ...FormDataFilter) error
+	BindWithDecoder(interface{}, BinderValueCustomDecoders, ...FormDataFilter) error
+	BindAndValidateWithDecoder(interface{}, BinderValueCustomDecoders, ...FormDataFilter) error
+	MustBindWithDecoder(interface{}, BinderValueCustomDecoders, ...FormDataFilter) error
+	MustBindAndValidateWithDecoder(interface{}, BinderValueCustomDecoders, ...FormDataFilter) error
 
 	//----------------
 	// Response data
@@ -247,4 +253,21 @@ type Context interface {
 	SetPreResponseHook(...func() error) Context
 	OnHostFound(func(Context) (bool, error)) Context
 	FireHostFound() (bool, error)
+}
+
+type eCtxKey struct{}
+
+var contextKey eCtxKey
+
+func FromStdContext(c context.Context) (Context, bool) {
+	ctx, ok := c.Value(contextKey).(Context)
+	return ctx, ok
+}
+
+func ToStdContext(ctx context.Context, eCtx Context) context.Context {
+	return context.WithValue(ctx, contextKey, eCtx)
+}
+
+func AsStdContext(eCtx Context) context.Context {
+	return ToStdContext(eCtx, eCtx)
 }

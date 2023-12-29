@@ -131,7 +131,7 @@ var TplFuncMap template.FuncMap = template.FuncMap{
 
 	"ToLower":        strings.ToLower,
 	"ToUpper":        strings.ToUpper,
-	"Title":          strings.Title,
+	"Title":          com.Title,
 	"LowerCaseFirst": com.LowerCaseFirst,
 	"UpperCaseFirst": com.UpperCaseFirst,
 	"CamelCase":      com.CamelCase,
@@ -177,6 +177,7 @@ var TplFuncMap template.FuncMap = template.FuncMap{
 	// map & slice
 	// ======================
 	"MakeMap":        MakeMap,
+	"MakeSlice":      MakeSlice,
 	"InSet":          com.InSet,
 	"InSlice":        com.InSlice,
 	"InSlicex":       com.InSliceIface,
@@ -953,6 +954,17 @@ func MakeMap(values ...interface{}) param.Store {
 		h.Set(k, nil)
 	}
 	return h
+}
+
+type iSlice []interface{}
+
+func (i *iSlice) Add(sl ...interface{}) string {
+	*i = append(*i, sl...)
+	return ``
+}
+
+func MakeSlice(values ...interface{}) iSlice {
+	return iSlice(values)
 }
 
 func DelimLeft() string {

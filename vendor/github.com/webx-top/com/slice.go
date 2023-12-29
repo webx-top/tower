@@ -18,6 +18,7 @@ import (
 	"errors"
 	"math/rand"
 	"reflect"
+	"sort"
 	"strings"
 	"time"
 )
@@ -288,6 +289,19 @@ func StringSliceDiff(slice1, slice2 []string) (diffslice []string) {
 	return
 }
 
+func SliceExtract(parts []string, recv ...*string) {
+	recvEndIndex := len(recv) - 1
+	if recvEndIndex < 0 {
+		return
+	}
+	for index, value := range parts {
+		if index > recvEndIndex {
+			break
+		}
+		*recv[index] = value
+	}
+}
+
 func UintSliceDiff(slice1, slice2 []uint) (diffslice []uint) {
 	for _, v := range slice1 {
 		if !InUintSlice(v, slice2) {
@@ -544,4 +558,78 @@ func SliceRemoveCallback(length int, callback func(int) func(bool) error) error 
 		}
 	}
 	return nil
+}
+
+func SplitKVRows(rows string, seperator ...string) map[string]string {
+	sep := `=`
+	if len(seperator) > 0 && len(seperator[0]) > 0 {
+		sep = seperator[0]
+	}
+	res := map[string]string{}
+	for _, row := range strings.Split(rows, StrLF) {
+		parts := strings.SplitN(row, sep, 2)
+		if len(parts) != 2 {
+			continue
+		}
+		parts[0] = strings.TrimSpace(parts[0])
+		if len(parts[0]) == 0 {
+			continue
+		}
+		parts[1] = strings.TrimSpace(parts[1])
+		res[parts[0]] = parts[1]
+	}
+	return res
+}
+
+func SplitKVRowsCallback(rows string, callback func(k, v string) error, seperator ...string) (err error) {
+	sep := `=`
+	if len(seperator) > 0 && len(seperator[0]) > 0 {
+		sep = seperator[0]
+	}
+	for _, row := range strings.Split(rows, StrLF) {
+		parts := strings.SplitN(row, sep, 2)
+		if len(parts) != 2 {
+			continue
+		}
+		parts[0] = strings.TrimSpace(parts[0])
+		if len(parts[0]) == 0 {
+			continue
+		}
+		parts[1] = strings.TrimSpace(parts[1])
+		err = callback(parts[0], parts[1])
+		if err != nil {
+			return
+		}
+	}
+	return
+}
+
+func JoinKVRows(value interface{}, seperator ...string) string {
+	m, y := value.(map[string]string)
+	if !y {
+		return ``
+	}
+	sep := `=`
+	if len(seperator) > 0 && len(seperator[0]) > 0 {
+		sep = seperator[0]
+	}
+	r := make([]string, 0, len(m))
+	for k, v := range m {
+		r = append(r, k+sep+v)
+	}
+	sort.Strings(r)
+	return strings.Join(r, "\n")
+}
+
+func TrimSpaceForRows(rows string) []string {
+	rowSlice := strings.Split(rows, StrLF)
+	res := make([]string, 0, len(rowSlice))
+	for _, row := range rowSlice {
+		row = strings.TrimSpace(row)
+		if len(row) == 0 {
+			continue
+		}
+		res = append(res, row)
+	}
+	return res
 }

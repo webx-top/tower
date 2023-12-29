@@ -24,20 +24,8 @@ func (c *xContext) Response() engine.Response {
 // code. Templates can be registered using `Echo.SetRenderer()`.
 func (c *xContext) Render(name string, data interface{}, codes ...int) (err error) {
 	if c.auto {
-		format := c.Format()
-		if render, ok := c.echo.formatRenderers[format]; ok && render != nil {
-			switch v := data.(type) {
-			case Data: //Skip
-			case error:
-				c.dataEngine.SetError(v)
-			case nil:
-				if c.dataEngine.GetData() == nil {
-					c.dataEngine.SetData(c.Stored(), c.dataEngine.GetCode().Int())
-				}
-			default:
-				c.dataEngine.SetData(data, c.dataEngine.GetCode().Int())
-			}
-			return render(c, data)
+		if ok, err := c.echo.AutoDetectRenderFormat(c, data); ok {
+			return err
 		}
 	}
 	c.dataEngine.SetTmplFuncs()
@@ -196,15 +184,7 @@ func (c *xContext) SSEvent(event string, data chan interface{}) (err error) {
 }
 
 func (c *xContext) Attachment(r io.Reader, name string, modtime time.Time, inline ...bool) (err error) {
-	var typ string
-	if len(inline) > 0 && inline[0] {
-		typ = `inline`
-	} else {
-		typ = `attachment`
-	}
-	c.response.Header().Set(HeaderContentType, ContentTypeByExtension(name))
-	encodedName := URLEncode(name, true)
-	c.response.Header().Set(HeaderContentDisposition, typ+"; filename="+encodedName+"; filename*=utf-8''"+encodedName)
+	SetAttachmentHeader(c, name, true, inline...)
 	return c.ServeContent(r, name, modtime)
 }
 

@@ -212,6 +212,22 @@ func (c *xContext) MustBindAndValidate(i interface{}, filter ...FormDataFilter) 
 	return c.echo.binder.MustBindAndValidate(i, c, filter...)
 }
 
+func (c *xContext) BindWithDecoder(i interface{}, valueDecoders BinderValueCustomDecoders, filter ...FormDataFilter) error {
+	return c.echo.binder.BindWithDecoder(i, c, valueDecoders, filter...)
+}
+
+func (c *xContext) BindAndValidateWithDecoder(i interface{}, valueDecoders BinderValueCustomDecoders, filter ...FormDataFilter) error {
+	return c.echo.binder.BindAndValidateWithDecoder(i, c, valueDecoders, filter...)
+}
+
+func (c *xContext) MustBindWithDecoder(i interface{}, valueDecoders BinderValueCustomDecoders, filter ...FormDataFilter) error {
+	return c.echo.binder.MustBindWithDecoder(i, c, valueDecoders, filter...)
+}
+
+func (c *xContext) MustBindAndValidateWithDecoder(i interface{}, valueDecoders BinderValueCustomDecoders, filter ...FormDataFilter) error {
+	return c.echo.binder.MustBindAndValidateWithDecoder(i, c, valueDecoders, filter...)
+}
+
 func (c *xContext) Header(name string) string {
 	return c.Request().Header().Get(name)
 }
@@ -268,7 +284,7 @@ func (c *xContext) IsHead() bool {
 	return c.Method() == HEAD
 }
 
-//IsPatch UPDATE：在服务器更新资源（客户端提供改变的属性）
+// IsPatch UPDATE：在服务器更新资源（客户端提供改变的属性）
 func (c *xContext) IsPatch() bool {
 	return c.Method() == PATCH
 }
@@ -432,21 +448,21 @@ func (c *xContext) Port() int {
 // MapForm 映射表单数据到结构体
 // ParseStruct mapping forms' name and values to struct's field
 // For example:
-//		<form>
-//			<input name=`user.id`/>
-//			<input name=`user.name`/>
-//			<input name=`user.age`/>
-//		</form>
 //
-//		type User struct {
-//			Id int64
-//			Name string
-//			Age string
-//		}
+//	<form>
+//		<input name=`user.id`/>
+//		<input name=`user.name`/>
+//		<input name=`user.age`/>
+//	</form>
 //
-//		var user User
-//		err := c.MapForm(&user,`user`)
+//	type User struct {
+//		Id int64
+//		Name string
+//		Age string
+//	}
 //
+//	var user User
+//	err := c.MapForm(&user,`user`)
 func (c *xContext) MapForm(i interface{}, names ...string) error {
 	return c.MapData(i, c.Request().Form().All(), names...)
 }
@@ -492,7 +508,10 @@ func (c *xContext) SaveUploadedFileToWriter(fieldName string, writer io.Writer) 
 }
 
 func (c *xContext) SaveUploadedFiles(fieldName string, savePath func(*multipart.FileHeader) (string, error)) error {
-	m := c.Request().MultipartForm()
+	m, err := c.Request().MultipartForm()
+	if err != nil {
+		return err
+	}
 	files, ok := m.File[fieldName]
 	if !ok {
 		return ErrNotFoundFileInput
@@ -533,7 +552,10 @@ func (c *xContext) SaveUploadedFiles(fieldName string, savePath func(*multipart.
 }
 
 func (c *xContext) SaveUploadedFilesToWriter(fieldName string, writer func(*multipart.FileHeader) (io.Writer, error)) error {
-	m := c.Request().MultipartForm()
+	m, err := c.Request().MultipartForm()
+	if err != nil {
+		return err
+	}
 	files, ok := m.File[fieldName]
 	if !ok {
 		return ErrNotFoundFileInput

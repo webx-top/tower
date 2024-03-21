@@ -597,16 +597,16 @@ func RunCmdWriterxWithContext(ctx context.Context, params []string, wait time.Du
 	return
 }
 
-func CloseProcessFromPidFile(pidFile string) (err error) {
+func CloseProcessFromPidFile(pidFile string) error {
 	if pidFile == `` {
-		return
+		return nil
 	}
 	b, err := os.ReadFile(pidFile)
 	if err != nil {
 		if os.IsNotExist(err) {
 			return nil
 		}
-		return
+		return err
 	}
 	pid, err := strconv.Atoi(strings.TrimSpace(string(b)))
 	if err != nil {
@@ -615,15 +615,18 @@ func CloseProcessFromPidFile(pidFile string) (err error) {
 	return CloseProcessFromPid(pid)
 }
 
-func CloseProcessFromPid(pid int) (err error) {
+func CloseProcessFromPid(pid int) error {
 	if pid <= 0 {
 		return nil
 	}
 	procs, err := os.FindProcess(pid)
 	if err == nil {
-		return procs.Kill()
+		err = procs.Kill()
 	}
-	return
+	if err != nil && errors.Is(err, os.ErrProcessDone) {
+		return nil
+	}
+	return err
 }
 
 func CloseProcessFromCmd(cmd *exec.Cmd) error {
@@ -634,6 +637,9 @@ func CloseProcessFromCmd(cmd *exec.Cmd) error {
 		return nil
 	}
 	err := cmd.Process.Kill()
+	if err != nil && errors.Is(err, os.ErrProcessDone) {
+		return nil
+	}
 	if cmd.ProcessState == nil || cmd.ProcessState.Exited() {
 		return nil
 	}

@@ -5,7 +5,9 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"strconv"
 	"strings"
+	"sync/atomic"
 	"time"
 
 	"github.com/admpub/fsnotify"
@@ -18,18 +20,19 @@ const (
 )
 
 var (
+	scheduleTime atomic.Int64
 	eventTime    = make(map[string]time.Time)
-	scheduleTime time.Time
 )
 
 type Watcher struct {
 	WatchedDir         string
-	Changed            bool
-	OnChanged          func(string)
+	Changed            atomic.Bool
+	OnChanged          func()
 	Watcher            *fsnotify.Watcher
 	FilePattern        string
 	IgnoredPathPattern string
 	OnlyWatchBin       bool
+	FileNameSuffix     string
 	Paused             bool
 }
 
@@ -53,32 +56,27 @@ func NewWatcher(dir, filePattern, ignoredPathPattern string) (w Watcher) {
 	return
 }
 
-func (this *Watcher) Watch(ctx context.Context) (err error) {
-	for _, dir := range this.dirsToWatch() {
-		err = this.Watcher.Add(dir)
+func (w *Watcher) Watch(ctx context.Context) (err error) {
+	for _, dir := range w.dirsToWatch() {
+		err = w.Watcher.Add(dir)
 		if err != nil {
 			return
 		}
 	}
-	filePattern := `\.(` + this.FilePattern + `)$`
-	if this.OnlyWatchBin {
+	filePattern := `\.(` + w.FilePattern + `)$`
+	if w.OnlyWatchBin {
 		filePattern = regexp.QuoteMeta(BinPrefix) + `[\d]+(\.exe)?$`
 	}
 	expectedFileReg := regexp.MustCompile(filePattern)
-	defer this.Watcher.Close()
-	ch := make(chan string, 1)
+	defer w.Watcher.Close()
 	go func() {
+		t := time.NewTicker(time.Second * 2)
+		defer t.Stop()
 		for {
 			select {
-			case filePath, ok := <-ch:
-				if !ok {
-					return
-				}
-				scheduleTime = time.Now().Add(time.Second)
-				log.Warn("== Change detected: ", filePath)
-				this.Changed = true
-				if this.OnChanged != nil {
-					this.OnChanged(filePath)
+			case <-t.C:
+				if w.Changed.Load() && time.Now().Unix()-scheduleTime.Load() >= 2 {
+					w.OnChanged()
 				}
 			case <-ctx.Done():
 				return
@@ -87,8 +85,8 @@ func (this *Watcher) Watch(ctx context.Context) (err error) {
 	}()
 	for {
 		select {
-		case file := <-this.Watcher.Events:
-			if this.Paused {
+		case file := <-w.Watcher.Events:
+			if w.Paused {
 				log.Info(`== Pause monitoring file changes.`)
 				continue
 			}
@@ -97,14 +95,47 @@ func (this *Watcher) Watch(ctx context.Context) (err error) {
 				continue
 			}
 			if !expectedFileReg.MatchString(file.Name) {
-				if this.OnlyWatchBin {
+				if w.OnlyWatchBin {
 					log.Info("== [IGNORE]", file.Name)
 				}
 				continue
 			}
+			fileName := filepath.Base(file.Name)
+			if w.OnlyWatchBin {
+				if !strings.HasPrefix(fileName, BinPrefix) {
+					log.Info(`忽略非`, BinPrefix, `前缀文件更改`)
+					return
+				}
+				if len(w.FileNameSuffix) > 0 {
+					fileName = strings.TrimSuffix(fileName, w.FileNameSuffix)
+				}
+				newAppBin := fileName
+				fileName = strings.TrimPrefix(fileName, BinPrefix)
+				newFileTs, err := strconv.ParseInt(fileName, 10, 64)
+				if err != nil {
+					log.Error(err)
+					continue
+				}
+				fileName = strings.TrimPrefix(AppBin, BinPrefix)
+				oldFileTs, err := strconv.ParseInt(fileName, 10, 64)
+				if err != nil {
+					log.Error(err)
+					continue
+				}
+				if newFileTs <= oldFileTs {
+					log.Info(`新文件时间戳小于旧文件，忽略`)
+					continue
+				}
+				AppBin = newAppBin
+			} else {
+				if strings.HasPrefix(fileName, BinPrefix) {
+					log.Info(`忽略`, fileName, `更改`)
+					continue
+				}
+			}
 			mt, isDir := getFileModTime(file.Name)
 			if file.Op == fsnotify.Create && isDir {
-				this.Watcher.Add(file.Name)
+				w.Watcher.Add(file.Name)
 			}
 			if t := eventTime[file.Name]; mt.Unix() == t.Unix() {
 				log.Debugf("== [SKIP] # %s #", file.String())
@@ -112,10 +143,12 @@ func (this *Watcher) Watch(ctx context.Context) (err error) {
 			}
 			log.Infof("== [EVEN] %s", file)
 			eventTime[file.Name] = mt
-			if scheduleTime.Before(time.Now()) {
-				ch <- file.Name
+			if scheduleTime.Load() < time.Now().Unix() {
+				scheduleTime.Store(time.Now().Add(time.Second).Unix())
+				log.Warn("== Change detected: ", file.Name)
+				w.Changed.Store(true)
 			}
-		case err := <-this.Watcher.Errors:
+		case err := <-w.Watcher.Errors:
 			log.Warn(err) // No need to exit here
 		case <-ctx.Done():
 			return nil
@@ -123,12 +156,12 @@ func (this *Watcher) Watch(ctx context.Context) (err error) {
 	}
 }
 
-func (this *Watcher) dirsToWatch() (dirs []string) {
-	ignoredPathReg := regexp.MustCompile(this.IgnoredPathPattern)
+func (w *Watcher) dirsToWatch() (dirs []string) {
+	ignoredPathReg := regexp.MustCompile(w.IgnoredPathPattern)
 	matchedDirs := make(map[string]bool)
 	dir, _ := filepath.Abs("./")
 	matchedDirs[dir] = true
-	for _, dir := range strings.Split(this.WatchedDir, `|`) {
+	for _, dir := range strings.Split(w.WatchedDir, `|`) {
 		if dir == "" {
 			continue
 		}
@@ -174,8 +207,8 @@ func (this *Watcher) dirsToWatch() (dirs []string) {
 	return
 }
 
-func (this *Watcher) Reset() {
-	this.Changed = false
+func (w *Watcher) Reset() {
+	w.Changed.Store(false)
 }
 
 // checkTMPFile returns true if the event was for TMP files.

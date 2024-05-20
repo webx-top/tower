@@ -397,13 +397,8 @@ func startTower(ctx context.Context) {
 		proxy.AdminIPs = strings.Split(c.Conf.Admin.IPs, `,`)
 	}
 	if allowBuild {
-		watcher.OnChanged = func(file string) {
+		watcher.OnChanged = func() {
 			watcher.Reset()
-			fileName := filepath.Base(file)
-			if strings.HasPrefix(fileName, BinPrefix) {
-				log.Info(`忽略`, fileName, `更改`)
-				return
-			}
 			port, err := getPort()
 			if err != nil {
 				log.Error(err)
@@ -415,7 +410,7 @@ func startTower(ctx context.Context) {
 			}
 		}
 	} else {
-		watcher.OnChanged = func(file string) {
+		watcher.OnChanged = func() {
 			watcher.Reset()
 			port, err := getPort()
 			if err != nil {
@@ -423,38 +418,13 @@ func startTower(ctx context.Context) {
 				return
 			}
 			log.Debug(`== Switch port to `, port)
-			fileName := filepath.Base(file)
-			if !strings.HasPrefix(fileName, BinPrefix) {
-				log.Info(`忽略非`, BinPrefix, `前缀文件更改`)
-				return
-			}
-			if len(_suffix) > 0 {
-				fileName = strings.TrimSuffix(fileName, _suffix)
-			}
-			newAppBin := fileName
-			fileName = strings.TrimPrefix(fileName, BinPrefix)
-			newFileTs, err := strconv.ParseInt(fileName, 10, 64)
-			if err != nil {
-				log.Error(err)
-				return
-			}
-			fileName = strings.TrimPrefix(AppBin, BinPrefix)
-			oldFileTs, err := strconv.ParseInt(fileName, 10, 64)
-			if err != nil {
-				log.Error(err)
-				return
-			}
-			if newFileTs <= oldFileTs {
-				log.Info(`新文件时间戳小于旧文件，忽略`)
-				return
-			}
-			AppBin = newAppBin
 			err = app.Start(ctx, true, port)
 			if err != nil {
 				log.Error(err)
 			}
 		}
 		watcher.OnlyWatchBin = true
+		watcher.FileNameSuffix = _suffix
 		app.DisabledBuild = true
 	}
 	proxy.Port = c.Conf.Proxy.Port

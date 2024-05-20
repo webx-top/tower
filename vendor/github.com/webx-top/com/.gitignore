@@ -7,4 +7,4 @@ go.sum
 go.mod
 tower-app-*
 .DS_Store
-/process/process
+/test/process/process

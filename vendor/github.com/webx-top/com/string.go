@@ -87,6 +87,10 @@ func Token256(key string, val []byte, args ...string) string {
 	return base64.URLEncoding.EncodeToString(hm.Sum(nil))
 }
 
+func TokenEqual(mac1 []byte, mac2 []byte) bool {
+	return hmac.Equal(mac1, mac2)
+}
+
 func Encode(data interface{}, args ...string) ([]byte, error) {
 	if len(args) > 0 && args[0] == `JSON` {
 		return JSONEncode(data)

@@ -1,5 +1,7 @@
 package config
 
+import "strings"
+
 var Conf = NewConfig()
 
 func NewConfig() *Config {
@@ -43,6 +45,20 @@ type Proxy struct {
 	IP     string `json:"ip"`
 	Port   string `json:"port"`
 	Engine string `json:"engine"`
+}
+
+func (p Proxy) ListenAddr() string {
+	var listenAddr string
+	if len(p.IP) == 0 {
+		if strings.Contains(p.Port, `:`) {
+			listenAddr = p.Port
+		} else {
+			listenAddr = "127.0.0.1:" + p.Port
+		}
+	} else {
+		listenAddr = p.IP + ":" + p.Port
+	}
+	return listenAddr
 }
 
 type Watch struct {

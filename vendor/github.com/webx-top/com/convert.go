@@ -58,6 +58,8 @@ func ToStr(value interface{}, args ...int) (s string) {
 		s = string(v)
 	case nil:
 		return
+	case fmt.Stringer:
+		return v.String()
 	default:
 		s = fmt.Sprintf("%v", v)
 	}

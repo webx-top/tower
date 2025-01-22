@@ -3,7 +3,7 @@ package timeago
 func getZhCN() map[string]string {
 	return map[string]string{
 		"format": "%s%s%s",
-		"ago":    "以前",
+		"ago":    "前",
 		"online": "在线",
 		"now":    "刚刚",
 		// Seconds

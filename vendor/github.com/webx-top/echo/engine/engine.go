@@ -61,10 +61,6 @@ type (
 		// RemoteAddress returns the client's network address.
 		RemoteAddress() string
 
-		// RealIP returns the client's network address based on `X-Forwarded-For`
-		// or `X-Real-IP` request header.
-		RealIP() string
-
 		// Method returns the request's HTTP function.
 		Method() string
 
@@ -141,7 +137,7 @@ type (
 		SetCookie(*http.Cookie)
 		ServeFile(string)
 		ServeContent(content io.ReadSeeker, name string, modtime time.Time)
-		Stream(func(io.Writer) bool) error
+		Stream(func(io.Writer) (bool, error)) error
 		Error(string, ...int)
 
 		StdResponseWriter() http.ResponseWriter

@@ -134,9 +134,79 @@ func FindChineseWords(text string, n ...int) []string {
 		_n = -1
 	}
 	matches := regexContainsChinese.FindAllStringSubmatch(text, _n)
-	var result []string
+	_n = 0
+	for _, words := range matches {
+		_n += len(words)
+	}
+	result := make([]string, 0, _n)
 	for _, words := range matches {
 		result = append(result, words...)
 	}
 	return result
+}
+
+// ReplaceByMatchedIndex  通过 FindAllStringSubmatchIndex 的值来替换
+//  matches = FindAllStringSubmatchIndex
+//  var replaced string
+// 	replacer := ReplaceByMatchedIndex(content, matches, &replaced)
+//  for k, v := range matches {
+// 		var fullmatch string
+// 		replacer(k, v, `newContent`)
+//  }
+func ReplaceByMatchedIndex(content string, matches [][]int, replaced *string) func(k int, v []int, newInnerStr ...string) {
+	endK := len(matches) - 1
+	var lastEndIdx int
+	return func(k int, v []int, newInnerStr ...string) {
+		if len(newInnerStr) > 0 {
+			if k == 0 {
+				*replaced = content[0:v[0]] + newInnerStr[0]
+				if k == endK {
+					*replaced += content[v[1]:]
+				}
+			} else if k == endK {
+				*replaced += content[lastEndIdx:v[0]] + newInnerStr[0] + content[v[1]:]
+			} else {
+				*replaced += content[lastEndIdx:v[0]] + newInnerStr[0]
+			}
+		} else {
+			if k == 0 {
+				if k == endK {
+					*replaced = content
+				} else {
+					*replaced = content[0:v[1]]
+				}
+			} else if k == endK {
+				*replaced += content[lastEndIdx:]
+			} else {
+				*replaced += content[lastEndIdx:v[1]]
+			}
+		}
+		lastEndIdx = v[1]
+	}
+}
+
+// GetMatchedByIndex 通过 FindAllStringSubmatchIndex 的值获取匹配结果
+// matches = FindAllStringSubmatchIndex
+//  for _, match := range matches {
+// 		var fullmatch string
+// 		GetMatchedByIndex(contet, match, &fullmatch)
+//  }
+func GetMatchedByIndex(content string, v []int, recv ...*string) {
+	recvNum := len(recv)
+	matchIdx := 0
+	matchNum := len(v)
+	matchEdx := matchNum - 1
+	for idx := 0; idx < recvNum; idx++ {
+		if matchIdx > matchEdx {
+			return
+		}
+		if recv[idx] != nil && v[matchIdx] > -1 {
+			endIdx := matchIdx + 1
+			if endIdx >= matchNum {
+				return
+			}
+			*(recv[idx]) = content[v[matchIdx]:v[endIdx]]
+		}
+		matchIdx += 2
+	}
 }

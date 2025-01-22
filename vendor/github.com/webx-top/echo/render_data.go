@@ -22,6 +22,9 @@ func DefaultRenderDataWrapper(ctx Context, data interface{}) interface{} {
 }
 
 func NewRenderData(ctx Context, data interface{}) *RenderData {
+	if v, ok := data.(*RenderData); ok {
+		return v
+	}
 	return &RenderData{
 		ctx:    ctx,
 		now:    com.NewTime(time.Now()),
@@ -221,6 +224,10 @@ func (r *RenderData) TimeAgo(v interface{}, options ...string) string {
 	return timeago.Timestamp(param.AsInt64(v), r.Lang().Format(false, `-`), option)
 }
 
+func (r *RenderData) RootPrefix() string {
+	return r.ctx.Echo().Prefix()
+}
+
 func (r *RenderData) Prefix() string {
 	return r.ctx.Route().Prefix
 }
@@ -249,6 +256,10 @@ func (r *RenderData) RequestURI() string {
 	return r.ctx.RequestURI()
 }
 
+func (r *RenderData) FullRequestURI() string {
+	return r.ctx.FullRequestURI()
+}
+
 func (r *RenderData) GetNextURL(varNames ...string) string {
 	return GetNextURL(r.ctx, varNames...)
 }
@@ -264,3 +275,49 @@ func (r *RenderData) WithNextURL(urlStr string, varNames ...string) string {
 func (r *RenderData) GetOtherURL(urlStr string, next string) string {
 	return GetOtherURL(r.ctx, next)
 }
+
+func (r *RenderData) IsHidden(a IsHiddenContext) bool {
+	if a == nil {
+		return true
+	}
+	return a.IsHidden(r.ctx)
+}
+
+func (r *RenderData) IsValid(a IsValidContext) bool {
+	if a == nil {
+		return false
+	}
+	return a.IsValid(r.ctx)
+}
+
+func (r *RenderData) Render(a RenderContext) template.HTML {
+	if a == nil {
+		return template.HTML(``)
+	}
+	return a.Render(r.ctx)
+}
+
+func (r *RenderData) RenderWithData(a RenderContextWithData, data interface{}) template.HTML {
+	if a == nil {
+		return template.HTML(``)
+	}
+	if data == nil {
+		data = r
+	}
+	return a.RenderWithData(r.ctx, data)
+}
+
+type (
+	IsHiddenContext interface {
+		IsHidden(Context) bool
+	}
+	IsValidContext interface {
+		IsValid(Context) bool
+	}
+	RenderContext interface {
+		Render(Context) template.HTML
+	}
+	RenderContextWithData interface {
+		RenderWithData(Context, interface{}) template.HTML
+	}
+)

@@ -15,6 +15,7 @@
 package com
 
 import (
+	"bufio"
 	"bytes"
 	"crypto/hmac"
 	"crypto/md5"
@@ -39,6 +40,7 @@ import (
 
 	"golang.org/x/text/cases"
 	"golang.org/x/text/language"
+	"golang.org/x/text/width"
 )
 
 func Str2bytes(s string) []byte {
@@ -67,6 +69,24 @@ func ByteMd5(b []byte) string {
 func Md5file(file string) string {
 	barray, _ := os.ReadFile(file)
 	return ByteMd5(barray)
+}
+
+func Md5Reader(r io.Reader) (string, error) {
+	h := md5.New()
+	reader := bufio.NewReader(r)
+	buf := make([]byte, 4096) // 4KB的缓冲区
+	for {
+		n, err := reader.Read(buf)
+		if err != nil && err != io.EOF {
+			return ``, err
+		}
+		if n == 0 {
+			break
+		}
+		h.Write(buf[:n])
+	}
+	md5sum := h.Sum(nil)
+	return hex.EncodeToString(md5sum), nil
 }
 
 func Token(key string, val []byte, args ...string) string {
@@ -128,8 +148,20 @@ func JSONEncode(data interface{}, indents ...string) ([]byte, error) {
 	return json.Marshal(data)
 }
 
+func JSONEncodeToString(data interface{}, indents ...string) (string, error) {
+	b, err := JSONEncode(data, indents...)
+	if err != nil {
+		return ``, err
+	}
+	return Bytes2str(b), err
+}
+
 func JSONDecode(data []byte, to interface{}) error {
 	return json.Unmarshal(data, to)
+}
+
+func JSONDecodeString(data string, to interface{}) error {
+	return JSONDecode(Str2bytes(data), to)
 }
 
 func sha(m hash.Hash, str string) string {
@@ -175,10 +207,7 @@ func StrReplace(str string, find string, to string) string {
 // IsLetter returns true if the 'l' is an English letter.
 func IsLetter(l uint8) bool {
 	n := (l | 0x20) - 'a'
-	if n >= 0 && n < 26 {
-		return true
-	}
-	return false
+	return n >= 0 && n < 26
 }
 
 // Expand replaces {k} in template with match[k] or subs[atoi(k)] if k is not in match.
@@ -220,28 +249,37 @@ func Reverse(s string) string {
 	return string(runes[n:])
 }
 
+func NewRand() *r.Rand {
+	return r.New(r.NewSource(time.Now().UnixNano()))
+}
+
 // RandomCreateBytes generate random []byte by specify chars.
 func RandomCreateBytes(n int, alphabets ...byte) []byte {
 	const alphanum = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz"
 	var bytes = make([]byte, n)
 	var randby bool
+	var rd *r.Rand
 	if num, err := rand.Read(bytes); num != n || err != nil {
-		r.Seed(time.Now().UnixNano())
+		rd = NewRand()
 		randby = true
 	}
+	if len(alphabets) == 0 {
+		size := len(alphanum)
+		for i, b := range bytes {
+			if randby {
+				bytes[i] = alphanum[rd.Intn(size)]
+			} else {
+				bytes[i] = alphanum[b%byte(size)]
+			}
+		}
+		return bytes
+	}
+	size := len(alphabets)
 	for i, b := range bytes {
-		if len(alphabets) == 0 {
-			if randby {
-				bytes[i] = alphanum[r.Intn(len(alphanum))]
-			} else {
-				bytes[i] = alphanum[b%byte(len(alphanum))]
-			}
+		if randby {
+			bytes[i] = alphabets[rd.Intn(size)]
 		} else {
-			if randby {
-				bytes[i] = alphabets[r.Intn(len(alphabets))]
-			} else {
-				bytes[i] = alphabets[b%byte(len(alphabets))]
-			}
+			bytes[i] = alphabets[b%byte(size)]
 		}
 	}
 	return bytes
@@ -431,8 +469,31 @@ func SnakeCase(name string) string {
 	return string(s)
 }
 
+func SnakeCaseWith(name string, sep ...rune) string {
+	var s []rune
+	var onlyLowerNext bool
+	for idx, chr := range name {
+		if isUpper := IsASCIIUpper(chr); isUpper {
+			if onlyLowerNext {
+				onlyLowerNext = false
+			} else if idx > 0 {
+				s = append(s, '_')
+			}
+			chr -= ('A' - 'a')
+		} else {
+			onlyLowerNext = InRunes(chr, sep)
+		}
+		s = append(s, chr)
+	}
+	return string(s)
+}
+
 // CamelCase : webx_top => webxTop
 func CamelCase(s string) string {
+	return CamelCaseWith(s)
+}
+
+func CamelCaseWith(s string, sep ...rune) string {
 	var n string
 	var capNext bool
 	for _, v := range s {
@@ -448,7 +509,7 @@ func CamelCase(s string) string {
 		if v == '_' || v == ' ' {
 			capNext = true
 		} else {
-			capNext = false
+			capNext = !InRunes(v, sep)
 			n += string(v)
 		}
 	}
@@ -457,6 +518,19 @@ func CamelCase(s string) string {
 
 // PascalCase : webx_top => WebxTop
 func PascalCase(s string) string {
+	return PascalCaseWith(s)
+}
+
+func InRunes(v rune, sep []rune) bool {
+	for _, sp := range sep {
+		if v == sp {
+			return true
+		}
+	}
+	return false
+}
+
+func PascalCaseWith(s string, sep ...rune) string {
 	var n string
 	capNext := true
 	for _, v := range s {
@@ -472,7 +546,7 @@ func PascalCase(s string) string {
 		if v == '_' || v == ' ' {
 			capNext = true
 		} else {
-			capNext = false
+			capNext = InRunes(v, sep)
 			n += string(v)
 		}
 	}
@@ -618,4 +692,32 @@ func CleanSpaceLine(b []byte) []byte {
 
 func CleanSpaceLineString(b string) string {
 	return reSpaceLine.ReplaceAllString(b, BreakLineString)
+}
+
+func ContainsWord(src string, word string) bool {
+	if src == word {
+		return true
+	}
+	l := len(word)
+	if strings.HasPrefix(src, word) && !IsAlpha(rune(src[l])) {
+		return true
+	}
+	if strings.HasSuffix(src, word) && !IsAlpha(rune(src[len(src)-l-1])) {
+		return true
+	}
+	re, err := regexp.Compile(`\b` + regexp.QuoteMeta(word) + `\b`)
+	if err != nil {
+		return false
+	}
+	return re.MatchString(src)
+}
+
+// MBToSBText 全角转半角
+func MBToSBText(s string) string {
+	return width.Narrow.String(s)
+}
+
+// SBToMBText 半角转全角
+func SBToMBText(s string) string {
+	return width.Widen.String(s)
 }

@@ -16,7 +16,7 @@ import (
 func Take(datetime string, langs ...string) string {
 	format, option := getOption(&datetime)
 	seconds := getSeconds(datetime, format)
-	var lang string
+	lang := language
 	if len(langs) > 0 {
 		lang = langs[0]
 	}
@@ -31,10 +31,11 @@ func Timestamp(timestamp int64, langAndOptions ...string) string {
 	} else {
 		seconds = time.Since(t).Seconds()
 	}
-	var lang, option string
+	lang := language
 	if len(langAndOptions) > 0 {
 		lang = langAndOptions[0]
 	}
+	var option string
 	if len(langAndOptions) > 1 && len(langAndOptions[1]) > 0 {
 		option = langAndOptions[1]
 	}

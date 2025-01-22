@@ -39,6 +39,10 @@ import (
 	"github.com/webx-top/echo/param"
 )
 
+const (
+	EmptyString = ``
+)
+
 func New() (r template.FuncMap) {
 	r = template.FuncMap{}
 	for name, function := range TplFuncMap {
@@ -123,7 +127,7 @@ var TplFuncMap template.FuncMap = template.FuncMap{
 	"Contains":   strings.Contains,
 	"HasPrefix":  strings.HasPrefix,
 	"HasSuffix":  strings.HasSuffix,
-	"Trim":       strings.TrimSpace,
+	"Trim":       Trim,
 	"TrimLeft":   strings.TrimLeft,
 	"TrimRight":  strings.TrimRight,
 	"TrimPrefix": strings.TrimPrefix,
@@ -160,6 +164,7 @@ var TplFuncMap template.FuncMap = template.FuncMap{
 	// ======================
 	"JSONEncode":       JSONEncode,
 	"JSONDecode":       JSONDecode,
+	"JSONDecodeSlice":  JSONDecodeSlice,
 	"URLEncode":        com.URLEncode,
 	"URLDecode":        URLDecode,
 	"RawURLEncode":     com.RawURLEncode,
@@ -205,6 +210,7 @@ var TplFuncMap template.FuncMap = template.FuncMap{
 	"WithURLParams": com.WithURLParams,
 	"FullURL":       com.FullURL,
 	"IsFullURL":     com.IsFullURL,
+	"If":            If,
 }
 
 var (
@@ -221,6 +227,13 @@ func Hash(text, salt string, positions ...uint) string {
 		positions = HashClipPositions
 	}
 	return com.MakePassword(text, salt, positions...)
+}
+
+func Trim(s string, cutset ...string) string {
+	if len(cutset) == 0 || len(cutset[0]) == 0 {
+		return strings.TrimSpace(s)
+	}
+	return strings.Trim(s, cutset[0])
 }
 
 func Unquote(s string) string {
@@ -261,6 +274,15 @@ func JSONEncode(s interface{}, indents ...string) string {
 
 func JSONDecode(s string) map[string]interface{} {
 	r := map[string]interface{}{}
+	e := com.JSONDecode([]byte(s), &r)
+	if e != nil {
+		log.Println(e)
+	}
+	return r
+}
+
+func JSONDecodeSlice(s string) []interface{} {
+	r := []interface{}{}
 	e := com.JSONDecode([]byte(s), &r)
 	if e != nil {
 		log.Println(e)
@@ -339,11 +361,17 @@ func Concat(s ...string) string {
 	return strings.Join(s, ``)
 }
 
+func If(condition bool, yesValue interface{}, noValue interface{}) interface{} {
+	if condition {
+		return yesValue
+	}
+	return noValue
+}
+
 func InExt(fileName string, exts ...string) bool {
 	ext := filepath.Ext(fileName)
-	ext = strings.ToLower(ext)
 	for _, _ext := range exts {
-		if ext == strings.ToLower(_ext) {
+		if strings.EqualFold(ext, _ext) {
 			return true
 		}
 	}
@@ -376,7 +404,7 @@ func Default(defaultV interface{}, v interface{}) interface{} {
 
 func Set(renderArgs map[string]interface{}, key string, value interface{}) string {
 	renderArgs[key] = value
-	return ``
+	return EmptyString
 }
 
 func Append(renderArgs map[string]interface{}, key string, value interface{}) string {
@@ -385,7 +413,7 @@ func Append(renderArgs map[string]interface{}, key string, value interface{}) st
 	} else {
 		renderArgs[key] = append(renderArgs[key].([]interface{}), value)
 	}
-	return ``
+	return EmptyString
 }
 
 // NlToBr Replaces newlines with <br />
@@ -895,7 +923,7 @@ func TsToTime(timestamp interface{}) time.Time {
 func TsToDate(format string, timestamp interface{}) string {
 	t := TimestampToTime(timestamp)
 	if t.IsZero() {
-		return ``
+		return EmptyString
 	}
 	return t.Format(format)
 }
@@ -938,11 +966,21 @@ func NumberTrim(number interface{}, precision int, separator ...string) string {
 
 func MakeMap(values ...interface{}) param.Store {
 	h := param.Store{}
-	if len(values) == 0 {
+	length := len(values)
+	if length == 0 {
 		return h
 	}
+	if length == 1 {
+		if vals, ok := values[0].([]interface{}); ok {
+			length = len(vals)
+			if length == 0 {
+				return h
+			}
+			values = vals
+		}
+	}
 	var k string
-	for i, j := 0, len(values); i < j; i++ {
+	for i, j := 0, length; i < j; i++ {
 		if i%2 == 0 {
 			k = fmt.Sprint(values[i])
 			continue
@@ -960,7 +998,7 @@ type iSlice []interface{}
 
 func (i *iSlice) Add(sl ...interface{}) string {
 	*i = append(*i, sl...)
-	return ``
+	return EmptyString
 }
 
 func MakeSlice(values ...interface{}) iSlice {

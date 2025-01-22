@@ -359,6 +359,7 @@ func ReadFileS(filePath string) (string, error) {
 }
 
 // Zip 压缩为zip
+// args: regexpFileName, regexpIgnoreFile
 func Zip(srcDirPath string, destFilePath string, args ...*regexp.Regexp) (n int64, err error) {
 	root, err := filepath.Abs(srcDirPath)
 	if err != nil {
@@ -384,9 +385,7 @@ func Zip(srcDirPath string, destFilePath string, args ...*regexp.Regexp) (n int6
 		if err != nil {
 			return err
 		}
-		name := info.Name()
-		nameBytes := []byte(name)
-		if regexpIgnoreFile != nil && regexpIgnoreFile.Match(nameBytes) {
+		if regexpIgnoreFile != nil && (regexpIgnoreFile.MatchString(info.Name()) || regexpIgnoreFile.MatchString(path)) {
 			if info.IsDir() {
 				return filepath.SkipDir
 			}
@@ -394,7 +393,7 @@ func Zip(srcDirPath string, destFilePath string, args ...*regexp.Regexp) (n int6
 		} else if info.IsDir() {
 			return nil
 		}
-		if regexpFileName != nil && !regexpFileName.Match(nameBytes) {
+		if regexpFileName != nil && (!regexpFileName.MatchString(info.Name()) && !regexpFileName.MatchString(path)) {
 			return nil
 		}
 		relativePath := strings.TrimPrefix(path, root)
@@ -468,7 +467,9 @@ func Unzip(srcPath, destPath string) error {
 	return nil
 }
 
-func TarGz(srcDirPath string, destFilePath string) error {
+// TarGz 压缩为tar.gz
+// args: regexpFileName, regexpIgnoreFile
+func TarGz(srcDirPath string, destFilePath string, args ...*regexp.Regexp) error {
 	fw, err := os.Create(destFilePath)
 	if err != nil {
 		return err
@@ -493,9 +494,17 @@ func TarGz(srcDirPath string, destFilePath string) error {
 		return err
 	}
 	if fi.IsDir() {
+		var regexpIgnoreFile, regexpFileName *regexp.Regexp
+		argLen := len(args)
+		if argLen > 1 {
+			regexpIgnoreFile = args[1]
+			regexpFileName = args[0]
+		} else if argLen == 1 {
+			regexpFileName = args[0]
+		}
 		// handle source directory
 		fmt.Println("Cerating tar.gz from directory...")
-		if err := tarGzDir(srcDirPath, filepath.Base(srcDirPath), tw); err != nil {
+		if err := tarGzDir(srcDirPath, filepath.Base(srcDirPath), tw, regexpFileName, regexpIgnoreFile); err != nil {
 			return err
 		}
 	} else {
@@ -513,7 +522,7 @@ func TarGz(srcDirPath string, destFilePath string) error {
 // if find files, handle them with tarGzFile
 // Every recurrence append the base path to the recPath
 // recPath is the path inside of tar.gz
-func tarGzDir(srcDirPath string, recPath string, tw *tar.Writer) error {
+func tarGzDir(srcDirPath string, recPath string, tw *tar.Writer, regexpFileName, regexpIgnoreFile *regexp.Regexp) error {
 	// Open source diretory
 	dir, err := os.Open(srcDirPath)
 	if err != nil {
@@ -529,12 +538,18 @@ func tarGzDir(srcDirPath string, recPath string, tw *tar.Writer) error {
 	for _, fi := range fis {
 		// Append path
 		curPath := srcDirPath + "/" + fi.Name()
+		if regexpIgnoreFile != nil && (regexpIgnoreFile.MatchString(fi.Name()) || regexpIgnoreFile.MatchString(curPath)) {
+			continue
+		}
+		if regexpFileName != nil && (!regexpFileName.MatchString(fi.Name()) && !regexpFileName.MatchString(curPath)) {
+			continue
+		}
 		// Check it is directory or file
 		if fi.IsDir() {
 			// Directory
 			// (Directory won't add unitl all subfiles are added)
 			fmt.Printf("Adding path...%s\n", curPath)
-			tarGzDir(curPath, recPath+"/"+fi.Name(), tw)
+			tarGzDir(curPath, recPath+"/"+fi.Name(), tw, regexpFileName, regexpIgnoreFile)
 		} else {
 			// File
 			fmt.Printf("Adding file...%s\n", curPath)

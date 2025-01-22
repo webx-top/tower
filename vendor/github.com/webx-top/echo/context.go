@@ -5,6 +5,7 @@ import (
 	"io"
 	"mime/multipart"
 	"net/http"
+	"reflect"
 	"time"
 
 	"github.com/admpub/events"
@@ -45,7 +46,7 @@ type Context interface {
 	Response() engine.Response
 	Handle(Context) error
 	Logger() logger.Logger
-	Object() *xContext
+	Object() *XContext
 	Echo() *Echo
 	Route() *Route
 	Reset(engine.Request, engine.Response)
@@ -136,10 +137,13 @@ type Context interface {
 	JSONP(string, interface{}, ...int) error
 	XML(interface{}, ...int) error
 	XMLBlob([]byte, ...int) error
-	Stream(func(io.Writer) bool) error
+	Stream(func(io.Writer) (bool, error)) error
 	SSEvent(string, chan interface{}) error
 	File(string, ...http.FileSystem) error
+	CacheableFile(string, time.Duration, ...http.FileSystem) error
 	Attachment(io.Reader, string, time.Time, ...bool) error
+	CacheableAttachment(io.Reader, string, time.Time, time.Duration, ...bool) error
+	NotModified() error
 	NoContent(...int) error
 	Redirect(string, ...int) error
 	Error(err error)
@@ -150,11 +154,14 @@ type Context interface {
 	SetData(Data)
 	Data() Data
 
+	IsValidCache(modifiedAt time.Time) bool
+	SetCacheHeader(modifiedAt time.Time, maxAge ...time.Duration)
+
 	// ServeContent sends static content from `io.Reader` and handles caching
 	// via `If-Modified-Since` request header. It automatically sets `Content-Type`
 	// and `Last-Modified` response headers.
-	ServeContent(io.Reader, string, time.Time) error
-	ServeCallbackContent(func(Context) (io.Reader, error), string, time.Time) error
+	ServeContent(io.Reader, string, time.Time, ...time.Duration) error
+	ServeCallbackContent(func(Context) (io.Reader, error), string, time.Time, ...time.Duration) error
 
 	//----------------
 	// FuncMap
@@ -185,7 +192,8 @@ type Context interface {
 	NewCookie(string, string) *http.Cookie
 	Cookie() Cookier
 	GetCookie(string) string
-	// SetCookie @param:key,value,maxAge(seconds),path(/),domain,secure,httpOnly,sameSite(lax/strict/default)
+	// SetCookie set cookie
+	//  @param: key, value, maxAge(seconds), path(/), domain, secure(false), httpOnly(false), sameSite(lax/strict/default)
 	SetCookie(string, string, ...interface{})
 
 	//----------------
@@ -209,6 +217,7 @@ type Context interface {
 	Method() string
 	Format() string
 	SetFormat(string)
+	IsMethod(method string) bool
 	IsPost() bool
 	IsGet() bool
 	IsPut() bool
@@ -227,6 +236,7 @@ type Context interface {
 	Accept() *Accepts
 	Protocol() string
 	Site() string
+	FullRequestURI() string
 	RequestURI() string
 	Scheme() string
 	Domain() string
@@ -270,4 +280,14 @@ func ToStdContext(ctx context.Context, eCtx Context) context.Context {
 
 func AsStdContext(eCtx Context) context.Context {
 	return ToStdContext(eCtx, eCtx)
+}
+
+var typeOfContext = reflect.TypeOf((*Context)(nil)).Elem()
+
+func IsContext(t reflect.Type) bool {
+	return t.Implements(typeOfContext)
+}
+
+type ContextReseter interface {
+	Reset(req engine.Request, res engine.Response)
 }

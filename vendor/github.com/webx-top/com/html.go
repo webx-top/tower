@@ -87,19 +87,22 @@ func CleanMoreSpace(src string) string {
 }
 
 // StripTags strip tags in html string
-func StripTags(src string) string {
-	//将HTML标签全转换成小写
-	//src = regexpAnyHTMLTag.ReplaceAllStringFunc(src, strings.ToLower)
-
+func StripTags(src string, singleLine ...bool) string {
 	//remove tag <style>
 	src = regexpStyleHTMLTag.ReplaceAllString(src, "")
 
 	//remove tag <script>
 	src = regexpScriptHTMLTag.ReplaceAllString(src, "")
 
-	//replace all html tag into \n
-	src = regexpAnyHTMLTag.ReplaceAllString(src, "\n")
-	src = CleanMoreSpace(src)
+	if len(singleLine) > 0 && singleLine[0] {
+		//remove all html tag
+		src = regexpAnyHTMLTag.ReplaceAllString(src, "")
+		src = RemoveEOL(src)
+	} else {
+		//replace all html tag into \n
+		src = regexpAnyHTMLTag.ReplaceAllString(src, "\n")
+		src = CleanMoreSpace(src)
+	}
 
 	return strings.TrimSpace(src)
 }

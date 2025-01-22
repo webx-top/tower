@@ -19,6 +19,8 @@
 package com
 
 import (
+	"bytes"
+	"encoding/gob"
 	"fmt"
 	"log"
 	"math"
@@ -26,17 +28,87 @@ import (
 	"strings"
 )
 
+func AsType(typ string, val interface{}) interface{} {
+	switch typ {
+	case `string`:
+		return String(val)
+	case `bytes`, `[]byte`:
+		return Bytes(val)
+	case `bool`:
+		return Bool(val)
+	case `float64`:
+		return Float64(val)
+	case `float32`:
+		return Float32(val)
+	case `int8`:
+		return Int8(val)
+	case `int16`:
+		return Int16(val)
+	case `int`:
+		return Int(val)
+	case `int32`:
+		return Int32(val)
+	case `int64`:
+		return Int64(val)
+	case `uint8`:
+		return Uint8(val)
+	case `uint16`:
+		return Uint16(val)
+	case `uint`:
+		return Uint(val)
+	case `uint32`:
+		return Uint32(val)
+	case `uint64`:
+		return Uint64(val)
+	default:
+		return val
+	}
+}
+
+func Bytes(val interface{}) []byte {
+	switch v := val.(type) {
+	case []byte:
+		return v
+	case nil:
+		return nil
+	case string:
+		return []byte(v)
+	default:
+		var buf bytes.Buffer
+		enc := gob.NewEncoder(&buf)
+		err := enc.Encode(val)
+		if err != nil {
+			return nil
+		}
+		return buf.Bytes()
+	}
+}
+
 func Int64(i interface{}) int64 {
 	switch v := i.(type) {
+	case int:
+		return int64(v)
 	case int64:
 		return v
 	case int32:
 		return int64(v)
+	case int16:
+		return int64(v)
+	case int8:
+		return int64(v)
+
+	case uint:
+		return int64(v)
+	case uint64:
+		if v <= math.MaxInt64 {
+			return int64(v)
+		}
+		return 0
 	case uint32:
 		return int64(v)
-	case int:
+	case uint16:
 		return int64(v)
-	case uint:
+	case uint8:
 		return int64(v)
 	case float32:
 		return int64(v)
@@ -63,10 +135,36 @@ func Int64(i interface{}) int64 {
 
 func Int(i interface{}) int {
 	switch v := i.(type) {
-	case int32:
-		return int(v)
 	case int:
 		return v
+	case int64:
+		if v >= math.MinInt && v <= math.MaxInt {
+			return int(v)
+		}
+		return 0
+	case int32:
+		return int(v)
+	case int16:
+		return int(v)
+	case int8:
+		return int(v)
+
+	case uint:
+		if v <= math.MaxInt {
+			return int(v)
+		}
+		return 0
+	case uint64:
+		if v <= math.MaxInt {
+			return int(v)
+		}
+		return 0
+	case uint32:
+		return int(v)
+	case uint16:
+		return int(v)
+	case uint8:
+		return int(v)
 	case float32:
 		return int(v)
 	case float64:
@@ -92,8 +190,42 @@ func Int(i interface{}) int {
 
 func Int32(i interface{}) int32 {
 	switch v := i.(type) {
+	case int:
+		if v >= math.MinInt32 && v <= math.MaxInt32 {
+			return int32(v)
+		}
+		return 0
+	case int64:
+		if v >= math.MinInt32 && v <= math.MaxInt32 {
+			return int32(v)
+		}
+		return 0
 	case int32:
 		return v
+	case int16:
+		return int32(v)
+	case int8:
+		return int32(v)
+
+	case uint:
+		if v <= math.MaxInt32 {
+			return int32(v)
+		}
+		return 0
+	case uint64:
+		if v <= math.MaxInt32 {
+			return int32(v)
+		}
+		return 0
+	case uint32:
+		if v <= math.MaxInt32 {
+			return int32(v)
+		}
+		return 0
+	case uint16:
+		return int32(v)
+	case uint8:
+		return int32(v)
 	case float32:
 		return int32(v)
 	case float64:
@@ -117,14 +249,190 @@ func Int32(i interface{}) int32 {
 	}
 }
 
+func Int16(i interface{}) int16 {
+	switch v := i.(type) {
+	case int:
+		if v >= math.MinInt16 && v <= math.MaxInt16 {
+			return int16(v)
+		}
+		return 0
+	case int64:
+		if v >= math.MinInt16 && v <= math.MaxInt16 {
+			return int16(v)
+		}
+		return 0
+	case int32:
+		if v >= math.MinInt16 && v <= math.MaxInt16 {
+			return int16(v)
+		}
+		return 0
+	case int16:
+		return v
+	case int8:
+		return int16(v)
+
+	case uint:
+		if v <= math.MaxInt16 {
+			return int16(v)
+		}
+		return 0
+	case uint64:
+		if v <= math.MaxInt16 {
+			return int16(v)
+		}
+		return 0
+	case uint32:
+		if v <= math.MaxInt16 {
+			return int16(v)
+		}
+		return 0
+	case uint16:
+		if v <= math.MaxInt16 {
+			return int16(v)
+		}
+		return int16(v)
+	case uint8:
+		return int16(v)
+	case float32:
+		return int16(v)
+	case float64:
+		return int16(v)
+	case string:
+		out, _ := strconv.ParseInt(v, 10, 16)
+		return int16(out)
+	case nil:
+		return 0
+	default:
+		in := fmt.Sprint(i)
+		if len(in) == 0 {
+			return 0
+		}
+		out, err := strconv.ParseInt(in, 10, 16)
+		if err != nil {
+			log.Printf("string[%s] covert int16 fail. %s", in, err)
+			return 0
+		}
+		return int16(out)
+	}
+}
+
+func Int8(i interface{}) int8 {
+	switch v := i.(type) {
+	case int:
+		if v >= math.MinInt8 && v <= math.MaxInt8 {
+			return int8(v)
+		}
+		return 0
+	case int64:
+		if v >= math.MinInt8 && v <= math.MaxInt8 {
+			return int8(v)
+		}
+		return 0
+	case int32:
+		if v >= math.MinInt8 && v <= math.MaxInt8 {
+			return int8(v)
+		}
+		return 0
+	case int16:
+		if v >= math.MinInt8 && v <= math.MaxInt8 {
+			return int8(v)
+		}
+		return 0
+	case int8:
+		return v
+
+	case uint:
+		if v <= math.MaxInt8 {
+			return int8(v)
+		}
+		return 0
+	case uint64:
+		if v <= math.MaxInt8 {
+			return int8(v)
+		}
+		return 0
+	case uint32:
+		if v <= math.MaxInt8 {
+			return int8(v)
+		}
+		return 0
+	case uint16:
+		if v <= math.MaxInt8 {
+			return int8(v)
+		}
+		return 0
+	case uint8:
+		if v <= math.MaxInt8 {
+			return int8(v)
+		}
+		return 0
+	case float32:
+		if v <= math.MaxInt8 {
+			return int8(v)
+		}
+		return 0
+	case float64:
+		if v <= math.MaxInt8 {
+			return int8(v)
+		}
+		return 0
+	case string:
+		out, _ := strconv.ParseInt(v, 10, 8)
+		return int8(out)
+	case nil:
+		return 0
+	default:
+		in := fmt.Sprint(i)
+		if len(in) == 0 {
+			return 0
+		}
+		out, err := strconv.ParseInt(in, 10, 8)
+		if err != nil {
+			log.Printf("string[%s] covert int8 fail. %s", in, err)
+			return 0
+		}
+		return int8(out)
+	}
+}
+
 func Uint64(i interface{}) uint64 {
 	switch v := i.(type) {
-	case uint32:
+	case int:
+		if v < 0 {
+			return 0
+		}
 		return uint64(v)
+	case int64:
+		if v < 0 {
+			return 0
+		}
+		return uint64(v)
+	case int32:
+		if v < 0 {
+			return 0
+		}
+		return uint64(v)
+	case int16:
+		if v < 0 {
+			return 0
+		}
+		return uint64(v)
+	case int8:
+		if v < 0 {
+			return 0
+		}
+		return uint64(v)
+
 	case uint:
 		return uint64(v)
 	case uint64:
 		return v
+	case uint32:
+		return uint64(v)
+	case uint16:
+		return uint64(v)
+	case uint8:
+		return uint64(v)
 	case float32:
 		if v > 0 && v <= math.MaxUint64 {
 			return uint64(v)
@@ -156,10 +464,45 @@ func Uint64(i interface{}) uint64 {
 
 func Uint(i interface{}) uint {
 	switch v := i.(type) {
-	case uint32:
+	case int:
+		if v < 0 {
+			return 0
+		}
 		return uint(v)
+	case int64:
+		if v < 0 {
+			return 0
+		}
+		return uint(v)
+	case int32:
+		if v < 0 {
+			return 0
+		}
+		return uint(v)
+	case int16:
+		if v < 0 {
+			return 0
+		}
+		return uint(v)
+	case int8:
+		if v < 0 {
+			return 0
+		}
+		return uint(v)
+
 	case uint:
 		return v
+	case uint64:
+		if v > math.MaxUint {
+			return 0
+		}
+		return uint(v)
+	case uint32:
+		return uint(v)
+	case uint16:
+		return uint(v)
+	case uint8:
+		return uint(v)
 	case float32:
 		if v > 0 {
 			return uint(v)
@@ -191,11 +534,44 @@ func Uint(i interface{}) uint {
 
 func Uint32(i interface{}) uint32 {
 	switch v := i.(type) {
-	case uint32:
-		return v
+	case int:
+		if v < 0 {
+			return 0
+		}
+		return uint32(v)
+	case int64:
+		if v < 0 || v > math.MaxUint32 {
+			return 0
+		}
+		return uint32(v)
+	case int32:
+		if v < 0 {
+			return 0
+		}
+		return uint32(v)
+	case int16:
+		if v < 0 {
+			return 0
+		}
+		return uint32(v)
+	case int8:
+		if v < 0 {
+			return 0
+		}
+		return uint32(v)
+
 	case uint:
 		return uint32(v)
 	case uint64:
+		if v > math.MaxUint32 {
+			return 0
+		}
+		return uint32(v)
+	case uint32:
+		return v
+	case uint16:
+		return uint32(v)
+	case uint8:
 		return uint32(v)
 	case float32:
 		if v > 0 {
@@ -226,6 +602,161 @@ func Uint32(i interface{}) uint32 {
 	}
 }
 
+func Uint16(i interface{}) uint16 {
+	switch v := i.(type) {
+	case int:
+		if v < 0 || v > math.MaxUint16 {
+			return 0
+		}
+		return uint16(v)
+	case int64:
+		if v < 0 || v > math.MaxUint16 {
+			return 0
+		}
+		return uint16(v)
+	case int32:
+		if v < 0 || v > math.MaxUint16 {
+			return 0
+		}
+		return uint16(v)
+	case int16:
+		if v < 0 {
+			return 0
+		}
+		return uint16(v)
+	case int8:
+		if v < 0 {
+			return 0
+		}
+		return uint16(v)
+
+	case uint:
+		if v > math.MaxUint16 {
+			return 0
+		}
+		return uint16(v)
+	case uint64:
+		if v > math.MaxUint16 {
+			return 0
+		}
+		return uint16(v)
+	case uint32:
+		if v > math.MaxUint16 {
+			return 0
+		}
+		return uint16(v)
+	case uint16:
+		return v
+	case uint8:
+		return uint16(v)
+	case float32:
+		if v > 0 && v <= math.MaxUint16 {
+			return uint16(v)
+		}
+		return 0
+	case float64:
+		if v > 0 && v <= math.MaxUint16 {
+			return uint16(v)
+		}
+		return 0
+	case string:
+		out, _ := strconv.ParseUint(v, 10, 16)
+		return uint16(out)
+	case nil:
+		return 0
+	default:
+		in := fmt.Sprint(i)
+		if len(in) == 0 {
+			return 0
+		}
+		out, err := strconv.ParseUint(in, 10, 16)
+		if err != nil {
+			log.Printf("string[%s] covert uint16 fail. %s", in, err)
+			return 0
+		}
+		return uint16(out)
+	}
+}
+
+func Uint8(i interface{}) uint8 {
+	switch v := i.(type) {
+	case int:
+		if v < 0 || v > math.MaxUint8 {
+			return 0
+		}
+		return uint8(v)
+	case int64:
+		if v < 0 || v > math.MaxUint8 {
+			return 0
+		}
+		return uint8(v)
+	case int32:
+		if v < 0 || v > math.MaxUint8 {
+			return 0
+		}
+		return uint8(v)
+	case int16:
+		if v < 0 || v > math.MaxUint8 {
+			return 0
+		}
+		return uint8(v)
+	case int8:
+		if v < 0 {
+			return 0
+		}
+		return uint8(v)
+
+	case uint:
+		if v <= math.MaxUint8 {
+			return uint8(v)
+		}
+		return 0
+	case uint64:
+		if v <= math.MaxUint8 {
+			return uint8(v)
+		}
+		return 0
+	case uint32:
+		if v <= math.MaxUint8 {
+			return uint8(v)
+		}
+		return 0
+	case uint16:
+		if v <= math.MaxUint8 {
+			return uint8(v)
+		}
+		return 0
+	case uint8:
+		return v
+	case float32:
+		if v > 0 && v <= math.MaxUint8 {
+			return uint8(v)
+		}
+		return 0
+	case float64:
+		if v > 0 && v <= math.MaxUint8 {
+			return uint8(v)
+		}
+		return 0
+	case string:
+		out, _ := strconv.ParseUint(v, 10, 8)
+		return uint8(out)
+	case nil:
+		return 0
+	default:
+		in := fmt.Sprint(i)
+		if len(in) == 0 {
+			return 0
+		}
+		out, err := strconv.ParseUint(in, 10, 8)
+		if err != nil {
+			log.Printf("string[%s] covert uint8 fail. %s", in, err)
+			return 0
+		}
+		return uint8(out)
+	}
+}
+
 func Float32(i interface{}) float32 {
 	switch v := i.(type) {
 	case float32:
@@ -235,25 +766,27 @@ func Float32(i interface{}) float32 {
 			return 0
 		}
 		return float32(v)
-	case int8:
-		return float32(v)
-	case uint8:
-		return float32(v)
-	case int16:
-		return float32(v)
-	case uint16:
-		return float32(v)
-	case int32:
-		return float32(v)
-	case uint32:
-		return float32(v)
+
 	case int:
-		return float32(v)
-	case uint:
 		return float32(v)
 	case int64:
 		return float32(v)
+	case int32:
+		return float32(v)
+	case int16:
+		return float32(v)
+	case int8:
+		return float32(v)
+
+	case uint:
+		return float32(v)
 	case uint64:
+		return float32(v)
+	case uint32:
+		return float32(v)
+	case uint16:
+		return float32(v)
+	case uint8:
 		return float32(v)
 	case string:
 		out, _ := strconv.ParseFloat(v, 32)
@@ -280,25 +813,27 @@ func Float64(i interface{}) float64 {
 		return float64(v)
 	case float64:
 		return v
-	case int8:
-		return float64(v)
-	case uint8:
-		return float64(v)
-	case int16:
-		return float64(v)
-	case uint16:
-		return float64(v)
-	case int32:
-		return float64(v)
-	case uint32:
-		return float64(v)
+
 	case int:
-		return float64(v)
-	case uint:
 		return float64(v)
 	case int64:
 		return float64(v)
+	case int32:
+		return float64(v)
+	case int16:
+		return float64(v)
+	case int8:
+		return float64(v)
+
+	case uint:
+		return float64(v)
 	case uint64:
+		return float64(v)
+	case uint32:
+		return float64(v)
+	case uint16:
+		return float64(v)
+	case uint8:
 		return float64(v)
 	case string:
 		out, _ := strconv.ParseFloat(v, 64)
@@ -329,23 +864,37 @@ func Bool(i interface{}) bool {
 		if len(v) == 0 {
 			return false
 		}
-		out, err := strconv.ParseBool(v)
-		if err != nil {
-			log.Printf("string[%s] covert bool fail. %s", v, err)
+		switch v {
+		case `Y`:
+			return true
+		case `N`:
 			return false
+		default:
+			out, err := strconv.ParseBool(v)
+			if err != nil {
+				log.Printf("string[%s] covert bool fail. %s", v, err)
+				return false
+			}
+			return out
 		}
-		return out
 	default:
 		in := fmt.Sprint(i)
 		if len(in) == 0 {
 			return false
 		}
-		out, err := strconv.ParseBool(in)
-		if err != nil {
-			log.Printf("string[%s] covert bool fail. %s", in, err)
+		switch v {
+		case `Y`:
+			return true
+		case `N`:
 			return false
+		default:
+			out, err := strconv.ParseBool(in)
+			if err != nil {
+				log.Printf("string[%s] covert bool fail. %s", in, err)
+				return false
+			}
+			return out
 		}
-		return out
 	}
 }
 

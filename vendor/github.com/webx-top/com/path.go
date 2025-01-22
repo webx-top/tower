@@ -16,7 +16,9 @@ package com
 
 import (
 	"errors"
+	"fmt"
 	"os"
+	"os/user"
 	"path/filepath"
 	"strings"
 )
@@ -76,8 +78,22 @@ func GetSrcPath(importPath string) (appPath string, err error) {
 	return appPath, nil
 }
 
+var ErrCannotFindHomeDir = errors.New("cannot find user-specific home dir")
+
 // HomeDir returns path of '~'(in Linux) on Windows,
 // it returns error when the variable does not exist.
 func HomeDir() (string, error) {
-	return os.UserHomeDir()
+	home, err := os.UserHomeDir()
+	if err == nil {
+		return home, err
+	}
+	var currentUser *user.User
+	currentUser, err = user.Current()
+	if err != nil {
+		return "", fmt.Errorf(`%v: %w`, ErrCannotFindHomeDir, err)
+	}
+	if len(currentUser.HomeDir) == 0 {
+		err = ErrCannotFindHomeDir
+	}
+	return currentUser.HomeDir, err
 }

@@ -21,15 +21,19 @@ package echo
 import (
 	"net/http"
 	"net/url"
+	"strings"
 	"sync"
 	"time"
 
+	"github.com/webx-top/codec"
+	"github.com/webx-top/com"
 	"github.com/webx-top/echo/param"
 )
 
 var (
 	DefaultCookieOptions = &CookieOptions{
-		Path: `/`,
+		Path:    `/`,
+		Cryptor: NewCookieCryptor(codec.Default, com.RandomString(16)),
 	}
 )
 
@@ -50,6 +54,34 @@ type CookieOptions struct {
 	Secure   bool
 	HttpOnly bool
 	SameSite string // strict / lax
+	Cryptor  CookieCryptor
+}
+
+type CookieCryptor interface {
+	EncryptString(input string) (string, error)
+	DecryptString(input string) (string, error)
+}
+
+type Codec interface {
+	Encode(rawData, authKey string) string
+	Decode(cryptedData, authKey string) string
+}
+
+func NewCookieCryptor(codec Codec, secret string) CookieCryptor {
+	return cookieCodec{secret: secret, codec: codec}
+}
+
+type cookieCodec struct {
+	secret string
+	codec  Codec
+}
+
+func (c cookieCodec) EncryptString(input string) (string, error) {
+	return c.codec.Encode(input, c.secret), nil
+}
+
+func (c cookieCodec) DecryptString(input string) (string, error) {
+	return c.codec.Decode(input, c.secret), nil
 }
 
 func (c *CookieOptions) Clone() *CookieOptions {
@@ -63,15 +95,31 @@ func (c *CookieOptions) SetMaxAge(maxAge int) *CookieOptions {
 	return c
 }
 
-//Cookier interface
+func (c *CookieOptions) EncryptString(input string) (string, error) {
+	if c.Cryptor == nil {
+		return input, nil
+	}
+	return c.Cryptor.EncryptString(input)
+}
+
+func (c *CookieOptions) DecryptString(input string) (string, error) {
+	if c.Cryptor == nil {
+		return input, nil
+	}
+	return c.Cryptor.DecryptString(input)
+}
+
+// Cookier interface
 type Cookier interface {
 	Get(key string) string
+	DecryptGet(key string) string
 	Add(cookies ...*http.Cookie) Cookier
 	Set(key string, val string, args ...interface{}) Cookier
+	EncryptSet(key string, val string, args ...interface{}) Cookier
 	Send()
 }
 
-//NewCookier create a cookie instance
+// NewCookier create a cookie instance
 func NewCookier(ctx Context) Cookier {
 	return &cookie{
 		context: ctx,
@@ -111,6 +159,22 @@ func (c *cookie) Get(key string) string {
 	var val string
 	if v := c.context.Request().Cookie(c.context.CookieOptions().Prefix + key); len(v) > 0 {
 		val, _ = url.QueryUnescape(v)
+	}
+	return val
+}
+
+func (c *cookie) DecryptGet(key string) string {
+	val := c.Get(key)
+	if len(val) == 0 || c.context.CookieOptions().Cryptor == nil {
+		return val
+	}
+	val = com.URLSafeBase64(val, false)
+	decrypted, err := c.context.CookieOptions().Cryptor.DecryptString(val)
+	if err == nil {
+		val = decrypted
+	} else {
+		c.context.Logger().Warnf(`%v: %s`, err, val)
+		val = ``
 	}
 	return val
 }
@@ -193,6 +257,19 @@ func (c *cookie) Set(key string, val string, args ...interface{}) Cookier {
 	return c
 }
 
+func (c *cookie) EncryptSet(key string, val string, args ...interface{}) Cookier {
+	if len(val) > 0 && c.context.CookieOptions().Cryptor != nil {
+		encrypted, err := c.context.CookieOptions().Cryptor.EncryptString(val)
+		if err == nil {
+			val = com.URLSafeBase64(encrypted, true)
+		} else {
+			c.context.Logger().Warnf(`%v: %s`, err, val)
+			return c
+		}
+	}
+	return c.Set(key, val, args...)
+}
+
 // CookieMaxAge 设置有效时长（秒）
 // IE6/7/8不支持
 // 如果同时设置了MaxAge和Expires，则优先使用MaxAge
@@ -217,6 +294,32 @@ func CookieExpires(stdCookie *http.Cookie, expires time.Time) {
 	}
 	stdCookie.MaxAge = 0
 	stdCookie.Expires = expires
+}
+
+// CookieSameSite 设置SameSite
+func CookieSameSite(stdCookie *http.Cookie, p string) {
+	switch strings.ToLower(p) {
+	case `lax`:
+		stdCookie.SameSite = http.SameSiteLaxMode
+	case `strict`:
+		stdCookie.SameSite = http.SameSiteStrictMode
+	default:
+		stdCookie.SameSite = http.SameSiteDefaultMode
+	}
+}
+
+// CopyCookieOptions copy cookie options
+func CopyCookieOptions(from *http.Cookie, to *http.Cookie) {
+	to.MaxAge = from.MaxAge
+	to.Expires = from.Expires
+	if len(from.Path) == 0 {
+		from.Path = `/`
+	}
+	to.Path = from.Path
+	to.Domain = from.Domain
+	to.Secure = from.Secure
+	to.HttpOnly = from.HttpOnly
+	to.SameSite = from.SameSite
 }
 
 // NewCookie 新建cookie对象

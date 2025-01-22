@@ -101,7 +101,6 @@ func HandlerTmpl(handlerPath string) string {
 END:
 	if len(u) > 0 {
 		r = append(r, string(u))
-		u = []rune{}
 	}
 	for i, s := range r {
 		r[i] = com.SnakeCase(s)
@@ -266,6 +265,11 @@ func (h HandlerFuncs) Call(c Context, key string) error {
 		return ErrNotFound
 	}
 	return fn(c)
+}
+
+// https://developers.google.cn/search/docs/crawling-indexing/block-indexing?hl=zh-cn#http-response-header
+func SearchEngineNoindex(c Context) {
+	c.Response().Header().Set(`X-Robots-Tag`, `noindex`)
 }
 
 var DefaultNextURLVarName = `next`

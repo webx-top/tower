@@ -4,96 +4,161 @@ import (
 	"sync"
 )
 
-type SafeMap struct {
-	lock *sync.RWMutex
-	bm   map[interface{}]interface{}
-}
-
-func NewSafeMap() *SafeMap {
-	return &SafeMap{
+func InitSafeMap[K comparable, V any]() SafeMap[K, V] {
+	return SafeMap[K, V]{
 		lock: new(sync.RWMutex),
-		bm:   make(map[interface{}]interface{}),
+		bm:   make(map[K]V),
 	}
 }
 
-//Get from maps return the k's value
-func (m *SafeMap) Get(k interface{}) interface{} {
-	m.lock.RLock()
-	defer m.lock.RUnlock()
-	if val, ok := m.bm[k]; ok {
-		return val
+func NewSafeMap[K comparable, V any]() *SafeMap[K, V] {
+	return &SafeMap[K, V]{
+		lock: new(sync.RWMutex),
+		bm:   make(map[K]V),
 	}
-	return nil
+}
+
+type SafeMap[K comparable, V any] struct {
+	lock *sync.RWMutex
+	bm   map[K]V
+}
+
+func (m *SafeMap[K, V]) Size() int {
+	m.lock.RLock()
+	size := len(m.bm)
+	m.lock.RUnlock()
+	return size
+}
+
+func (m *SafeMap[K, V]) GetOk(k K) (V, bool) {
+	m.lock.RLock()
+	r, y := m.bm[k]
+	m.lock.RUnlock()
+	return r, y
+}
+
+// Get from maps return the k's value
+func (m *SafeMap[K, V]) Get(k K) V {
+	m.lock.RLock()
+	r := m.bm[k]
+	m.lock.RUnlock()
+	return r
+}
+
+func (m *SafeMap[K, V]) Gets(keys ...K) []V {
+	m.lock.RLock()
+	res := make([]V, 0, len(keys))
+	for _, key := range keys {
+		val, ok := m.bm[key]
+		if ok {
+			res = append(res, val)
+		}
+	}
+	m.lock.RUnlock()
+	return res
+}
+
+func (m *SafeMap[K, V]) Remove(keys ...K) {
+	m.lock.Lock()
+	for _, key := range keys {
+		delete(m.bm, key)
+	}
+	m.lock.Unlock()
+}
+
+func (m *SafeMap[K, V]) Range(f func(key K, val V) bool) {
+	m.lock.RLock()
+	for key, val := range m.bm {
+		if !f(key, val) {
+			break
+		}
+	}
+	m.lock.RUnlock()
+}
+
+func (m *SafeMap[K, V]) ClearEmpty(f func(key K, val V) bool) {
+	m.lock.Lock()
+	for key, val := range m.bm {
+		if f(key, val) {
+			delete(m.bm, key)
+		}
+	}
+	m.lock.Unlock()
+}
+
+func (m *SafeMap[K, V]) Reset() {
+	m.lock.Lock()
+	clear(m.bm)
+	m.lock.Unlock()
 }
 
 // Set maps the given key and value. Returns false
 // if the key is already in the map and changes nothing.
-func (m *SafeMap) Set(k interface{}, v interface{}) bool {
+func (m *SafeMap[K, V]) Set(k K, v V) {
 	m.lock.Lock()
-	defer m.lock.Unlock()
-	if val, ok := m.bm[k]; !ok {
-		m.bm[k] = v
-	} else if val != v {
-		m.bm[k] = v
-	} else {
-		return false
-	}
-	return true
+	m.bm[k] = v
+	m.lock.Unlock()
 }
 
-// Check returns true if k is exist in the map.
-func (m *SafeMap) Check(k interface{}) bool {
+// Exists returns true if k is exist in the map.
+func (m *SafeMap[K, V]) Exists(k K) bool {
 	m.lock.RLock()
-	defer m.lock.RUnlock()
-	if _, ok := m.bm[k]; !ok {
-		return false
-	}
-	return true
+	_, ok := m.bm[k]
+	m.lock.RUnlock()
+	return ok
 }
 
-func (m *SafeMap) Delete(k interface{}) {
+func (m *SafeMap[K, V]) Delete(k K) {
 	m.lock.Lock()
-	defer m.lock.Unlock()
 	delete(m.bm, k)
+	m.lock.Unlock()
 }
 
-func (m *SafeMap) Items() map[interface{}]interface{} {
+func (m *SafeMap[K, V]) Items() map[K]V {
 	m.lock.RLock()
-	defer m.lock.RUnlock()
-	return m.bm
+	r := m.bm
+	m.lock.RUnlock()
+	return r
 }
 
-func NewOrderlySafeMap() *OrderlySafeMap {
-	return &OrderlySafeMap{
-		SafeMap: NewSafeMap(),
-		keys:    make([]interface{}, 0),
+func InitOrderlySafeMap[K comparable, V any]() OrderlySafeMap[K, V] {
+	return OrderlySafeMap[K, V]{
+		SafeMap: NewSafeMap[K, V](),
+		keys:    []K{},
 	}
 }
 
-type OrderlySafeMap struct {
-	*SafeMap
-	keys   []interface{} // map keys
-	values []interface{} // map values
+func NewOrderlySafeMap[K comparable, V any]() *OrderlySafeMap[K, V] {
+	return &OrderlySafeMap[K, V]{
+		SafeMap: NewSafeMap[K, V](),
+		keys:    []K{},
+	}
 }
 
-func (m *OrderlySafeMap) Set(k interface{}, v interface{}) bool {
+type OrderlySafeMap[K comparable, V any] struct {
+	*SafeMap[K, V]
+	keys []K // map keys
+}
+
+func (m *OrderlySafeMap[K, V]) Set(k K, v V) {
 	m.lock.Lock()
-	defer m.lock.Unlock()
-	if val, ok := m.bm[k]; !ok {
+	if _, ok := m.bm[k]; !ok {
 		m.bm[k] = v
 		m.keys = append(m.keys, k)
-	} else if val != v {
-		m.bm[k] = v
 	} else {
-		return false
+		m.bm[k] = v
 	}
-	return true
+	m.lock.Unlock()
 }
 
-func (m *OrderlySafeMap) Delete(k interface{}) {
+func (m *OrderlySafeMap[K, V]) Delete(k K) {
 	m.lock.Lock()
-	defer m.lock.Unlock()
 	delete(m.bm, k)
+	m.removeKey(k)
+	m.lock.Unlock()
+}
+
+func (m *OrderlySafeMap[K, V]) removeKey(k K) {
 	endIndex := len(m.keys) - 1
 	for index, mapKey := range m.keys {
 		if mapKey != k {
@@ -108,33 +173,57 @@ func (m *OrderlySafeMap) Delete(k interface{}) {
 			break
 		}
 		m.keys = append(m.keys[0:index], m.keys[index+1:]...)
-		break
+		return
 	}
 }
 
-func (m *OrderlySafeMap) Keys() []interface{} {
+func (m *OrderlySafeMap[K, V]) Remove(keys ...K) {
+	m.lock.Lock()
+	for _, k := range keys {
+		delete(m.bm, k)
+		m.removeKey(k)
+	}
+	m.lock.Unlock()
+}
+
+func (m *OrderlySafeMap[K, V]) Keys() []K {
 	m.lock.Lock()
 	defer m.lock.Unlock()
 	return m.keys
 }
 
-func (m *OrderlySafeMap) Values(force ...bool) []interface{} {
+func (m *OrderlySafeMap[K, V]) ClearEmpty(f func(key K, val V) bool) {
 	m.lock.Lock()
-	defer m.lock.Unlock()
-	if (len(force) == 0 || !force[0]) && m.values != nil {
-		return m.values
+	for key, val := range m.bm {
+		if f(key, val) {
+			delete(m.bm, key)
+			m.removeKey(key)
+		}
 	}
-	m.values = []interface{}{}
-	for _, mapKey := range m.keys {
-		m.values = append(m.values, m.bm[mapKey])
-	}
-	return m.values
+	m.lock.Unlock()
 }
 
-func (m *OrderlySafeMap) VisitAll(callback func(int, interface{}, interface{})) {
+func (m *OrderlySafeMap[K, V]) Reset() {
 	m.lock.Lock()
+	clear(m.bm)
+	clear(m.keys)
+	m.lock.Unlock()
+}
+
+func (m *OrderlySafeMap[K, V]) Values(force ...bool) []V {
+	m.lock.RLock()
+	values := make([]V, 0, len(m.keys))
+	for _, mapKey := range m.keys {
+		values = append(values, m.bm[mapKey])
+	}
+	m.lock.RUnlock()
+	return values
+}
+
+func (m *OrderlySafeMap[K, V]) VisitAll(callback func(int, K, V)) {
+	m.lock.RLock()
 	for index, mapKey := range m.keys {
 		callback(index, mapKey, m.bm[mapKey])
 	}
-	m.lock.Unlock()
+	m.lock.RUnlock()
 }

@@ -78,10 +78,7 @@ func CompareSliceStrU(s1, s2 []string) bool {
 			}
 		}
 	}
-	if len(s2) > 0 {
-		return false
-	}
-	return true
+	return len(s2) == 0
 }
 
 // IsSliceContainsStr returns true if the string exists in given slice.
@@ -228,8 +225,7 @@ func SliceRandList(min, max int) []int {
 		min, max = max, min
 	}
 	length := max - min + 1
-	t0 := time.Now()
-	rand.Seed(int64(t0.Nanosecond()))
+	rand := NewRand()
 	list := rand.Perm(length)
 	for index := range list {
 		list[index] += min
@@ -338,23 +334,28 @@ func Int64SliceDiff(slice1, slice2 []int64) (diffslice []int64) {
 	return
 }
 
-func SliceIntersect(slice1, slice2 []interface{}) (diffslice []interface{}) {
+func SliceIntersect(slice1, slice2 []interface{}) (inslice []interface{}) {
 	for _, v := range slice1 {
-		if !InSliceIface(v, slice2) {
-			diffslice = append(diffslice, v)
+		if InSliceIface(v, slice2) {
+			inslice = append(inslice, v)
 		}
 	}
 	return
 }
 
 func SliceChunk(slice []interface{}, size int) (chunkslice [][]interface{}) {
-	if size >= len(slice) {
+	length := len(slice)
+	if size >= length {
 		chunkslice = append(chunkslice, slice)
 		return
 	}
 	end := size
-	for i := 0; i <= (len(slice) - size); i += size {
-		chunkslice = append(chunkslice, slice[i:end])
+	for i := 0; i < length; i += size {
+		if end < length {
+			chunkslice = append(chunkslice, slice[i:end])
+		} else {
+			chunkslice = append(chunkslice, slice[i:])
+		}
 		end += size
 	}
 	return

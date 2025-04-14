@@ -16,6 +16,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"syscall"
 	"time"
 
 	"github.com/admpub/log"
@@ -607,7 +608,7 @@ func (a *App) RestartOnReturn(ctx context.Context) {
 	// Listen to "^C" signal and stop the app properly
 	go func() {
 		sig := make(chan os.Signal, 1)
-		signal.Notify(sig, os.Interrupt)
+		signal.Notify(sig, os.Interrupt, syscall.SIGTERM)
 		defer func() {
 			fmt.Println("")
 			a.Stop(a.Port)

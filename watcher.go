@@ -26,7 +26,6 @@ var (
 
 type Watcher struct {
 	WatchedDir         string
-	changed            chan struct{}
 	OnChanged          func()
 	Watcher            *fsnotify.Watcher
 	FilePattern        string
@@ -34,6 +33,9 @@ type Watcher struct {
 	OnlyWatchBin       bool
 	FileNameSuffix     string
 	Paused             bool
+
+	changed   chan struct{}
+	compiling atomic.Bool
 }
 
 func NewWatcher(dir, filePattern, ignoredPathPattern string) (w Watcher) {
@@ -74,7 +76,9 @@ func (w *Watcher) Watch(ctx context.Context) (err error) {
 			select {
 			case <-w.changed:
 				if time.Now().Unix()-scheduleTime.Load() >= 2 {
+					w.compiling.Store(true)
 					w.OnChanged()
+					w.compiling.Store(false)
 				}
 			case <-ctx.Done():
 				return
@@ -206,6 +210,9 @@ func (w *Watcher) dirsToWatch() (dirs []string) {
 		dirs = append(dirs, dir)
 	}
 	return
+}
+
+func (w *Watcher) Reset() {
 }
 
 // checkTMPFile returns true if the event was for TMP files.

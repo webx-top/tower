@@ -32,9 +32,8 @@ func (r *ProxyRouter) ChooseBackend(host string) (*reverseproxy.RequestData, err
 			log.Info("== Listening to " + r.dst)
 			this.FirstRequest = &sync.Once{}
 		})
-	} else if !app.IsRunning() || this.Watcher.Changed.Load() {
+	} else if !app.IsRunning() && !this.Watcher.compiling.Load() {
 		this.FirstRequest.Do(func() {
-			this.Watcher.Reset()
 			err = app.Restart(this.ctx)
 			this.FirstRequest = &sync.Once{}
 		})

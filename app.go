@@ -45,7 +45,7 @@ type App struct {
 	BuildDir            string
 	Name                string
 	Root                string
-	KeyPress            bool
+	keyPressListened    bool
 	LastError           string
 	PortParamName       string //端口参数名称(用于指定应用程序监听的端口，例如：webx.exe -p 8080，这里的-p就是端口参数名)
 	SwitchToNewPort     bool
@@ -584,10 +584,10 @@ func (a *App) IsQuit(args ...string) bool {
 }
 
 func (a *App) RestartOnReturn(ctx context.Context) {
-	if a.KeyPress {
+	if a.keyPressListened {
 		return
 	}
-	a.KeyPress = true
+	a.keyPressListened = true
 
 	// Listen to keypress of "return" and restart the app automatically
 	go func() {

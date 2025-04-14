@@ -20,8 +20,7 @@ const (
 )
 
 var (
-	scheduleTime atomic.Int64
-	eventTime    = make(map[string]time.Time)
+	eventTime = make(map[string]time.Time)
 )
 
 type Watcher struct {
@@ -75,11 +74,9 @@ func (w *Watcher) Watch(ctx context.Context) (err error) {
 		for {
 			select {
 			case <-w.changed:
-				if time.Now().Unix()-scheduleTime.Load() >= 2 {
-					w.compiling.Store(true)
-					w.OnChanged()
-					w.compiling.Store(false)
-				}
+				w.compiling.Store(true)
+				w.OnChanged()
+				w.compiling.Store(false)
 			case <-ctx.Done():
 				return
 			}
@@ -145,13 +142,10 @@ func (w *Watcher) Watch(ctx context.Context) (err error) {
 			}
 			log.Infof("== [EVEN] %s", file)
 			eventTime[file.Name] = mt
-			if scheduleTime.Load() < time.Now().Unix() {
-				scheduleTime.Store(time.Now().Add(time.Second).Unix())
-				log.Warn("== Change detected: ", file.Name)
-				select {
-				case w.changed <- struct{}{}:
-				default:
-				}
+			log.Warn("== Change detected: ", file.Name)
+			select {
+			case w.changed <- struct{}{}:
+			default:
 			}
 		case err := <-w.Watcher.Errors:
 			log.Warn(err) // No need to exit here

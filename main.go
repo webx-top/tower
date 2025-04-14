@@ -113,11 +113,11 @@ func main() {
 	if len(*prod) > 0 && atob(*prod) {
 		build = "0"
 	}
+	ctx, cancel := context.WithCancel(context.Background())
 	if debugPort > 0 {
 		server := startPprof(debugPort)
-		defer server.Shutdown(context.Background())
+		defer server.Shutdown(ctx)
 	}
-	ctx, cancel := context.WithCancel(context.Background())
 	startTower(ctx)
 	cancel()
 }
@@ -331,7 +331,7 @@ func startTower(ctx context.Context) {
 			time.Sleep(time.Second * 300)
 			return
 		}
-		app = NewApp(c.Conf.App.ExecFile, c.Conf.App.Port, c.Conf.App.BuildDir, c.Conf.App.PortParamName)
+		app = NewApp(ctx, c.Conf.App.ExecFile, c.Conf.App.Port, c.Conf.App.BuildDir, c.Conf.App.PortParamName)
 	} else {
 		if len(c.Conf.App.BuildDir) == 0 {
 			c.Conf.App.MainFile, _ = filepath.Abs(c.Conf.App.MainFile)
@@ -358,7 +358,7 @@ func startTower(ctx context.Context) {
 				log.Error(err)
 			}
 		}
-		app = NewApp(c.Conf.App.MainFile, c.Conf.App.Port, c.Conf.App.BuildDir, c.Conf.App.PortParamName)
+		app = NewApp(ctx, c.Conf.App.MainFile, c.Conf.App.Port, c.Conf.App.BuildDir, c.Conf.App.PortParamName)
 	}
 	app.OfflineMode = c.Conf.Offline
 	app.DisabledLogRequest = !c.Conf.LogRequest

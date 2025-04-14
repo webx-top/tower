@@ -62,6 +62,7 @@ type App struct {
 	startErr     error
 	restartErr   error
 	_goVersion   string
+	ctx          context.Context
 }
 
 type StderrCapturer struct {
@@ -83,7 +84,8 @@ func (a StderrCapturer) Write(p []byte) (n int, err error) {
 	return
 }
 
-func NewApp(mainFile, port, buildDir, portParamName string) (app App) {
+func NewApp(ctx context.Context, mainFile, port, buildDir, portParamName string) (app App) {
+	app.ctx = ctx
 	app.Cmds = make(map[string]*exec.Cmd)
 	goPath := os.Getenv(`GOPATH`)
 	if len(goPath) > 0 && !strings.HasSuffix(mainFile, `.go`) {
@@ -371,7 +373,7 @@ func (a *App) Run(port string) (err error) {
 		params = append(params, port)
 	}
 	params = append(params, a.RunParams...)
-	cmd = exec.Command(bin, params...)
+	cmd = exec.CommandContext(a.ctx, bin, params...)
 	a.SetCmd(a.Port, cmd)
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = StderrCapturer{a}
@@ -443,7 +445,7 @@ func (a *App) fetchPkg(matches [][]string, isRetry bool, args ...string) bool {
 			cmdArgs = append(cmdArgs, `-v`)
 		}
 		cmdArgs = append(cmdArgs, pkg)
-		cmd := exec.Command("go", cmdArgs...)
+		cmd := exec.CommandContext(a.ctx, "go", cmdArgs...)
 		cmd.Stdin = os.Stdin
 		cmd.Stderr = os.Stderr
 		cmd.Stdout = os.Stdout
@@ -509,7 +511,7 @@ func (a *App) goVersion() (string, error) {
 	if len(a._goVersion) > 0 {
 		return a._goVersion, nil
 	}
-	b, err := exec.Command("go", "version").CombinedOutput()
+	b, err := exec.CommandContext(a.ctx, "go", "version").CombinedOutput()
 	if err != nil {
 		return "", err
 	}
@@ -528,13 +530,13 @@ func (a *App) Build() (err error) {
 	AppBin = BinPrefix + strconv.FormatInt(time.Now().Unix(), 10)
 	build := func() (string, error) {
 		if a.BeforeBuildGenerate {
-			cmd := exec.Command("go", "generate")
+			cmd := exec.CommandContext(a.ctx, "go", "generate")
 			cmd.Run()
 		}
 		args := []string{"build"}
 		args = append(args, a.BuildParams...)
 		args = append(args, []string{"-o", a.BinFile(), a.MainFile}...)
-		cmd := exec.Command("go", args...)
+		cmd := exec.CommandContext(a.ctx, "go", args...)
 		var b bytes.Buffer
 		cmd.Stderr = &b
 		cmd.Stdout = os.Stdout

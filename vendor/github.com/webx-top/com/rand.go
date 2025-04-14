@@ -35,15 +35,16 @@ func randomSpec0(count uint, start, end int, letters, numbers bool,
 			end = math.MaxInt32
 		}
 	}
+	random := NewRand()
 	buffer := make([]rune, count)
 	gap := end - start
 	for count != 0 {
 		count--
 		var ch rune
 		if len(chars) == 0 {
-			ch = rune(rand.Intn(gap) + start)
+			ch = rune(random.Intn(gap) + start)
 		} else {
-			ch = chars[rand.Intn(gap)+start]
+			ch = chars[random.Intn(gap)+start]
 		}
 		if letters && ((ch >= 'a' && ch <= 'z') || (ch >= 'A' && ch <= 'Z')) ||
 			numbers && (ch >= '0' && ch <= '9') ||
@@ -54,14 +55,14 @@ func randomSpec0(count uint, start, end int, letters, numbers bool,
 				} else {
 					buffer[count] = ch
 					count--
-					buffer[count] = rune(55296 + rand.Intn(128))
+					buffer[count] = rune(55296 + random.Intn(128))
 				}
 			} else if ch >= rune(55296) && ch <= rune(56191) {
 				if count == 0 {
 					count++
 				} else {
 					// high surrogate, insert low surrogate before putting it in
-					buffer[count] = rune(56320 + rand.Intn(128))
+					buffer[count] = rune(56320 + random.Intn(128))
 					count--
 					buffer[count] = ch
 				}
@@ -165,28 +166,28 @@ func RandStr(count int) (r string) {
 	return
 }
 
+func NewRand() *rand.Rand {
+	return rand.New(rand.NewSource(time.Now().UnixNano()))
+}
+
 // RandInt Get in the range [0, max], a random integer type int
 func RandInt(max int) int {
-	r := rand.New(rand.NewSource(time.Now().UnixNano()))
-	return r.Intn(max)
+	return NewRand().Intn(max)
 }
 
 // RandFloat32 获取范围为[0.0, 1.0]，类型为float32的随机小数
 func RandFloat32() float32 {
-	r := rand.New(rand.NewSource(time.Now().UnixNano()))
-	return r.Float32()
+	return NewRand().Float32()
 }
 
 // RandFloat64 获取范围为[0.0, 1.0]，类型为float64的随机小数
 func RandFloat64() float64 {
-	r := rand.New(rand.NewSource(time.Now().UnixNano()))
-	return r.Float64()
+	return NewRand().Float64()
 }
 
 // RandPerm 获取范围为[0,max]，数量为max，类型为int的随机整数slice
 func RandPerm(max int) []int {
-	r := rand.New(rand.NewSource(time.Now().UnixNano()))
-	return r.Perm(max)
+	return NewRand().Perm(max)
 }
 
 // RandRangeInt64 生成区间随机数
@@ -197,8 +198,7 @@ func RandRangeInt64(min, max int64) int64 {
 	if min >= max || min == 0 || max == 0 {
 		return max
 	}
-	r := rand.New(rand.NewSource(time.Now().UnixNano()))
-	return r.Int63n(max-min) + min
+	return NewRand().Int63n(max-min) + min
 }
 
 // RandRangeInt 生成区间随机数
@@ -209,6 +209,5 @@ func RandRangeInt(min, max int) int {
 	if min >= max || min == 0 || max == 0 {
 		return max
 	}
-	r := rand.New(rand.NewSource(time.Now().UnixNano()))
-	return r.Intn(max-min) + min
+	return RandInt(max-min) + min
 }

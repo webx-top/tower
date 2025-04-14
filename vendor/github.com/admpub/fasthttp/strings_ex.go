@@ -1,16 +1,16 @@
 package fasthttp
 
 func init() {
-	defaultServerName = []byte("webx")
-	defaultUserAgent = []byte("webx")
+	defaultServerName = "webx"
+	defaultUserAgent = "webx"
 	//defaultContentType = []byte("text/html; charset=utf-8")
 }
 
-func SetDefaultServerName(name []byte) {
+func SetDefaultServerName(name string) {
 	defaultServerName = name
 }
 
-func SetDefaultUserAgent(userAgent []byte) {
+func SetDefaultUserAgent(userAgent string) {
 	defaultUserAgent = userAgent
 }
 

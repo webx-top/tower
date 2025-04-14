@@ -8,6 +8,7 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/admpub/xencoding/filter"
 	"github.com/webx-top/echo/param"
 )
 
@@ -129,6 +130,29 @@ func (r Routes) GetMeta() H {
 	return nil
 }
 
+const metaKeyEncodingConfig = `encodingConfig`
+
+func (r Routes) SetEncodingConfig(cfg EncodingConfig) IRouter {
+	for _, route := range r {
+		route.SetEncodingConfig(cfg)
+	}
+	return r
+}
+
+func (r Routes) SetEncodingOmitFields(names ...string) IRouter {
+	for _, route := range r {
+		route.SetEncodingOmitFields(names...)
+	}
+	return r
+}
+
+func (r Routes) SetEncodingOnlyFields(names ...string) IRouter {
+	for _, route := range r {
+		route.SetEncodingOnlyFields(names...)
+	}
+	return r
+}
+
 func (r *Route) SetName(name string) IRouter {
 	r.Name = name
 	return r
@@ -144,6 +168,54 @@ func (r *Route) SetMetaKV(key string, value interface{}) IRouter {
 		r.Meta = H{}
 	}
 	r.Meta[key] = value
+	return r
+}
+
+func (r *Route) SetEncodingConfig(cfg EncodingConfig) IRouter {
+	if r.Meta == nil {
+		r.Meta = H{}
+	}
+	r.Meta[metaKeyEncodingConfig] = cfg
+	return r
+}
+
+func (r *Route) SetEncodingOmitFields(names ...string) IRouter {
+	if r.Meta == nil {
+		r.Meta = H{}
+		r.Meta[metaKeyEncodingConfig] = EncodingConfig{
+			filter: filter.Exclude(names...),
+		}
+		return r
+	}
+	cfg, ok := r.Meta[metaKeyEncodingConfig].(EncodingConfig)
+	if !ok {
+		cfg = EncodingConfig{
+			filter: filter.Exclude(names...),
+		}
+	} else {
+		cfg.filter = filter.Exclude(names...)
+	}
+	r.Meta[metaKeyEncodingConfig] = cfg
+	return r
+}
+
+func (r *Route) SetEncodingOnlyFields(names ...string) IRouter {
+	if r.Meta == nil {
+		r.Meta = H{}
+		r.Meta[metaKeyEncodingConfig] = EncodingConfig{
+			selector: filter.Include(names...),
+		}
+		return r
+	}
+	cfg, ok := r.Meta[metaKeyEncodingConfig].(EncodingConfig)
+	if !ok {
+		cfg = EncodingConfig{
+			selector: filter.Include(names...),
+		}
+	} else {
+		cfg.selector = filter.Include(names...)
+	}
+	r.Meta[metaKeyEncodingConfig] = cfg
 	return r
 }
 
@@ -230,7 +302,7 @@ func (r *Route) Int(name string, defaults ...interface{}) int {
 }
 
 func (r *Route) Get(name string, defaults ...interface{}) interface{} {
-	if r.Meta == nil {
+	if r == nil || r.Meta == nil {
 		return nil
 	}
 	return r.Meta.Get(name, defaults...)

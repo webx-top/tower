@@ -19,19 +19,18 @@
 package com
 
 import (
-	"crypto/hmac"
-	"crypto/sha1"
 	"crypto/subtle"
 	"encoding/base64"
+	"encoding/hex"
 	"errors"
 	"fmt"
-	"hash"
 	"runtime"
 	"strconv"
 	"strings"
 
 	"golang.org/x/crypto/argon2"
 	"golang.org/x/crypto/bcrypt"
+	"golang.org/x/crypto/scrypt"
 )
 
 // Hash 生成哈希值
@@ -95,16 +94,104 @@ func CheckPassword(rawPassword string, hashedPassword string, salt string, posit
 	return MakePassword(rawPassword, salt, positions...) == hashedPassword
 }
 
+// -- Bcrypt是一个开始被淘汰的密码学KDF。它提供可配置的迭代次数，但使用恒定的内存，因此相对来说，比较容易被硬件加速密码破解器所破解，在抗GPU攻击和抗ASIC攻击上已经不再安全。
+
 // BCryptMakePassword 创建密码(生成60个字符)
 func BCryptMakePassword(password string) ([]byte, error) {
-	hash, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
-	return hash, err
+	return bcrypt.GenerateFromPassword(Str2bytes(password), bcrypt.DefaultCost)
 }
 
 // BCryptCheckPassword 检查密码
 func BCryptCheckPassword(hashedPassword, password string) error {
-	return bcrypt.CompareHashAndPassword([]byte(hashedPassword), []byte(password))
+	return bcrypt.CompareHashAndPassword(Str2bytes(hashedPassword), Str2bytes(password))
 }
+
+// -- Scrypt 是一个强大的密钥派生函数，其通过内存密集的计算方式来抵抗 GPU、ASIC、FPGA 这类密码破解硬件的攻击。
+
+type SCryptParams struct {
+	N       int // 32768
+	R       int // 8
+	P       int // 1
+	KeyLen  int // 32
+	SaltLen int // 16
+}
+
+func (s *SCryptParams) SetDefaults() {
+	if s.N < 1 {
+		s.N = defaultSCryptParams.N
+	}
+	if s.R < 1 {
+		s.N = defaultSCryptParams.R
+	}
+	if s.P < 1 {
+		s.P = defaultSCryptParams.P
+	}
+	if s.KeyLen < 1 {
+		s.KeyLen = defaultSCryptParams.KeyLen
+	}
+	if s.SaltLen < 1 {
+		s.SaltLen = defaultSCryptParams.SaltLen
+	}
+}
+
+var defaultSCryptParams = &SCryptParams{
+	N:       32768,
+	R:       8,
+	P:       1,
+	KeyLen:  32,
+	SaltLen: 16,
+}
+
+// SCryptMakePassword 创建密码(生成60个字符)
+func SCryptMakePassword(password string, params ...*SCryptParams) (string, error) {
+	var options *SCryptParams
+	if len(params) > 0 && params[0] != nil {
+		options = params[0]
+		options.SetDefaults()
+	} else {
+		options = defaultSCryptParams
+	}
+	salt := RandStr(options.SaltLen)
+	hash, err := scrypt.Key(Str2bytes(password), Str2bytes(salt), options.N, options.R, options.P, options.KeyLen)
+	if err != nil {
+		return ``, err
+	}
+	return fmt.Sprintf(`%d$%d$%d$%s$%x`, options.N, options.R, options.P, SafeBase64Encode(salt), hash), err
+}
+
+// SCryptCheckPassword 检查密码
+func SCryptCheckPassword(hashedPassword, password string) error {
+	parts := strings.SplitN(hashedPassword, `$`, 5)
+	if len(parts) != 5 {
+		return ErrInvalidPasswordHash
+	}
+	n, err := strconv.Atoi(parts[0])
+	if err != nil {
+		return fmt.Errorf(`%w: %v`, ErrInvalidPasswordHash, err)
+	}
+	r, err := strconv.Atoi(parts[1])
+	if err != nil {
+		return fmt.Errorf(`%w: %v`, ErrInvalidPasswordHash, err)
+	}
+	p, err := strconv.Atoi(parts[2])
+	if err != nil {
+		return fmt.Errorf(`%w: %v`, ErrInvalidPasswordHash, err)
+	}
+	salt, err := SafeBase64Decode(parts[3])
+	if err != nil {
+		return fmt.Errorf(`%w: %v`, ErrInvalidPasswordHash, err)
+	}
+	hash, err := scrypt.Key(Str2bytes(password), Str2bytes(salt), n, r, p, 32)
+	if err != nil {
+		return err
+	}
+	if hex.EncodeToString(hash) != parts[4] {
+		return ErrPasswordMismatch
+	}
+	return nil
+}
+
+// -- Argon2 是一个现代的抗 ASIC、抗 GPU 的安全密钥派生函数。在配置得当、且消耗资源相当的情况下，其相较于 PBKDF2、Bcrypt 和 Scrypt，有着更强的密码破解抗性。
 
 const (
 	argon2Type          = "argon2id"
@@ -221,17 +308,17 @@ func Argon2MakePasswordWithParams(password string, params *Argon2Params, salt ..
 		_salt = salt[0]
 	} else {
 		_salt = RandStr(int(params.SaltLength))
-		_salt = base64.StdEncoding.EncodeToString([]byte(_salt))
+		_salt = base64.StdEncoding.EncodeToString(Str2bytes(_salt))
 	}
 	var unencodedPassword []byte
 	switch params.Type {
 	case "argon2id":
-		unencodedPassword = argon2.IDKey([]byte(password), []byte(_salt), params.Iterations, params.Memory, params.Parallelism, params.KeyLength)
+		unencodedPassword = argon2.IDKey(Str2bytes(password), Str2bytes(_salt), params.Iterations, params.Memory, params.Parallelism, params.KeyLength)
 	case "argon2i", "argon2":
-		unencodedPassword = argon2.Key([]byte(password), []byte(_salt), params.Iterations, params.Memory, params.Parallelism, params.KeyLength)
+		unencodedPassword = argon2.Key(Str2bytes(password), Str2bytes(_salt), params.Iterations, params.Memory, params.Parallelism, params.KeyLength)
 	default:
 		params.Type = "argon2id"
-		unencodedPassword = argon2.IDKey([]byte(password), []byte(_salt), params.Iterations, params.Memory, params.Parallelism, params.KeyLength)
+		unencodedPassword = argon2.IDKey(Str2bytes(password), Str2bytes(_salt), params.Iterations, params.Memory, params.Parallelism, params.KeyLength)
 	}
 	encodedPassword := base64.StdEncoding.EncodeToString(unencodedPassword)
 
@@ -340,9 +427,9 @@ func Argon2CheckPassword(hash, password string) error {
 	var calculatedKey []byte
 	switch params.Type {
 	case "argon2id":
-		calculatedKey = argon2.IDKey([]byte(password), salt, params.Iterations, params.Memory, params.Parallelism, params.KeyLength)
+		calculatedKey = argon2.IDKey(Str2bytes(password), salt, params.Iterations, params.Memory, params.Parallelism, params.KeyLength)
 	case "argon2i", "argon2":
-		calculatedKey = argon2.Key([]byte(password), salt, params.Iterations, params.Memory, params.Parallelism, params.KeyLength)
+		calculatedKey = argon2.Key(Str2bytes(password), salt, params.Iterations, params.Memory, params.Parallelism, params.KeyLength)
 	default:
 		return ErrInvalidPasswordHash
 	}
@@ -351,64 +438,4 @@ func Argon2CheckPassword(hash, password string) error {
 		return ErrPasswordMismatch
 	}
 	return nil
-}
-
-// PBKDF2Key derives a key from the password, salt and iteration count, returning a
-// []byte of length keylen that can be used as cryptographic key. The key is
-// derived based on the method described as PBKDF2 with the HMAC variant using
-// the supplied hash function.
-//
-// For example, to use a HMAC-SHA-1 based PBKDF2 key derivation function, you
-// can get a derived key for e.g. AES-256 (which needs a 32-byte key) by
-// doing:
-//
-//	dk := pbkdf2.Key([]byte("some password"), salt, 4096, 32, sha1.New)
-//
-// Remember to get a good random salt. At least 8 bytes is recommended by the
-// RFC.
-//
-// Using a higher iteration count will increase the cost of an exhaustive
-// search but will also make derivation proportionally slower.
-func PBKDF2Key(password, salt []byte, iter, keyLen int, hFunc ...func() hash.Hash) string {
-	var h func() hash.Hash
-	if len(hFunc) > 0 {
-		h = hFunc[0]
-	}
-	if h == nil {
-		h = sha1.New
-	}
-	prf := hmac.New(h, password)
-	hashLen := prf.Size()
-	numBlocks := (keyLen + hashLen - 1) / hashLen
-
-	var buf [4]byte
-	dk := make([]byte, 0, numBlocks*hashLen)
-	U := make([]byte, hashLen)
-	for block := 1; block <= numBlocks; block++ {
-		// N.B.: || means concatenation, ^ means XOR
-		// for each block T_i = U_1 ^ U_2 ^ ... ^ U_iter
-		// U_1 = PRF(password, salt || uint(i))
-		prf.Reset()
-		prf.Write(salt)
-		buf[0] = byte(block >> 24)
-		buf[1] = byte(block >> 16)
-		buf[2] = byte(block >> 8)
-		buf[3] = byte(block)
-		prf.Write(buf[:4])
-		dk = prf.Sum(dk)
-		T := dk[len(dk)-hashLen:]
-		copy(U, T)
-
-		// U_n = PRF(password, U_(n-1))
-		for n := 2; n <= iter; n++ {
-			prf.Reset()
-			prf.Write(U)
-			U = U[:0]
-			U = prf.Sum(U)
-			for x := range U {
-				T[x] ^= U[x]
-			}
-		}
-	}
-	return Base64Encode(string(dk[:keyLen]))
 }

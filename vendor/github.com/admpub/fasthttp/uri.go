@@ -28,7 +28,7 @@ func ReleaseURI(u *URI) {
 }
 
 var uriPool = &sync.Pool{
-	New: func() interface{} {
+	New: func() any {
 		return &URI{}
 	},
 }
@@ -40,7 +40,9 @@ var uriPool = &sync.Pool{
 //
 // URI instance MUST NOT be used from concurrently running goroutines.
 type URI struct {
-	noCopy noCopy //nolint:unused,structcheck
+	noCopy noCopy
+
+	queryArgs Args
 
 	pathOriginal []byte
 	scheme       []byte
@@ -49,10 +51,14 @@ type URI struct {
 	hash         []byte
 	host         []byte
 
-	queryArgs       Args
+	fullURI    []byte
+	requestURI []byte
+
+	username        []byte
+	password        []byte
 	parsedQueryArgs bool
 
-	// Path values are sent as-is without normalization
+	// Path values are sent as-is without normalization.
 	//
 	// Disabled path normalization may be useful for proxying incoming requests
 	// to servers that are expecting paths to be forwarded as-is.
@@ -60,12 +66,6 @@ type URI struct {
 	// By default path values are normalized, i.e.
 	// extra slashes are removed, special characters are encoded.
 	DisablePathNormalizing bool
-
-	fullURI    []byte
-	requestURI []byte
-
-	username []byte
-	password []byte
 }
 
 // CopyTo copies uri contents to dst.
@@ -122,7 +122,7 @@ func (u *URI) SetUsernameBytes(username []byte) {
 	u.username = append(u.username[:0], username...)
 }
 
-// Password returns URI password
+// Password returns URI password.
 //
 // The returned bytes are valid until the next URI method call.
 func (u *URI) Password() []byte {
@@ -217,11 +217,11 @@ func (u *URI) SetSchemeBytes(scheme []byte) {
 	lowercaseBytes(u.scheme)
 }
 
-func (u *URI) isHttps() bool {
+func (u *URI) isHTTPS() bool {
 	return bytes.Equal(u.scheme, strHTTPS)
 }
 
-func (u *URI) isHttp() bool {
+func (u *URI) isHTTP() bool {
 	return len(u.scheme) == 0 || bytes.Equal(u.scheme, strHTTP)
 }
 
@@ -268,9 +268,7 @@ func (u *URI) SetHostBytes(host []byte) {
 	lowercaseBytes(u.host)
 }
 
-var (
-	ErrorInvalidURI = errors.New("invalid uri")
-)
+var ErrorInvalidURI = errors.New("invalid uri")
 
 // Parse initializes URI from the given host and uri.
 //
@@ -314,11 +312,11 @@ func (u *URI) parse(host, uri []byte, isTLS bool) error {
 	}
 
 	u.host = append(u.host, host...)
-	if parsedHost, err := parseHost(u.host); err != nil {
+	parsedHost, err := parseHost(u.host)
+	if err != nil {
 		return err
-	} else {
-		u.host = parsedHost
 	}
+	u.host = parsedHost
 	lowercaseBytes(u.host)
 
 	b := uri
@@ -504,7 +502,7 @@ func unescape(s []byte, mode encoding) ([]byte, error) {
 // appearing in a URL string, according to RFC 3986.
 //
 // Please be informed that for now shouldEscape does not check all
-// reserved characters correctly. See golang.org/issue/5684.
+// reserved characters correctly. See https://github.com/golang/go/issues/5684.
 //
 // Based on https://github.com/golang/go/blob/8ac5cbe05d61df0a7a7c9a38ff33305d4dcfea32/src/net/url/url.go#L100
 func shouldEscape(c byte, mode encoding) bool {
@@ -538,31 +536,15 @@ func shouldEscape(c byte, mode encoding) bool {
 }
 
 func ishex(c byte) bool {
-	switch {
-	case '0' <= c && c <= '9':
-		return true
-	case 'a' <= c && c <= 'f':
-		return true
-	case 'A' <= c && c <= 'F':
-		return true
-	}
-	return false
+	return hex2intTable[c] < 16
 }
 
 func unhex(c byte) byte {
-	switch {
-	case '0' <= c && c <= '9':
-		return c - '0'
-	case 'a' <= c && c <= 'f':
-		return c - 'a' + 10
-	case 'A' <= c && c <= 'F':
-		return c - 'A' + 10
-	}
-	return 0
+	return hex2intTable[c] & 15
 }
 
 // validOptionalPort reports whether port is either an empty string
-// or matches /^:\d*$/
+// or matches /^:\d*$/.
 func validOptionalPort(port []byte) bool {
 	if len(port) == 0 {
 		return true
@@ -637,7 +619,6 @@ func normalizePath(dst, src []byte) []byte {
 
 	if filepath.Separator == '\\' {
 		// remove \.\ parts
-		b = dst
 		for {
 			n := bytes.Index(b, strBackSlashDotBackSlash)
 			if n < 0 {
@@ -658,7 +639,8 @@ func normalizePath(dst, src []byte) []byte {
 			if nn < 0 {
 				nn = 0
 			}
-			n += len(strSlashDotDotBackSlash) - 1
+			nn++
+			n += len(strSlashDotDotBackSlash)
 			copy(b[nn:], b[n:])
 			b = b[:len(b)-n+nn]
 		}
@@ -696,7 +678,8 @@ func normalizePath(dst, src []byte) []byte {
 func (u *URI) RequestURI() []byte {
 	var dst []byte
 	if u.DisablePathNormalizing {
-		dst = append(u.requestURI[:0], u.PathOriginal()...)
+		dst = u.requestURI[:0]
+		dst = append(dst, u.PathOriginal()...)
 	} else {
 		dst = appendQuotedPath(u.requestURI[:0], u.Path())
 	}
@@ -715,9 +698,9 @@ func (u *URI) RequestURI() []byte {
 //
 // Examples:
 //
-//    * For /foo/bar/baz.html path returns baz.html.
-//    * For /foo/bar/ returns empty byte slice.
-//    * For /foobar.js returns foobar.js.
+//   - For /foo/bar/baz.html path returns baz.html.
+//   - For /foo/bar/ returns empty byte slice.
+//   - For /foobar.js returns foobar.js.
 //
 // The returned bytes are valid until the next URI method call.
 func (u *URI) LastPathSegment() []byte {
@@ -733,14 +716,14 @@ func (u *URI) LastPathSegment() []byte {
 //
 // The following newURI types are accepted:
 //
-//     * Absolute, i.e. http://foobar.com/aaa/bb?cc . In this case the original
-//       uri is replaced by newURI.
-//     * Absolute without scheme, i.e. //foobar.com/aaa/bb?cc. In this case
-//       the original scheme is preserved.
-//     * Missing host, i.e. /aaa/bb?cc . In this case only RequestURI part
-//       of the original uri is replaced.
-//     * Relative path, i.e.  xx?yy=abc . In this case the original RequestURI
-//       is updated according to the new relative path.
+//   - Absolute, i.e. http://foobar.com/aaa/bb?cc . In this case the original
+//     uri is replaced by newURI.
+//   - Absolute without scheme, i.e. //foobar.com/aaa/bb?cc. In this case
+//     the original scheme is preserved.
+//   - Missing host, i.e. /aaa/bb?cc . In this case only RequestURI part
+//     of the original uri is replaced.
+//   - Relative path, i.e.  xx?yy=abc . In this case the original RequestURI
+//     is updated according to the new relative path.
 func (u *URI) Update(newURI string) {
 	u.UpdateBytes(s2b(newURI))
 }
@@ -749,14 +732,14 @@ func (u *URI) Update(newURI string) {
 //
 // The following newURI types are accepted:
 //
-//     * Absolute, i.e. http://foobar.com/aaa/bb?cc . In this case the original
-//       uri is replaced by newURI.
-//     * Absolute without scheme, i.e. //foobar.com/aaa/bb?cc. In this case
-//       the original scheme is preserved.
-//     * Missing host, i.e. /aaa/bb?cc . In this case only RequestURI part
-//       of the original uri is replaced.
-//     * Relative path, i.e.  xx?yy=abc . In this case the original RequestURI
-//       is updated according to the new relative path.
+//   - Absolute, i.e. http://foobar.com/aaa/bb?cc . In this case the original
+//     uri is replaced by newURI.
+//   - Absolute without scheme, i.e. //foobar.com/aaa/bb?cc. In this case
+//     the original scheme is preserved.
+//   - Missing host, i.e. /aaa/bb?cc . In this case only RequestURI part
+//     of the original uri is replaced.
+//   - Relative path, i.e.  xx?yy=abc . In this case the original RequestURI
+//     is updated according to the new relative path.
 func (u *URI) UpdateBytes(newURI []byte) {
 	u.requestURI = u.updateBytes(newURI, u.requestURI)
 }
@@ -874,15 +857,16 @@ func splitHostURI(host, uri []byte) ([]byte, []byte, []byte) {
 	uri = uri[n:]
 	n = bytes.IndexByte(uri, '/')
 	nq := bytes.IndexByte(uri, '?')
-	if nq >= 0 && nq < n {
+	if nq >= 0 && (n < 0 || nq < n) {
 		// A hack for urls like foobar.com?a=b/xyz
 		n = nq
-	} else if n < 0 {
-		// A hack for bogus urls like foobar.com?a=b without
-		// slash after host.
-		if nq >= 0 {
-			return scheme, uri[:nq], uri[nq:]
-		}
+	}
+	nh := bytes.IndexByte(uri, '#')
+	if nh >= 0 && (n < 0 || nh < n) {
+		// A hack for urls like foobar.com#abc.com
+		n = nh
+	}
+	if n < 0 {
 		return scheme, uri, strSlash
 	}
 	return scheme, uri[:n], uri[n:]

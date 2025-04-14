@@ -34,7 +34,6 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
-	"time"
 	"unicode"
 	"unsafe"
 
@@ -247,10 +246,6 @@ func Reverse(s string) string {
 		runes[n] = rune
 	}
 	return string(runes[n:])
-}
-
-func NewRand() *r.Rand {
-	return r.New(r.NewSource(time.Now().UnixNano()))
 }
 
 // RandomCreateBytes generate random []byte by specify chars.

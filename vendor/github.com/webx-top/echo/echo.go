@@ -11,6 +11,7 @@ import (
 
 	"github.com/admpub/log"
 	"github.com/admpub/realip"
+	"github.com/admpub/xencoding/filter"
 
 	"github.com/webx-top/echo/engine"
 	"github.com/webx-top/echo/logger"
@@ -99,6 +100,11 @@ type (
 	Template interface {
 		Template(Context) (string, error)
 	}
+
+	EncodingConfig struct {
+		filter   filter.Filter
+		selector filter.Selector
+	}
 )
 
 func (m MiddlewareFunc) Handle(h Handler) Handler {
@@ -129,6 +135,24 @@ func (h HandlerFuncWithArg[R, W]) Handle(c Context) error {
 		return err
 	}
 	return c.Render(``, w)
+}
+
+func (c EncodingConfig) SetFilter(f filter.Filter) EncodingConfig {
+	c.filter = f
+	return c
+}
+
+func (c EncodingConfig) SetSelector(f filter.Selector) EncodingConfig {
+	c.selector = f
+	return c
+}
+
+func (c EncodingConfig) Filter() filter.Filter {
+	return c.filter
+}
+
+func (c EncodingConfig) Selector() filter.Selector {
+	return c.selector
 }
 
 // New creates an instance of Echo.

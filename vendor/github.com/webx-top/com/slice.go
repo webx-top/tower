@@ -16,11 +16,9 @@ package com
 
 import (
 	"errors"
-	"math/rand"
 	"reflect"
 	"sort"
 	"strings"
-	"time"
 )
 
 func WithPrefix(strs []string, prefix string) []string {
@@ -225,8 +223,7 @@ func SliceRandList(min, max int) []int {
 		min, max = max, min
 	}
 	length := max - min + 1
-	rand := NewRand()
-	list := rand.Perm(length)
+	list := RandPerm(length)
 	for index := range list {
 		list[index] += min
 	}
@@ -246,7 +243,7 @@ func SliceReduce(slice []interface{}, a reducetype) (dslice []interface{}) {
 }
 
 func SliceRand(a []interface{}) (b interface{}) {
-	randnum := rand.Intn(len(a))
+	randnum := RandInt(len(a))
 	b = a[randnum]
 	return
 }
@@ -389,9 +386,10 @@ func SliceUnique(slice []interface{}) (uniqueslice []interface{}) {
 
 func SliceShuffle(slice []interface{}) []interface{} {
 	size := len(slice)
+	random := NewRand()
 	for i := 0; i < size; i++ {
-		a := rand.Intn(size)
-		b := rand.Intn(size)
+		a := random.Intn(size)
+		b := random.Intn(size)
 		if a == b {
 			continue
 		}
@@ -409,8 +407,7 @@ func Shuffle(arr interface{}) error {
 		return ErrNotSliceType
 	}
 	contentValue := reflect.ValueOf(arr)
-	source := rand.NewSource(time.Now().UnixNano())
-	random := rand.New(source)
+	random := NewRand()
 	len := contentValue.Len()
 	for i := len - 1; i > 0; i-- {
 		j := random.Intn(i + 1)

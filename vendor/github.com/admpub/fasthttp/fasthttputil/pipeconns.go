@@ -35,17 +35,32 @@ func NewPipeConns() *PipeConns {
 // PipeConns has the following additional features comparing to connections
 // returned from net.Pipe():
 //
-//   * It is faster.
-//   * It buffers Write calls, so there is no need to have concurrent goroutine
+//   - It is faster.
+//   - It buffers Write calls, so there is no need to have concurrent goroutine
 //     calling Read in order to unblock each Write call.
-//   * It supports read and write deadlines.
+//   - It supports read and write deadlines.
 //
 // PipeConns is NOT safe for concurrent use by multiple goroutines!
 type PipeConns struct {
+	stopCh     chan struct{}
 	c1         pipeConn
 	c2         pipeConn
-	stopCh     chan struct{}
 	stopChLock sync.Mutex
+}
+
+// SetAddresses sets the local and remote addresses for the connection.
+func (pc *PipeConns) SetAddresses(localAddr1, remoteAddr1, localAddr2, remoteAddr2 net.Addr) {
+	pc.c1.addrLock.Lock()
+	defer pc.c1.addrLock.Unlock()
+
+	pc.c2.addrLock.Lock()
+	defer pc.c2.addrLock.Unlock()
+
+	pc.c1.localAddr = localAddr1
+	pc.c1.remoteAddr = remoteAddr1
+
+	pc.c2.localAddr = localAddr2
+	pc.c2.remoteAddr = remoteAddr2
 }
 
 // Conn1 returns the first end of bi-directional pipe.
@@ -78,8 +93,9 @@ func (pc *PipeConns) Close() error {
 }
 
 type pipeConn struct {
-	b  *byteBuffer
-	bb []byte
+	localAddr  net.Addr
+	remoteAddr net.Addr
+	b          *byteBuffer
 
 	rCh chan *byteBuffer
 	wCh chan *byteBuffer
@@ -90,6 +106,10 @@ type pipeConn struct {
 
 	readDeadlineCh  <-chan time.Time
 	writeDeadlineCh <-chan time.Time
+
+	bb []byte
+
+	addrLock sync.RWMutex
 
 	readDeadlineChLock sync.Mutex
 }
@@ -199,8 +219,7 @@ var (
 	errConnectionClosed = errors.New("connection closed")
 )
 
-type timeoutError struct {
-}
+type timeoutError struct{}
 
 func (e *timeoutError) Error() string {
 	return "timeout"
@@ -209,25 +228,37 @@ func (e *timeoutError) Error() string {
 // Only implement the Timeout() function of the net.Error interface.
 // This allows for checks like:
 //
-//   if x, ok := err.(interface{ Timeout() bool }); ok && x.Timeout() {
+//	if x, ok := err.(interface{ Timeout() bool }); ok && x.Timeout() {
 func (e *timeoutError) Timeout() bool {
 	return true
 }
 
-var (
-	// ErrTimeout is returned from Read() or Write() on timeout.
-	ErrTimeout = &timeoutError{}
-)
+// ErrTimeout is returned from Read() or Write() on timeout.
+var ErrTimeout = &timeoutError{}
 
 func (c *pipeConn) Close() error {
 	return c.pc.Close()
 }
 
 func (c *pipeConn) LocalAddr() net.Addr {
+	c.addrLock.RLock()
+	defer c.addrLock.RUnlock()
+
+	if c.localAddr != nil {
+		return c.localAddr
+	}
+
 	return pipeAddr(0)
 }
 
 func (c *pipeConn) RemoteAddr() net.Addr {
+	c.addrLock.RLock()
+	defer c.addrLock.RUnlock()
+
+	if c.remoteAddr != nil {
+		return c.remoteAddr
+	}
+
 	return pipeAddr(0)
 }
 
@@ -266,7 +297,7 @@ func updateTimer(t *time.Timer, deadline time.Time) <-chan time.Time {
 	if deadline.IsZero() {
 		return nil
 	}
-	d := -time.Since(deadline)
+	d := time.Until(deadline)
 	if d <= 0 {
 		return closedDeadlineCh
 	}
@@ -305,7 +336,7 @@ func releaseByteBuffer(b *byteBuffer) {
 }
 
 var byteBufferPool = &sync.Pool{
-	New: func() interface{} {
+	New: func() any {
 		return &byteBuffer{
 			b: make([]byte, 1024),
 		}

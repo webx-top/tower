@@ -8,12 +8,10 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"math"
 	"net"
-	"reflect"
+	"strconv"
 	"sync"
 	"time"
-	"unsafe"
 )
 
 // AppendHTMLEscape appends html-escaped s to dst and returns the extended dst.
@@ -37,7 +35,7 @@ func AppendHTMLEscape(dst []byte, s string) []byte {
 		case '\'':
 			sub = "&#39;" // "&#39;" is shorter than "&apos;" and apos was not in HTML until HTML5.
 		}
-		if len(sub) > 0 {
+		if sub != "" {
 			dst = append(dst, s[prev:i]...)
 			dst = append(dst, sub...)
 			prev = i + 1
@@ -75,14 +73,11 @@ func ParseIPv4(dst net.IP, ipStr []byte) (net.IP, error) {
 	if len(ipStr) == 0 {
 		return dst, errEmptyIPStr
 	}
-	if len(dst) < net.IPv4len {
+	if len(dst) < net.IPv4len || len(dst) > net.IPv4len {
 		dst = make([]byte, net.IPv4len)
 	}
 	copy(dst, net.IPv4zero)
-	dst = dst.To4()
-	if dst == nil {
-		panic("BUG: dst must not be nil")
-	}
+	dst = dst.To4() // dst is always non-nil here
 
 	b := ipStr
 	for i := 0; i < 3; i++ {
@@ -128,24 +123,11 @@ func ParseHTTPDate(date []byte) (time.Time, error) {
 // AppendUint appends n to dst and returns the extended dst.
 func AppendUint(dst []byte, n int) []byte {
 	if n < 0 {
+		// developer sanity-check
 		panic("BUG: int must be positive")
 	}
 
-	var b [20]byte
-	buf := b[:]
-	i := len(buf)
-	var q int
-	for n >= 10 {
-		i--
-		q = n / 10
-		buf[i] = '0' + byte(n-q*10)
-		n = q
-	}
-	i--
-	buf[i] = '0' + byte(n)
-
-	dst = append(dst, buf[i:]...)
-	return dst
+	return strconv.AppendUint(dst, uint64(n), 10)
 }
 
 // ParseUint parses uint from buf.
@@ -189,61 +171,19 @@ func parseUintBuf(b []byte) (int, int, error) {
 	return v, n, nil
 }
 
-var (
-	errEmptyFloat           = errors.New("empty float number")
-	errDuplicateFloatPoint  = errors.New("duplicate point found in float number")
-	errUnexpectedFloatEnd   = errors.New("unexpected end of float number")
-	errInvalidFloatExponent = errors.New("invalid float number exponent")
-	errUnexpectedFloatChar  = errors.New("unexpected char found in float number")
-)
-
 // ParseUfloat parses unsigned float from buf.
 func ParseUfloat(buf []byte) (float64, error) {
-	if len(buf) == 0 {
-		return -1, errEmptyFloat
+	// The implementation of parsing a float string is not easy.
+	// We believe that the conservative approach is to call strconv.ParseFloat.
+	// https://github.com/valyala/fasthttp/pull/1865
+	res, err := strconv.ParseFloat(b2s(buf), 64)
+	if res < 0 {
+		return -1, errors.New("negative input is invalid")
 	}
-	b := buf
-	var v uint64
-	var offset = 1.0
-	var pointFound bool
-	for i, c := range b {
-		if c < '0' || c > '9' {
-			if c == '.' {
-				if pointFound {
-					return -1, errDuplicateFloatPoint
-				}
-				pointFound = true
-				continue
-			}
-			if c == 'e' || c == 'E' {
-				if i+1 >= len(b) {
-					return -1, errUnexpectedFloatEnd
-				}
-				b = b[i+1:]
-				minus := -1
-				switch b[0] {
-				case '+':
-					b = b[1:]
-					minus = 1
-				case '-':
-					b = b[1:]
-				default:
-					minus = 1
-				}
-				vv, err := ParseUint(b)
-				if err != nil {
-					return -1, errInvalidFloatExponent
-				}
-				return float64(v) * offset * math.Pow10(minus*int(vv)), nil
-			}
-			return -1, errUnexpectedFloatChar
-		}
-		v = 10*v + uint64(c-'0')
-		if pointFound {
-			offset /= 10
-		}
+	if err != nil {
+		return -1, err
 	}
-	return float64(v) * offset, nil
+	return res, err
 }
 
 var (
@@ -252,9 +192,7 @@ var (
 )
 
 func readHexInt(r *bufio.Reader) (int, error) {
-	n := 0
-	i := 0
-	var k int
+	var k, i, n int
 	for {
 		c, err := r.ReadByte()
 		if err != nil {
@@ -285,6 +223,7 @@ var hexIntBufPool sync.Pool
 
 func writeHexInt(w *bufio.Writer, n int) error {
 	if n < 0 {
+		// developer sanity-check
 		panic("BUG: int must be positive")
 	}
 
@@ -317,31 +256,6 @@ func lowercaseBytes(b []byte) {
 		p := &b[i]
 		*p = toLowerTable[*p]
 	}
-}
-
-// b2s converts byte slice to a string without memory allocation.
-// See https://groups.google.com/forum/#!msg/Golang-Nuts/ENgbUzYvCuU/90yGx7GUAgAJ .
-//
-// Note it may break if string and/or slice header will change
-// in the future go versions.
-func b2s(b []byte) string {
-	/* #nosec G103 */
-	return *(*string)(unsafe.Pointer(&b))
-}
-
-// s2b converts string to a byte slice without memory allocation.
-//
-// Note it may break if string and/or slice header will change
-// in the future go versions.
-func s2b(s string) (b []byte) {
-	/* #nosec G103 */
-	bh := (*reflect.SliceHeader)(unsafe.Pointer(&b))
-	/* #nosec G103 */
-	sh := (*reflect.StringHeader)(unsafe.Pointer(&s))
-	bh.Data = sh.Data
-	bh.Cap = sh.Len
-	bh.Len = sh.Len
-	return b
 }
 
 // AppendUnquotedArg appends url-decoded src to dst and returns appended dst.

@@ -5,18 +5,21 @@ import (
 )
 
 type userDataKV struct {
-	key   []byte
-	value interface{}
+	key   any
+	value any
 }
 
 type userData []userDataKV
 
-func (d *userData) Set(key string, value interface{}) {
+func (d *userData) Set(key, value any) {
+	if b, ok := key.([]byte); ok {
+		key = string(b)
+	}
 	args := *d
 	n := len(args)
 	for i := 0; i < n; i++ {
 		kv := &args[i]
-		if string(kv.key) == key {
+		if kv.key == key {
 			kv.value = value
 			return
 		}
@@ -30,36 +33,40 @@ func (d *userData) Set(key string, value interface{}) {
 	if c > n {
 		args = args[:n+1]
 		kv := &args[n]
-		kv.key = append(kv.key[:0], key...)
+		kv.key = key
 		kv.value = value
 		*d = args
 		return
 	}
 
 	kv := userDataKV{}
-	kv.key = append(kv.key[:0], key...)
+	kv.key = key
 	kv.value = value
-	*d = append(args, kv)
+	args = append(args, kv)
+	*d = args
 }
 
-func (d *userData) SetBytes(key []byte, value interface{}) {
-	d.Set(b2s(key), value)
+func (d *userData) SetBytes(key []byte, value any) {
+	d.Set(key, value)
 }
 
-func (d *userData) Get(key string) interface{} {
+func (d *userData) Get(key any) any {
+	if b, ok := key.([]byte); ok {
+		key = b2s(b)
+	}
 	args := *d
 	n := len(args)
 	for i := 0; i < n; i++ {
 		kv := &args[i]
-		if string(kv.key) == key {
+		if kv.key == key {
 			return kv.value
 		}
 	}
 	return nil
 }
 
-func (d *userData) GetBytes(key []byte) interface{} {
-	return d.Get(b2s(key))
+func (d *userData) GetBytes(key []byte) any {
+	return d.Get(key)
 }
 
 func (d *userData) Reset() {
@@ -70,18 +77,24 @@ func (d *userData) Reset() {
 		if vc, ok := v.(io.Closer); ok {
 			vc.Close()
 		}
+		(*d)[i].value = nil
+		(*d)[i].key = nil
 	}
 	*d = (*d)[:0]
 }
 
-func (d *userData) Remove(key string) {
+func (d *userData) Remove(key any) {
+	if b, ok := key.([]byte); ok {
+		key = b2s(b)
+	}
 	args := *d
 	n := len(args)
 	for i := 0; i < n; i++ {
 		kv := &args[i]
-		if string(kv.key) == key {
+		if kv.key == key {
 			n--
 			args[i], args[n] = args[n], args[i]
+			args[n].key = nil
 			args[n].value = nil
 			args = args[:n]
 			*d = args
@@ -91,5 +104,5 @@ func (d *userData) Remove(key string) {
 }
 
 func (d *userData) RemoveBytes(key []byte) {
-	d.Remove(b2s(key))
+	d.Remove(key)
 }

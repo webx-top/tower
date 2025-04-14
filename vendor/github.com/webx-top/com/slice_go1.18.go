@@ -3,7 +3,6 @@
 package com
 
 import (
-	"math/rand"
 	"sort"
 	"strings"
 )
@@ -113,7 +112,7 @@ func ReduceSlicex[T any](slice []T, a func(T) T) (dslice []T) {
 }
 
 func RandSlicex[T any](a []T) (b T) {
-	randnum := rand.Intn(len(a))
+	randnum := RandInt(len(a))
 	b = a[randnum]
 	return
 }

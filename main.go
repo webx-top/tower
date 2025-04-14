@@ -389,7 +389,6 @@ func startTower(ctx context.Context) {
 	}
 	if allowBuild {
 		watcher.OnChanged = func() {
-			watcher.Reset()
 			port, err := getPort()
 			if err != nil {
 				log.Error(err)
@@ -402,7 +401,6 @@ func startTower(ctx context.Context) {
 		}
 	} else {
 		watcher.OnChanged = func() {
-			watcher.Reset()
 			port, err := getPort()
 			if err != nil {
 				log.Error(err)

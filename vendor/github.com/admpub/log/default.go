@@ -2,7 +2,6 @@ package log
 
 import (
 	"io"
-	"strings"
 
 	"github.com/admpub/color"
 )
@@ -142,91 +141,4 @@ var (
 	// target file
 	DefaultFileMaxBytes    int64 = 100 * 1024 * 1024 // 100M
 	DefaultFileBackupCount       = 30                // 30
-
-	// target network
-	DefaultNetworkType    = `tcp`
-	DefaultNetworkAddress = ``
-
-	// target mail
-	DefaultMailHost       = ``
-	DefaultMailUsername   = ``
-	DefaultMailPassword   = ``
-	DefaultMailSubject    = ``
-	DefaultMailSender     = ``
-	DefaultMailRecipients = []string{}
 )
-
-func UseCommonTargets(levelName string, targetNames ...string) *Logger {
-	DefaultLog.SetLevel(levelName)
-	targets := []Target{}
-
-	for _, targetName := range targetNames {
-		ti := strings.SplitN(targetName, `:`, 2)
-		var categories []string
-		if len(ti) == 2 {
-			targetName = ti[0]
-			if len(ti[1]) > 0 {
-				categories = strings.Split(ti[1], `,`)
-			}
-		}
-		switch targetName {
-		case "console":
-			//输出到命令行
-			consoleTarget := NewConsoleTarget()
-			consoleTarget.ColorMode = DefaultConsoleColorize
-			consoleTarget.Categories = categories
-			targets = append(targets, consoleTarget)
-
-		case "file":
-			//输出到文件
-			if DefaultLog.MaxLevel.Int() >= LevelInfo.Int() {
-				fileTarget := NewFileTarget()
-				fileTarget.FileName = `logs/{date:20060102}_info.log`
-				fileTarget.Levels = map[Leveler]bool{LevelInfo: true}
-				fileTarget.Categories = categories
-				fileTarget.MaxBytes = DefaultFileMaxBytes
-				targets = append(targets, fileTarget)
-			}
-			if DefaultLog.MaxLevel.Int() >= LevelWarn.Int() {
-				fileTarget := NewFileTarget()
-				fileTarget.FileName = `logs/{date:20060102}_warn.log` //按天分割日志
-				fileTarget.Levels = map[Leveler]bool{LevelWarn: true}
-				fileTarget.Categories = categories
-				fileTarget.MaxBytes = DefaultFileMaxBytes
-				targets = append(targets, fileTarget)
-			}
-			if DefaultLog.MaxLevel.Int() >= LevelError.Int() {
-				fileTarget := NewFileTarget()
-				fileTarget.FileName = `logs/{date:20060102}_error.log` //按天分割日志
-				fileTarget.MaxLevel = LevelError
-				fileTarget.Categories = categories
-				fileTarget.MaxBytes = DefaultFileMaxBytes
-				targets = append(targets, fileTarget)
-			}
-			if DefaultLog.MaxLevel == LevelDebug {
-				fileTarget := NewFileTarget()
-				fileTarget.FileName = `logs/{date:20060102}_debug.log`
-				fileTarget.Levels = map[Leveler]bool{LevelDebug: true}
-				fileTarget.Categories = categories
-				fileTarget.MaxBytes = DefaultFileMaxBytes
-				targets = append(targets, fileTarget)
-			}
-
-		case "mail":
-			if DefaultLog.MaxLevel.Int() == LevelFatal.Int() || DefaultLog.MaxLevel.Int() >= LevelError.Int() {
-				mailTarget := NewMailTarget()
-				mailTarget.MaxLevel = LevelError
-				mailTarget.Categories = categories
-				targets = append(targets, mailTarget)
-			}
-
-		case "network":
-			netTarget := NewNetworkTarget()
-			netTarget.Categories = categories
-			targets = append(targets, netTarget)
-		}
-	}
-	SetTarget(targets...)
-	SetFatalAction(ActionExit)
-	return DefaultLog.Logger
-}

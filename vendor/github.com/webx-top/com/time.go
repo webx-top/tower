@@ -365,22 +365,28 @@ type Durafmt struct {
 }
 
 func getDurationUnits(args []interface{}) map[string]string {
-	var units map[string]string
-	if len(args) > 0 {
-		switch v := args[0].(type) {
-		case map[string]string:
-			units = v
-		case string:
-			var ok bool
-			units, ok = TimeUnits[v]
-			if ok {
-				return units
-			}
-			switch strings.ToLower(v) {
-			case `zh_cn`, `zh-cn`:
-				units = timeUnitsZhCN
-			}
-		}
+	if len(args) == 0 {
+		return map[string]string{}
+	}
+	var lang string
+	switch v := args[0].(type) {
+	case map[string]string:
+		return v
+	case fmt.Stringer:
+		lang = v.String()
+	case string:
+		lang = v
+	}
+	if len(lang) == 0 {
+		return map[string]string{}
+	}
+	units, ok := TimeUnits[lang]
+	if ok {
+		return units
+	}
+	switch strings.ToLower(lang) {
+	case `zh_cn`, `zh-cn`:
+		units = timeUnitsZhCN
 	}
 	return units
 }

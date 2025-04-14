@@ -42,7 +42,8 @@ func RangeDownload(url string, saveTo string, args ...int) error {
 			outfile, err = os.Create(saveTo)
 		}
 	} else {
-		stat, err := outfile.Stat()
+		var stat os.FileInfo
+		stat, err = outfile.Stat()
 		if err == nil {
 			outfile.Seek(stat.Size(), 0)
 			startByte = stat.Size()

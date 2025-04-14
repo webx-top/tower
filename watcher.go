@@ -26,7 +26,7 @@ var (
 
 type Watcher struct {
 	WatchedDir         string
-	Changed            atomic.Bool
+	changed            chan struct{}
 	OnChanged          func()
 	Watcher            *fsnotify.Watcher
 	FilePattern        string
@@ -52,7 +52,7 @@ func NewWatcher(dir, filePattern, ignoredPathPattern string) (w Watcher) {
 		panic(err)
 	}
 	w.Watcher = watcher
-
+	w.changed = make(chan struct{})
 	return
 }
 
@@ -70,12 +70,10 @@ func (w *Watcher) Watch(ctx context.Context) (err error) {
 	expectedFileReg := regexp.MustCompile(filePattern)
 	defer w.Watcher.Close()
 	go func() {
-		t := time.NewTicker(time.Second * 2)
-		defer t.Stop()
 		for {
 			select {
-			case <-t.C:
-				if w.Changed.Load() && time.Now().Unix()-scheduleTime.Load() >= 2 {
+			case <-w.changed:
+				if time.Now().Unix()-scheduleTime.Load() >= 2 {
 					w.OnChanged()
 				}
 			case <-ctx.Done():
@@ -146,7 +144,10 @@ func (w *Watcher) Watch(ctx context.Context) (err error) {
 			if scheduleTime.Load() < time.Now().Unix() {
 				scheduleTime.Store(time.Now().Add(time.Second).Unix())
 				log.Warn("== Change detected: ", file.Name)
-				w.Changed.Store(true)
+				select {
+				case w.changed <- struct{}{}:
+				default:
+				}
 			}
 		case err := <-w.Watcher.Errors:
 			log.Warn(err) // No need to exit here
@@ -205,10 +206,6 @@ func (w *Watcher) dirsToWatch() (dirs []string) {
 		dirs = append(dirs, dir)
 	}
 	return
-}
-
-func (w *Watcher) Reset() {
-	w.Changed.Store(false)
 }
 
 // checkTMPFile returns true if the event was for TMP files.

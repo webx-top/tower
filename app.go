@@ -233,7 +233,7 @@ func (a *App) Stop(port string, args ...string) {
 	}
 	bin := a.BinFile(args...)
 	err = os.Remove(bin)
-	if err == nil {
+	if err == nil || os.IsNotExist(err) {
 		a.Ports[port] = 0
 		return
 	}
@@ -276,7 +276,7 @@ func (a *App) Clean(excludePorts ...string) {
 		cmd = nil
 		if bin, ok := a.portBinFiles[port]; ok && bin != "" {
 			err := os.Remove(bin)
-			if err == nil {
+			if err == nil || os.IsNotExist(err) {
 				a.Ports[port] = 0
 				continue
 			}
@@ -285,6 +285,10 @@ func (a *App) Clean(excludePorts ...string) {
 					time.Sleep(time.Second * time.Duration(i+1))
 					err = os.Remove(bin)
 					if err != nil {
+						if os.IsNotExist(err) {
+							a.Ports[port] = 0
+							return
+						}
 						log.Error(err)
 					} else {
 						log.Info(`== Remove ` + bin + `: Success.`)
@@ -342,7 +346,7 @@ func (a *App) Run(port string) (err error) {
 					log.Error(err)
 				}
 				err = os.Remove(bin)
-				if err == nil {
+				if err == nil || os.IsNotExist(err) {
 					return
 				}
 

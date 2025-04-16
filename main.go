@@ -349,6 +349,9 @@ func startTower(ctx context.Context) {
 				if strings.HasPrefix(name, BinPrefix) {
 					err = os.Remove(filePath)
 					if err != nil {
+						if os.IsNotExist(err) {
+							err = nil
+						}
 						return
 					}
 				}

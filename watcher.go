@@ -12,15 +12,12 @@ import (
 
 	"github.com/admpub/fsnotify"
 	"github.com/admpub/log"
+	"github.com/admpub/rundelay"
 )
 
 const (
 	DefaultWatchedFiles = "go"
 	DefaultIngoredPaths = `(\/\.\w+)|(^\.)|(\.\w+$)`
-)
-
-var (
-	eventTime = make(map[string]time.Time)
 )
 
 type Watcher struct {
@@ -32,9 +29,7 @@ type Watcher struct {
 	OnlyWatchBin       bool
 	FileNameSuffix     string
 	Paused             bool
-
-	changed   chan struct{}
-	compiling atomic.Bool
+	compiling          atomic.Bool
 }
 
 func NewWatcher(dir, filePattern, ignoredPathPattern string) (w Watcher) {
@@ -53,7 +48,6 @@ func NewWatcher(dir, filePattern, ignoredPathPattern string) (w Watcher) {
 		panic(err)
 	}
 	w.Watcher = watcher
-	w.changed = make(chan struct{})
 	return
 }
 
@@ -68,20 +62,18 @@ func (w *Watcher) Watch(ctx context.Context) (err error) {
 	if w.OnlyWatchBin {
 		filePattern = regexp.QuoteMeta(BinPrefix) + `[\d]+(\.exe)?$`
 	}
+
+	delay := time.Second * 2
+	dr := rundelay.New(delay, func(_ string) error {
+		w.compiling.Store(true)
+		w.OnChanged()
+		w.compiling.Store(false)
+		return nil
+	})
+	defer dr.Close()
+
 	expectedFileReg := regexp.MustCompile(filePattern)
 	defer w.Watcher.Close()
-	go func() {
-		for {
-			select {
-			case <-w.changed:
-				w.compiling.Store(true)
-				w.OnChanged()
-				w.compiling.Store(false)
-			case <-ctx.Done():
-				return
-			}
-		}
-	}()
 	for {
 		select {
 		case file := <-w.Watcher.Events:
@@ -132,21 +124,14 @@ func (w *Watcher) Watch(ctx context.Context) (err error) {
 					continue
 				}
 			}
-			mt, isDir := getFileModTime(file.Name)
-			if file.Op == fsnotify.Create && isDir {
+			fi, err := os.Stat(file.Name)
+			if err == nil && fi.IsDir() && file.Op == fsnotify.Create {
 				w.Watcher.Add(file.Name)
-			}
-			if t := eventTime[file.Name]; mt.Unix() == t.Unix() {
-				log.Debugf("== [SKIP] # %s #", file.String())
 				continue
 			}
 			log.Infof("== [EVEN] %s", file)
-			eventTime[file.Name] = mt
 			log.Warn("== Change detected: ", file.Name)
-			select {
-			case w.changed <- struct{}{}:
-			default:
-			}
+			dr.Run(file.Name)
 		case err := <-w.Watcher.Errors:
 			log.Warn(err) // No need to exit here
 		case <-ctx.Done():
@@ -212,22 +197,4 @@ func (w *Watcher) Reset() {
 // checkTMPFile returns true if the event was for TMP files.
 func checkTMPFile(name string) bool {
 	return strings.HasSuffix(strings.ToLower(name), ".tmp")
-}
-
-// getFileModTime retuens unix timestamp of `os.File.ModTime` by given path.
-func getFileModTime(path string) (time.Time, bool) {
-	path = strings.Replace(path, "\\", "/", -1)
-	f, err := os.Open(path)
-	if err != nil {
-		log.Errorf("Fail to open file[ %s ]", err)
-		return time.Now(), false
-	}
-	defer f.Close()
-	fi, err := f.Stat()
-	if err != nil {
-		log.Errorf("Fail to get file information[ %s ]", err)
-		return time.Now(), false
-	}
-
-	return fi.ModTime(), fi.IsDir()
 }

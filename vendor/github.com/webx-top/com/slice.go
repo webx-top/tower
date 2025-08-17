@@ -35,8 +35,8 @@ func WithSuffix(strs []string, suffix string) []string {
 	return strs
 }
 
-// AppendStr appends string to slice with no duplicates.
-func AppendStr(strs []string, str string) []string {
+// AppendUniqueStr appends string to slice with no duplicates.
+func AppendUniqueStr(strs []string, str string) []string {
 	for _, s := range strs {
 		if s == str {
 			return strs
@@ -81,9 +81,8 @@ func CompareSliceStrU(s1, s2 []string) bool {
 
 // IsSliceContainsStr returns true if the string exists in given slice.
 func IsSliceContainsStr(sl []string, str string) bool {
-	str = strings.ToLower(str)
 	for _, s := range sl {
-		if strings.ToLower(s) == str {
+		if strings.EqualFold(s, str) {
 			return true
 		}
 	}

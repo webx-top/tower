@@ -17,8 +17,8 @@ import (
 )
 
 type XContext struct {
-	Translator
-	events.Emitterer
+	translator
+	eventsEmitterer
 	transaction         *BaseTransaction
 	validator           Validator
 	sessioner           Sessioner
@@ -50,6 +50,7 @@ type XContext struct {
 	auto                bool
 	onHostFound         func(Context) (bool, error)
 	realIP              string
+	dispatchRoute       string
 }
 
 var _ context.Context = (*XContext)(nil)
@@ -58,8 +59,8 @@ var _ context.Context = (*XContext)(nil)
 func NewContext(req engine.Request, res engine.Response, e *Echo) Context {
 	c := &XContext{
 		validator:         e.Validator,
-		Translator:        DefaultNopTranslate,
-		Emitterer:         events.Default,
+		translator:        DefaultNopTranslate,
+		eventsEmitterer:   events.Default,
 		transaction:       DefaultNopTransaction,
 		request:           req,
 		response:          res,
@@ -96,7 +97,11 @@ func (c *XContext) Internal() *param.SafeMap {
 }
 
 func (c *XContext) SetEmitterer(emitterer events.Emitterer) {
-	c.Emitterer = emitterer
+	c.eventsEmitterer = emitterer
+}
+
+func (c *XContext) Emitterer() events.Emitterer {
+	return c.eventsEmitterer
 }
 
 func (c *XContext) Handler() Handler {
@@ -182,7 +187,11 @@ func (c *XContext) Echo() *Echo {
 }
 
 func (c *XContext) SetTranslator(t Translator) {
-	c.Translator = t
+	c.translator = t
+}
+
+func (c *XContext) Translator() Translator {
+	return c.translator
 }
 
 func (c *XContext) SetDefaultExtension(ext string) {
@@ -204,8 +213,8 @@ func (c *XContext) Reset(req engine.Request, res engine.Response) {
 		req.SetMaxSize(c.echo.MaxRequestBodySize())
 	}
 	c.validator = c.echo.Validator
-	c.Emitterer = events.Default
-	c.Translator = DefaultNopTranslate
+	c.eventsEmitterer = events.Default
+	c.translator = DefaultNopTranslate
 	c.transaction = DefaultNopTransaction
 	c.sessioner = DefaultSession
 	c.cookier = NewCookier(c)
@@ -234,6 +243,7 @@ func (c *XContext) Reset(req engine.Request, res engine.Response) {
 	c.renderDataWrapper = c.echo.renderDataWrapper
 	c.ResetFuncs(c.echo.FuncMap)
 	c.realIP = ""
+	c.dispatchRoute = ""
 	// NOTE: Don't reset because it has to have length c.echo.maxParam at all times
 	for i := 0; i < *c.echo.maxParam; i++ {
 		c.pvalues[i] = ""
@@ -450,4 +460,36 @@ func (c *XContext) Dispatch(route string) Handler {
 	}
 	c.handler = NotFoundHandler
 	return c.Echo().Router().Dispatch(c, u.Path)
+}
+
+func (c *XContext) SetDispatchPath(route string) {
+	c.dispatchRoute = route
+}
+
+func (c *XContext) DispatchPath() string {
+	if len(c.dispatchRoute) == 0 {
+		return c.Request().URL().Path()
+	}
+	return c.dispatchRoute
+}
+
+//  URLGenerator
+
+func (c *XContext) RelativeURL(uri string) string {
+	return c.echo.uriAddLangCode(c, c.echo.MakeRelativeURL(uri, false))
+}
+
+func (c *XContext) URLFor(uri string, relative ...bool) string {
+	if len(relative) > 0 && relative[0] {
+		return c.RelativeURL(uri)
+	}
+	return c.siteRoot() + c.echo.uriAddLangCode(c, c.echo.MakeRelativeURL(uri, false))
+}
+
+func (c *XContext) URLByName(name string, args ...interface{}) string {
+	return c.echo.URIWithContext(c, name, args...)
+}
+
+func (c *XContext) RelativeURLByName(name string, args ...interface{}) string {
+	return c.echo.MakeRelativeURL(c.echo.URIWithContext(c, name, args...), true)
 }

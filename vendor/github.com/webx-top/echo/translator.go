@@ -22,6 +22,8 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+
+	"github.com/admpub/events"
 )
 
 // T 标记为多语言文本(fake)
@@ -36,10 +38,16 @@ func E(format string, args ...interface{}) error {
 	return errors.New(format)
 }
 
+type (
+	translator      = Translator
+	eventsEmitterer = events.Emitterer
+)
+
 type Translator interface {
 	T(format string, args ...interface{}) string
 	E(format string, args ...interface{}) error
 	Lang() LangCode
+	Multilingual
 }
 
 type LangCode interface {
@@ -48,6 +56,12 @@ type LangCode interface {
 	Format(regionUppercase bool, separator ...string) string
 	Language() string
 	Region(regionUppercase bool) string
+}
+
+type Multilingual interface {
+	LangDefault() string             // default language
+	LangList() []string              // language list
+	LangExists(langCode string) bool // language code exists
 }
 
 func NewLangCode(language string, separator ...string) LangCode {
@@ -150,4 +164,19 @@ func (n *NopTranslate) E(format string, args ...interface{}) error {
 
 func (n *NopTranslate) Lang() LangCode {
 	return n.code
+}
+
+// LangDefault default language
+func (n *NopTranslate) LangDefault() string {
+	return n.code.Normalize()
+}
+
+// LangList language list
+func (n *NopTranslate) LangList() []string {
+	return []string{n.code.Normalize()}
+}
+
+// LangExists language code exists
+func (n *NopTranslate) LangExists(langCode string) bool {
+	return langCode == n.code.Normalize()
 }

@@ -218,8 +218,14 @@ func FullURL(domianURL string, myURL string) string {
 	if IsFullURL(myURL) {
 		return myURL
 	}
-	if !strings.HasPrefix(myURL, `/`) && !strings.HasSuffix(domianURL, `/`) {
-		myURL = `/` + myURL
+	if strings.HasPrefix(myURL, `/`) {
+		if strings.HasSuffix(domianURL, `/`) {
+			myURL = strings.TrimPrefix(myURL, `/`)
+		}
+	} else {
+		if !strings.HasSuffix(domianURL, `/`) {
+			myURL = `/` + myURL
+		}
 	}
 	myURL = domianURL + myURL
 	return myURL

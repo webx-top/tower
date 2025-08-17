@@ -51,8 +51,20 @@ func (r *RenderData) UnixTime() int64 {
 	return r.now.Unix()
 }
 
+// RawT 文本译文原始功能
+func (r *RenderData) RawT(format string, args ...interface{}) string {
+	return r.ctx.T(format, args...)
+}
+
+// T 文本译文
+// 可以重写 T 函数，重写的 T 函数功能应该是 RawT + ExtT 的组合效果
 func (r *RenderData) T(format string, args ...interface{}) string {
 	return r.ctx.T(format, args...)
+}
+
+// ExtT 获取到文本译文后的附加功能
+func (r *RenderData) ExtT(v string, _ ...interface{}) string {
+	return v
 }
 
 func (r *RenderData) Lang() LangCode {
@@ -155,6 +167,10 @@ func (r *RenderData) SiteURI() string {
 	return r.Site() + strings.TrimPrefix(r.URI(), `/`)
 }
 
+func (r *RenderData) FullURL(myURL string) string {
+	return com.FullURL(r.Site(), myURL)
+}
+
 func (r *RenderData) Referer() string {
 	return r.ctx.Referer()
 }
@@ -215,13 +231,13 @@ func (r *RenderData) Fetch(tmpl string, data interface{}) template.HTML {
 
 func (r *RenderData) TimeAgo(v interface{}, options ...string) string {
 	if datetime, ok := v.(string); ok {
-		return timeago.Take(datetime, r.Lang().Format(false, `-`))
+		return timeago.Take(datetime, r.Lang().Normalize())
 	}
 	var option string
 	if len(options) > 0 {
 		option = options[0]
 	}
-	return timeago.Timestamp(param.AsInt64(v), r.Lang().Format(false, `-`), option)
+	return timeago.Timestamp(param.AsInt64(v), r.Lang().Normalize(), option)
 }
 
 func (r *RenderData) RootPrefix() string {
@@ -275,6 +291,26 @@ func (r *RenderData) WithNextURL(urlStr string, varNames ...string) string {
 func (r *RenderData) GetOtherURL(urlStr string, next string) string {
 	return GetOtherURL(r.ctx, next)
 }
+
+//  URLGenerator
+
+func (r *RenderData) RelativeURL(uri string) string {
+	return r.ctx.RelativeURL(uri)
+}
+
+func (r *RenderData) URLFor(uri string, relative ...bool) string {
+	return r.ctx.URLFor(uri, relative...)
+}
+
+func (r *RenderData) URLByName(name string, args ...interface{}) string {
+	return r.ctx.URLByName(name, args...)
+}
+
+func (r *RenderData) RelativeURLByName(name string, args ...interface{}) string {
+	return r.ctx.RelativeURLByName(name, args...)
+}
+
+// Functions dependent on Context
 
 func (r *RenderData) IsHidden(a IsHiddenContext) bool {
 	if a == nil {

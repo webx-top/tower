@@ -346,14 +346,17 @@ func TotalRunTime() string {
 }
 
 var (
-	timeUnits     = []string{"years", "weeks", "days", "hours", "minutes", "seconds", "milliseconds"}
-	timeUnitsZhCN = map[string]string{"years": "年", "weeks": "周", "days": "天", "hours": "小时", "minutes": "分", "seconds": "秒", "milliseconds": "毫秒"}
+	timeUnits          = []string{"years", "weeks", "days", "hours", "minutes", "seconds", "milliseconds"}
+	timeUnitsZhCN      = map[string]string{"years": "年", "weeks": "周", "days": "天", "hours": "小时", "minutes": "分", "seconds": "秒", "milliseconds": "毫秒"}
+	timeShortUnitsZhCN = map[string]string{`s`: `秒`, `ns`: `纳秒`, `us`: `微秒`, `ms`: `毫秒`, `m`: `分钟`, `h`: `小时`, `d`: `天`, `w`: `周`}
 	// TimeUnits 多语言时间单位
-	TimeUnits = map[string]map[string]string{`zh-cn`: timeUnitsZhCN}
+	TimeUnits = map[string]map[string]string{
+		`zh-CN`: timeUnitsZhCN,
+	}
 
 	// TimeShortUnits 时间单位(简写)
 	TimeShortUnits = map[string]map[string]string{
-		`zh-cn`: {`s`: `秒`, `ns`: `纳秒`, `us`: `微秒`, `ms`: `毫秒`, `m`: `分钟`, `h`: `小时`, `d`: `天`, `w`: `周`},
+		`zh-CN`: timeShortUnitsZhCN,
 	}
 )
 
@@ -384,8 +387,8 @@ func getDurationUnits(args []interface{}) map[string]string {
 	if ok {
 		return units
 	}
-	switch strings.ToLower(lang) {
-	case `zh_cn`, `zh-cn`:
+	switch strings.Split(lang, `-`)[0] {
+	case `zh`:
 		units = timeUnitsZhCN
 	}
 	return units

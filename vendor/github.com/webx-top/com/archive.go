@@ -377,7 +377,7 @@ func UnTarGz(srcFilePath string, destDirPath string) ([]string, error) {
 			_, err = io.Copy(fw, tr)
 			fw.Close()
 		} else {
-			dirs = AppendStr(dirs, fullPath)
+			dirs = AppendUniqueStr(dirs, fullPath)
 			err = os.MkdirAll(fullPath, mode)
 		}
 		if err != nil {

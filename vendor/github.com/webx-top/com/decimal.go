@@ -7,25 +7,25 @@ import (
 )
 
 func Float2int(v interface{}) int {
-	s := fmt.Sprintf("%v", v)
+	s := fmt.Sprintf("%f", Float64(v))
 	i := strings.SplitN(s, `.`, 2)[0]
 	return Int(i)
 }
 
 func Float2uint(v interface{}) uint {
-	s := fmt.Sprintf("%v", v)
+	s := fmt.Sprintf("%f", Float64(v))
 	i := strings.SplitN(s, `.`, 2)[0]
 	return Uint(i)
 }
 
 func Float2int64(v interface{}) int64 {
-	s := fmt.Sprintf("%v", v)
+	s := fmt.Sprintf("%f", Float64(v))
 	i := strings.SplitN(s, `.`, 2)[0]
 	return Int64(i)
 }
 
 func Float2uint64(v interface{}) uint64 {
-	s := fmt.Sprintf("%v", v)
+	s := fmt.Sprintf("%f", Float64(v))
 	i := strings.SplitN(s, `.`, 2)[0]
 	return Uint64(i)
 }
@@ -69,10 +69,12 @@ func NumberTrimZero(number string) string {
 
 func numberWithSeparator(r string, separator ...string) string {
 	d := `,`
-	if len(separator) > 0 {
+	var trimZero bool
+	length := len(separator)
+	if length > 0 {
 		d = separator[0]
-		if len(d) == 0 {
-			return r
+		if length > 1 && strings.EqualFold(separator[1], `trimZero`) {
+			trimZero = true
 		}
 	}
 	p := strings.LastIndex(r, `.`)
@@ -80,12 +82,25 @@ func numberWithSeparator(r string, separator ...string) string {
 		i int
 		v string
 	)
-	size := len(r)
 	if p <= 0 {
-		i = size
+		if len(d) == 0 {
+			return r
+		}
+		i = len(r)
 	} else {
 		i = p
 		v = r[i:]
+		if trimZero {
+			d := strings.TrimRight(r[i+1:], `0`)
+			if len(d) == 0 {
+				v = ``
+			} else {
+				v = `.` + d
+			}
+		}
+		if len(d) == 0 {
+			return r[0:i] + v
+		}
 	}
 	j := int(math.Ceil(float64(i) / float64(3)))
 	s := make([]string, j)
@@ -98,10 +113,27 @@ func numberWithSeparator(r string, separator ...string) string {
 		s[j] = r[start:i]
 		i = start
 	}
+	if s[0] == `-` { // 负数时
+		return `-` + strings.Join(s[1:], d) + v
+	}
 	return strings.Join(s, d) + v
 }
 
 func NumberFormat(number interface{}, precision int, separator ...string) string {
 	r := fmt.Sprintf(`%.*f`, precision, Float64(number))
 	return numberWithSeparator(r, separator...)
+}
+
+var mumFormatDefaultArgs = []string{`,`, `trimZero`}
+
+// NumFormat 数字格式化。默认裁剪小数部分右侧的0
+func NumFormat(number interface{}, precision int, separator ...string) string {
+	length := len(separator)
+	switch length {
+	case 0:
+		separator = mumFormatDefaultArgs
+	case 1:
+		separator = append(separator, `trimZero`)
+	}
+	return NumberFormat(number, precision, separator...)
 }

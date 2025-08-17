@@ -35,7 +35,7 @@ func (t *Translations) T(key string) string {
 var translations = map[string]*Translations{
 	`ru`:    NewTranslations(getRussian()),
 	`en`:    NewTranslations(getEnglish()),
-	`zh-cn`: NewTranslations(getZhCN()),
+	`zh-CN`: NewTranslations(getZhCN()),
 }
 
 func RegisterTranslations(lang string, trans map[string]string, rule ...Rule) {

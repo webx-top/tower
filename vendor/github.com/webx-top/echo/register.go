@@ -87,3 +87,15 @@ type Closer interface {
 type Prefixer interface {
 	Prefix() string
 }
+
+type URLGenerator interface {
+	RelativeURL(uri string) string
+	URLFor(uri string, relative ...bool) string
+	URLByName(name string, args ...interface{}) string
+	RelativeURLByName(name string, args ...interface{}) string
+}
+
+type IRouteDispatchPath interface {
+	SetDispatchPath(route string)
+	DispatchPath() string
+}

@@ -3,7 +3,7 @@ package timeago
 var rules = map[string]Rule{
 	`ru`:    getRussianRule(),
 	`en`:    getEnglishRule(),
-	`zh-cn`: getZhCNRule(),
+	`zh-CN`: getZhCNRule(),
 }
 
 func RegisterRules(lang string, rule Rule) {

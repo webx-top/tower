@@ -4,8 +4,8 @@ github.com/admpub/color
 # github.com/admpub/confl v0.2.4
 ## explicit
 github.com/admpub/confl
-# github.com/admpub/decimal v1.3.1
-## explicit; go 1.13
+# github.com/admpub/decimal v1.3.2
+## explicit; go 1.10
 github.com/admpub/decimal
 # github.com/admpub/events v1.3.6
 ## explicit; go 1.21
@@ -15,9 +15,10 @@ github.com/admpub/events
 github.com/admpub/fasthttp
 github.com/admpub/fasthttp/fasthttputil
 github.com/admpub/fasthttp/stackless
-# github.com/admpub/fsnotify v1.7.0
-## explicit; go 1.17
+# github.com/admpub/fsnotify v1.7.1
+## explicit; go 1.23.0
 github.com/admpub/fsnotify
+github.com/admpub/fsnotify/internal
 # github.com/admpub/go-isatty v0.0.11
 ## explicit; go 1.15
 github.com/admpub/go-isatty
@@ -36,7 +37,10 @@ github.com/admpub/manners
 # github.com/admpub/realip v0.2.7
 ## explicit; go 1.15.0
 github.com/admpub/realip
-# github.com/admpub/timeago v1.2.2
+# github.com/admpub/rundelay v0.0.3
+## explicit; go 1.24.5
+github.com/admpub/rundelay
+# github.com/admpub/timeago v1.3.0
 ## explicit; go 1.13
 github.com/admpub/timeago
 # github.com/admpub/xencoding v0.0.3
@@ -44,8 +48,8 @@ github.com/admpub/timeago
 github.com/admpub/xencoding/filter
 github.com/admpub/xencoding/json/standard
 github.com/admpub/xencoding/xml/standard
-# github.com/andybalholm/brotli v1.1.1
-## explicit; go 1.13
+# github.com/andybalholm/brotli v1.2.0
+## explicit; go 1.22
 github.com/andybalholm/brotli
 github.com/andybalholm/brotli/matchfinder
 # github.com/araddon/gou v0.0.0-20190110011759-c797efecbb61
@@ -126,12 +130,12 @@ github.com/webx-top/captcha
 # github.com/webx-top/codec v0.3.0
 ## explicit
 github.com/webx-top/codec
-# github.com/webx-top/com v1.3.29
+# github.com/webx-top/com v1.4.0
 ## explicit; go 1.23.0
 github.com/webx-top/com
 github.com/webx-top/com/encoding/json
-# github.com/webx-top/echo v1.16.1
-## explicit; go 1.24.0
+# github.com/webx-top/echo v1.18.0
+## explicit; go 1.24.5
 github.com/webx-top/echo
 github.com/webx-top/echo/code
 github.com/webx-top/echo/engine
@@ -155,7 +159,7 @@ github.com/webx-top/tagfast
 # github.com/webx-top/validation v0.0.3
 ## explicit; go 1.16
 github.com/webx-top/validation
-# golang.org/x/crypto v0.37.0
+# golang.org/x/crypto v0.41.0
 ## explicit; go 1.23.0
 golang.org/x/crypto/acme
 golang.org/x/crypto/acme/autocert
@@ -165,19 +169,19 @@ golang.org/x/crypto/blake2b
 golang.org/x/crypto/blowfish
 golang.org/x/crypto/pbkdf2
 golang.org/x/crypto/scrypt
-# golang.org/x/net v0.39.0
+# golang.org/x/net v0.43.0
 ## explicit; go 1.23.0
 golang.org/x/net/idna
-# golang.org/x/sync v0.13.0
+# golang.org/x/sync v0.16.0
 ## explicit; go 1.23.0
 golang.org/x/sync/errgroup
 golang.org/x/sync/semaphore
-# golang.org/x/sys v0.32.0
+# golang.org/x/sys v0.35.0
 ## explicit; go 1.23.0
 golang.org/x/sys/cpu
 golang.org/x/sys/unix
 golang.org/x/sys/windows
-# golang.org/x/text v0.24.0
+# golang.org/x/text v0.28.0
 ## explicit; go 1.23.0
 golang.org/x/text/cases
 golang.org/x/text/internal

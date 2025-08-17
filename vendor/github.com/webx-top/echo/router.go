@@ -319,14 +319,41 @@ func (r *Route) GetStore(names ...string) H {
 	return res
 }
 
+func (r *Route) MakeURIWithContext(c Context, params ...interface{}) string {
+	return r.makeURI(c.Echo(), c, params...)
+}
+
 func (r *Route) MakeURI(e *Echo, params ...interface{}) (uri string) {
+	return r.makeURI(e, nil, params...)
+}
+
+func (r *Route) makeURI(e *Echo, c Context, params ...interface{}) (uri string) {
 	length := len(params)
+	var withoutExt bool
 	if length != 1 {
-		uri = fmt.Sprintf(r.Format, params...)
-		uri = e.wrapURI(uri)
+		if length == 0 {
+			uri = e.wrapURI(c, r.Format, withoutExt)
+			return
+		}
+		var ok bool
+		withoutExt, ok = params[0].(bool)
+		if ok {
+			if length == 2 {
+				params = []interface{}{params[1]}
+				goto END
+			}
+			uri = fmt.Sprintf(r.Format, params[1:]...)
+		} else {
+			uri = fmt.Sprintf(r.Format, params...)
+		}
+		uri = e.wrapURI(c, uri, withoutExt)
 		return
 	}
+
+END:
 	switch val := params[0].(type) {
+	case bool:
+		uri = e.wrapURI(c, r.Format, val)
 	case url.Values:
 		uri = r.Path
 		if len(r.Params) > 0 {
@@ -337,7 +364,7 @@ func (r *Route) MakeURI(e *Echo, params ...interface{}) (uri string) {
 			}
 			uri = fmt.Sprintf(r.Format, values...)
 		}
-		uri = e.wrapURI(uri)
+		uri = e.wrapURI(c, uri, withoutExt)
 		q := val.Encode()
 		if len(q) > 0 {
 			uri += `?` + q
@@ -355,7 +382,7 @@ func (r *Route) MakeURI(e *Echo, params ...interface{}) (uri string) {
 			}
 			uri = fmt.Sprintf(r.Format, values...)
 		}
-		uri = e.wrapURI(uri)
+		uri = e.wrapURI(c, uri, withoutExt)
 		sep := `?`
 		keys := make([]string, 0, len(val))
 		for k := range val {
@@ -379,7 +406,7 @@ func (r *Route) MakeURI(e *Echo, params ...interface{}) (uri string) {
 			}
 			uri = fmt.Sprintf(r.Format, values...)
 		}
-		uri = e.wrapURI(uri)
+		uri = e.wrapURI(c, uri, withoutExt)
 		sep := `?`
 		keys := make([]string, 0, len(val))
 		for k := range val {
@@ -403,7 +430,7 @@ func (r *Route) MakeURI(e *Echo, params ...interface{}) (uri string) {
 			}
 			uri = fmt.Sprintf(r.Format, values...)
 		}
-		uri = e.wrapURI(uri)
+		uri = e.wrapURI(c, uri, withoutExt)
 		sep := `?`
 		keys := make([]string, 0, len(val))
 		for k := range val {
@@ -416,10 +443,10 @@ func (r *Route) MakeURI(e *Echo, params ...interface{}) (uri string) {
 		}
 	case []interface{}:
 		uri = fmt.Sprintf(r.Format, val...)
-		uri = e.wrapURI(uri)
+		uri = e.wrapURI(c, uri, withoutExt)
 	default:
 		uri = fmt.Sprintf(r.Format, val)
-		uri = e.wrapURI(uri)
+		uri = e.wrapURI(c, uri, withoutExt)
 	}
 	return
 }
@@ -592,7 +619,7 @@ func NewRouter(e *Echo) *Router {
 }
 
 func (r *Router) Handle(c Context) Handler {
-	return r.Dispatch(c, c.Request().URL().Path())
+	return r.Dispatch(c, c.DispatchPath())
 }
 
 func (r *Router) Dispatch(c Context, path string, _method ...string) Handler {

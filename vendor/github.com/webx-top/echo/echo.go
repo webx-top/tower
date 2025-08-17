@@ -54,6 +54,8 @@ type (
 		rewriter            Rewriter
 		maxRequestBodySize  int
 		realIPConfig        *realip.Config
+		extra               H
+		multilingual        bool
 	}
 
 	Middleware interface {
@@ -204,7 +206,13 @@ func (e *Echo) Reset() *Echo {
 	e.renderDataWrapper = nil
 	e.rewriter = nil
 	e.realIPConfig = realip.New().SetIgnorePrivateIP(true)
+	e.extra = H{}
+	e.multilingual = false
 	return e
+}
+
+func (e *Echo) Extra() H {
+	return e.extra
 }
 
 func (e *Echo) ParseHeaderAccept(on bool) *Echo {
@@ -421,6 +429,14 @@ func (e *Echo) Debug() bool {
 	return e.debug
 }
 
+func (e *Echo) SetMultilingual(on bool) {
+	e.multilingual = on
+}
+
+func (e *Echo) Multilingual() bool {
+	return e.multilingual
+}
+
 // Use adds handler to the middleware chain.
 func (e *Echo) Use(middleware ...interface{}) {
 	for _, m := range middleware {
@@ -443,6 +459,16 @@ func (e *Echo) Pre(middleware ...interface{}) {
 		}
 	}
 	e.premiddleware = append(middlewares, e.premiddleware...)
+}
+
+func (e *Echo) PreUse(middleware ...interface{}) {
+	for _, m := range middleware {
+		e.ValidMiddleware(m)
+		e.premiddleware = append(e.premiddleware, m)
+		if e.MiddlewareDebug {
+			e.logger.Debugf(`Middleware[Pre](%p): [] -> %s`, m, HandlerName(m))
+		}
+	}
 }
 
 // Clear middleware
@@ -827,7 +853,37 @@ func (e *Echo) subgroup(parent *Group, prefix string, m ...interface{}) *Group {
 
 // URI generates a URI from handler.
 func (e *Echo) URI(handler interface{}, params ...interface{}) string {
-	var uri, name string
+	var uri string
+	r := e.findRouteBy(handler)
+	if r == nil {
+		return uri
+	}
+	uri = r.MakeURI(e, params...)
+	return uri
+}
+
+func (e *Echo) URIWithContext(c Context, handler interface{}, params ...interface{}) string {
+	var uri string
+	r := e.findRouteBy(handler)
+	if r == nil {
+		return uri
+	}
+	uri = r.MakeURIWithContext(c, params...)
+	return uri
+}
+
+func (e *Echo) MakeRelativeURL(uri string, uriHasPrefix bool) string {
+	if len(uri) > 0 && !strings.HasPrefix(uri, `/`) {
+		uri = `/` + uri
+	}
+	if !uriHasPrefix {
+		return e.Prefix() + uri
+	}
+	return uri
+}
+
+func (e *Echo) findRouteBy(handler interface{}) *Route {
+	var name string
 	switch h := handler.(type) {
 	case Handler:
 		if hn, ok := h.(Name); ok {
@@ -838,13 +894,12 @@ func (e *Echo) URI(handler interface{}, params ...interface{}) string {
 	case string:
 		name = h
 	default:
-		return uri
+		return nil
 	}
 	if indexes, ok := e.router.nroute[name]; ok && len(indexes) > 0 {
-		r := e.router.routes[indexes[0]]
-		uri = r.MakeURI(e, params...)
+		return e.router.routes[indexes[0]]
 	}
-	return uri
+	return nil
 }
 
 // GetRoutePathByName get route path by name
@@ -876,12 +931,24 @@ func (e *Echo) Rewriter() Rewriter {
 	return e.rewriter
 }
 
-func (e *Echo) wrapURI(uri string) string {
+func (e *Echo) wrapURI(c Context, uri string, withoutExt bool) string {
 	if e.rewriter != nil {
 		uri = e.rewriter.Rewrite(uri)
 	}
-	if len(e.defaultExtension) > 0 && !strings.HasSuffix(uri, e.defaultExtension) {
+	if !withoutExt && len(e.defaultExtension) > 0 && !strings.HasSuffix(uri, e.defaultExtension) {
 		uri += e.defaultExtension
+	}
+	uri = e.uriAddLangCode(c, uri)
+	return uri
+}
+
+func (e *Echo) uriAddLangCode(c Context, uri string) string {
+	if c == nil || !e.multilingual {
+		return uri
+	}
+	langCode := c.Lang().Normalize()
+	if c.LangDefault() != langCode {
+		uri = `/` + langCode + uri
 	}
 	return uri
 }

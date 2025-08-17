@@ -65,7 +65,6 @@ func (w *Watcher) Watch(ctx context.Context) (err error) {
 
 	delay := time.Second * 2
 	dr := rundelay.New(delay, func(_ string) error {
-		w.compiling.Store(true)
 		w.OnChanged()
 		w.compiling.Store(false)
 		return nil
@@ -131,6 +130,7 @@ func (w *Watcher) Watch(ctx context.Context) (err error) {
 			}
 			log.Infof("== [EVEN] %s", file)
 			log.Warn("== Change detected: ", file.Name)
+			w.compiling.Store(true)
 			dr.Run(file.Name)
 		case err := <-w.Watcher.Errors:
 			log.Warn(err) // No need to exit here

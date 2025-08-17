@@ -130,7 +130,9 @@ func (w *Watcher) Watch(ctx context.Context) (err error) {
 			}
 			log.Infof("== [EVEN] %s", file)
 			log.Warn("== Change detected: ", file.Name)
-			w.compiling.Store(true)
+			if !w.compiling.Load() {
+				w.compiling.Store(true)
+			}
 			dr.Run(file.Name)
 		case err := <-w.Watcher.Errors:
 			log.Warn(err) // No need to exit here

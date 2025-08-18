@@ -20,6 +20,10 @@ const (
 	DefaultIngoredPaths = `(\/\.\w+)|(^\.)|(\.\w+$)`
 )
 
+var (
+	eventTime = make(map[string]time.Time)
+)
+
 type Watcher struct {
 	WatchedDir         string
 	OnChanged          func()
@@ -123,12 +127,17 @@ func (w *Watcher) Watch(ctx context.Context) (err error) {
 					continue
 				}
 			}
-			fi, err := os.Stat(file.Name)
-			if err == nil && fi.IsDir() && file.Op == fsnotify.Create {
+			mt, isDir := getFileModTime(file.Name)
+			if file.Op == fsnotify.Create && isDir {
 				w.Watcher.Add(file.Name)
+			}
+			if t := eventTime[file.Name]; mt.Unix() == t.Unix() {
+				log.Debugf("== [SKIP] # %s #", file.String())
 				continue
 			}
+
 			log.Infof("== [EVEN] %s", file)
+			eventTime[file.Name] = mt
 			log.Warn("== Change detected: ", file.Name)
 			if !w.compiling.Load() {
 				w.compiling.Store(true)
@@ -199,4 +208,15 @@ func (w *Watcher) Reset() {
 // checkTMPFile returns true if the event was for TMP files.
 func checkTMPFile(name string) bool {
 	return strings.HasSuffix(strings.ToLower(name), ".tmp")
+}
+
+// getFileModTime retuens unix timestamp of `os.File.ModTime` by given path.
+func getFileModTime(path string) (time.Time, bool) {
+	fi, err := os.Stat(path)
+	if err != nil {
+		log.Errorf("Fail to get file information[ %s ]", err)
+		return time.Now(), false
+	}
+
+	return fi.ModTime(), fi.IsDir()
 }

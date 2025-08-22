@@ -138,11 +138,11 @@ func (w *Watcher) Watch(ctx context.Context) (err error) {
 
 			log.Infof("== [EVEN] %s", file)
 			eventTime[file.Name] = mt
-			log.Warn("== Change detected: ", file.Name)
 			if !w.compiling.Load() {
+				log.Warn("== Change detected: ", file.Name)
 				w.compiling.Store(true)
+				dr.Run(file.Name)
 			}
-			dr.Run(file.Name)
 		case err := <-w.Watcher.Errors:
 			log.Warn(err) // No need to exit here
 		case <-ctx.Done():

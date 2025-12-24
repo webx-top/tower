@@ -78,7 +78,7 @@ func namedStructMap(e *Echo, m interface{}, data map[string][]string, topName st
 
 	switch tc.Kind() {
 	case reflect.Struct:
-	case reflect.Ptr:
+	case reflect.Pointer:
 		vc = vc.Elem()
 		tc = tc.Elem()
 	default:
@@ -220,7 +220,7 @@ func (e *Echo) parseFormItem(keyNormalizer func(string) string, m interface{}, t
 				value.Set(reflect.MakeSlice(value.Type(), 1, 1))
 			}
 			itemT := value.Type()
-			if itemT.Kind() == reflect.Ptr {
+			if itemT.Kind() == reflect.Pointer {
 				itemT = itemT.Elem()
 				value = value.Elem()
 			}
@@ -235,7 +235,7 @@ func (e *Echo) parseFormItem(keyNormalizer func(string) string, m interface{}, t
 			newT := newV.Type()
 			switch newT.Kind() {
 			case reflect.Struct:
-			case reflect.Ptr:
+			case reflect.Pointer:
 				newT = newT.Elem()
 				if newV.IsNil() {
 					newV.Set(reflect.New(newT))
@@ -258,7 +258,7 @@ func (e *Echo) parseFormItem(keyNormalizer func(string) string, m interface{}, t
 				value.Set(reflect.MakeMap(value.Type()))
 			}
 			itemT := value.Type()
-			if itemT.Kind() == reflect.Ptr {
+			if itemT.Kind() == reflect.Pointer {
 				itemT = itemT.Elem()
 				value = value.Elem()
 			}
@@ -272,7 +272,7 @@ func (e *Echo) parseFormItem(keyNormalizer func(string) string, m interface{}, t
 			newT := newV.Type()
 			switch newT.Kind() {
 			case reflect.Struct:
-			case reflect.Ptr:
+			case reflect.Pointer:
 				newT = newT.Elem()
 				if newV.IsNil() {
 					newV = reflect.New(newT)
@@ -302,7 +302,7 @@ func (e *Echo) parseFormItem(keyNormalizer func(string) string, m interface{}, t
 				e.Logger().Warnf(`binder: can not set %T#%v -> %v`, m, propPath, value.Interface())
 				return nil
 			}
-			if value.Kind() == reflect.Ptr {
+			if value.Kind() == reflect.Pointer {
 				if value.IsNil() {
 					value.Set(reflect.New(value.Type().Elem()))
 				}
@@ -337,13 +337,14 @@ func SafeGetFieldByName(value reflect.Value, name string) (v reflect.Value) {
 		for idx := range f.Index[:len(f.Index)-1] {
 			destField := value.FieldByIndex(f.Index[:idx+1])
 
-			if destField.Kind() != reflect.Ptr {
+			if destField.Kind() != reflect.Pointer {
 				continue
 			}
 
 			if !destField.IsNil() {
 				continue
 			}
+
 			if !destField.CanSet() {
 				destFieldNotSet = true
 				break
@@ -378,7 +379,7 @@ func (e *Echo) setStructField(logger logger.Logger,
 	if tagfast.Value(parentT, f, `form_options`) == `-` {
 		return ErrBreak
 	}
-	if tv.Kind() == reflect.Ptr {
+	if tv.Kind() == reflect.Pointer {
 		tv.Set(reflect.New(tv.Type().Elem()))
 		tv = tv.Elem()
 	}
@@ -403,13 +404,7 @@ func (e *Echo) binderValueDecode(name string, typev reflect.Type, tv reflect.Val
 	if len(decoder) == 0 {
 		return ErrNotImplemented
 	}
-	parts := strings.SplitN(decoder, `:`, 2)
-	decoder = parts[0]
-	var params string
-	if len(parts) == 2 {
-		params = parts[1]
-	}
-	result, err := e.CallBinderValueDecoder(decoder, name, values, params)
+	result, err := e.binderDecodeValue(decoder, name, values)
 	if err != nil { // ErrNotImplemented
 		return err
 	}
@@ -418,7 +413,22 @@ func (e *Echo) binderValueDecode(name string, typev reflect.Type, tv reflect.Val
 		tv.Set(vv)
 		return nil
 	}
+	if v := param.AsType(tv.Kind().String(), result); v != result {
+		vv = reflect.ValueOf(v)
+		tv.Set(vv)
+		return nil
+	}
 	return ErrNotImplemented
+}
+
+func (e *Echo) binderDecodeValue(decoder string, name string, values []string) (interface{}, error) {
+	parts := strings.SplitN(decoder, `:`, 2)
+	decoder = parts[0]
+	var params string
+	if len(parts) == 2 {
+		params = parts[1]
+	}
+	return e.CallBinderValueDecoder(decoder, name, values, params) // ErrNotImplemented
 }
 
 func convertMapKey(typev reflect.Type, key string) reflect.Value {
@@ -657,7 +667,7 @@ func setField(logger logger.Logger, parentT reflect.Type, tv reflect.Value, f re
 				}
 			}
 		}
-	case reflect.Ptr:
+	case reflect.Pointer:
 		setField(logger, parentT, tv.Elem(), f, name, values)
 	case reflect.Slice, reflect.Array:
 		seperator := tagfast.Value(parentT, f, `form_seperator`)
@@ -683,12 +693,24 @@ func setField(logger logger.Logger, parentT reflect.Type, tv reflect.Value, f re
 	return nil
 }
 
+// NeedRemakeSlice checks if a slice needs to be remade based on its nil status or length mismatch.
+// Returns true if the slice is nil or its length doesn't match the required length.
+func NeedRemakeSlice(tv reflect.Value, length int) bool {
+	if tv.IsNil() {
+		return true
+	}
+	if tv.Len() != length {
+		return true
+	}
+	return false
+}
+
 func setSlice(logger logger.Logger, fieldName string, tv reflect.Value, t []string) {
 
 	tt := tv.Type().Elem()
 	tk := tt.Kind()
 
-	if tv.IsNil() {
+	if NeedRemakeSlice(tv, len(t)) {
 		tv.Set(reflect.MakeSlice(tv.Type(), len(t), len(t)))
 	}
 

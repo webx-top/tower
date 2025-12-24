@@ -20,10 +20,6 @@ const (
 	DefaultIngoredPaths = `(\/\.\w+)|(^\.)|(\.\w+$)`
 )
 
-var (
-	eventTime = make(map[string]time.Time)
-)
-
 type Watcher struct {
 	WatchedDir         string
 	OnChanged          func()
@@ -34,6 +30,7 @@ type Watcher struct {
 	FileNameSuffix     string
 	Paused             bool
 	compiling          atomic.Bool
+	lastEventTime      atomic.Int64
 }
 
 func NewWatcher(dir, filePattern, ignoredPathPattern string) (w Watcher) {
@@ -131,13 +128,13 @@ func (w *Watcher) Watch(ctx context.Context) (err error) {
 			if file.Op == fsnotify.Create && isDir {
 				w.Watcher.Add(file.Name)
 			}
-			if t := eventTime[file.Name]; mt.Unix() == t.Unix() {
+			if t := w.lastEventTime.Load(); mt.Unix() == t {
 				log.Debugf("== [SKIP] # %s #", file.String())
 				continue
 			}
 
 			log.Infof("== [EVEN] %s", file)
-			eventTime[file.Name] = mt
+			w.lastEventTime.Store(mt.Unix())
 			if !w.compiling.Load() {
 				log.Warn("== Change detected: ", file.Name)
 				w.compiling.Store(true)

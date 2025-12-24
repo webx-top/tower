@@ -2,6 +2,7 @@ package echo
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"mime"
 	"net/url"
@@ -71,7 +72,7 @@ func HandlerPath(h interface{}) string {
 	switch t.Kind() {
 	case reflect.Func:
 		return runtime.FuncForPC(v.Pointer()).Name()
-	case reflect.Ptr:
+	case reflect.Pointer:
 		t = t.Elem()
 		fallthrough
 	case reflect.Struct:
@@ -143,14 +144,15 @@ func static(r RouteRegister, prefix, root string) {
 	}
 }
 
-func Clear(old []interface{}, clears ...interface{}) []interface{} {
+// Clear removes the specified items from the slice.
+func Clear[T comparable](old []T, clears ...T) []T {
 	if len(clears) == 0 {
 		return nil
 	}
 	if len(old) == 0 {
 		return old
 	}
-	result := []interface{}{}
+	result := []T{}
 	for _, el := range old {
 		var exists bool
 		for _, d := range clears {
@@ -280,18 +282,18 @@ func GetNextURL(ctx Context, varNames ...string) string {
 		varName = varNames[0]
 	}
 	next := ctx.Form(varName)
-	if next == ctx.Request().URL().Path() {
-		next = ``
+	if strings.HasPrefix(next, `/`) {
+		if next == ctx.Request().URL().Path() {
+			next = ``
+		} else if pos := strings.LastIndex(next, varName+`=`); pos > -1 {
+			next = next[pos+len(varName+`=`):]
+		}
 	}
 	return next
 }
 
 func ReturnToCurrentURL(ctx Context, varNames ...string) string {
-	varName := DefaultNextURLVarName
-	if len(varNames) > 0 && len(varNames[0]) > 0 {
-		varName = varNames[0]
-	}
-	next := ctx.Form(varName)
+	next := GetNextURL(ctx, varNames...)
 	if len(next) == 0 {
 		next = ctx.Request().URI()
 	}
@@ -338,7 +340,7 @@ func GetOtherURL(ctx Context, next string) string {
 		return next
 	}
 	urlInfo, _ := url.Parse(next)
-	if urlInfo == nil || urlInfo.Path == ctx.Request().URL().Path() {
+	if urlInfo == nil || (urlInfo.Hostname() == ctx.Host() && urlInfo.Path == ctx.Request().URL().Path()) {
 		next = ``
 	}
 	return next
@@ -361,4 +363,152 @@ func ParseTemplateError(err error, sourceContent string) *PanicError {
 		p.AddTrace(t, sourceContent)
 	}
 	return p
+}
+
+// AddExtension adds the default extension to the URI if it does not already have it.
+func AddExtension(c Context, uri string) string {
+	if len(uri) == 0 || strings.HasSuffix(uri, `/`) || len(c.DefaultExtension()) == 0 {
+		return uri
+	}
+	parts := strings.SplitN(uri, `?`, 2)
+	if !strings.HasSuffix(parts[0], c.DefaultExtension()) {
+		parts[0] += c.DefaultExtension()
+		uri = strings.Join(parts, `?`)
+	}
+	return uri
+}
+
+func CleanPath(ppath string) string {
+	if !strings.HasPrefix(ppath, `/`) {
+		ppath = `/` + ppath
+	}
+	return path.Clean(ppath)
+}
+
+func CleanFilePath(ppath string) string {
+	if !strings.HasPrefix(ppath, FilePathSeparator) {
+		ppath = FilePathSeparator + ppath
+	}
+	return filepath.Clean(ppath)
+}
+
+var pathWithDots = regexp.MustCompile(`(?:^\.\.[/\\]|[/\\]\.\.[/\\]|[/\\]\.\.$|^\.\.$)`)
+var (
+	ErrInvalidPathTraversal = errors.New("invalid path traversal")
+	ErrPathEscapesBase      = errors.New("path escapes base")
+)
+
+func PathHasDots(ppath string) bool {
+	return pathWithDots.MatchString(ppath)
+}
+
+func PathSafely(reqPath string) (string, error) {
+	cleaned := CleanPath(reqPath)
+	if pathWithDots.MatchString(cleaned) {
+		return cleaned, fmt.Errorf(`%w: %s`, ErrInvalidPathTraversal, reqPath)
+	}
+	return cleaned, nil
+}
+
+func FilePathSafely(reqPath string) (string, error) {
+	cleaned := CleanFilePath(reqPath)
+	if pathWithDots.MatchString(cleaned) {
+		return cleaned, fmt.Errorf(`%w: %s`, ErrInvalidPathTraversal, reqPath)
+	}
+	return cleaned, nil
+}
+
+func FilePathJoin(base, reqPath string) (string, error) {
+	cleaned, err := FilePathSafely(reqPath)
+	if err != nil {
+		return ``, err
+	}
+	full := filepath.Join(base, cleaned)
+	cleanedBase := filepath.Clean(base)
+	// Ensure the resolved path is under the base directory
+	if !strings.HasPrefix(full, cleanedBase+FilePathSeparator) {
+		return ``, fmt.Errorf(`%w(%s): %s`, ErrPathEscapesBase, base, full)
+	}
+	return full, nil
+}
+
+func CreateInRoot(dir, name string) (*os.File, error) {
+	r, err := os.OpenRoot(dir)
+	if err != nil {
+		return nil, err
+	}
+	defer r.Close()
+	return r.Create(name)
+}
+
+func WriteFileInRoot(dir, name string, data []byte, perm os.FileMode) error {
+	r, err := os.OpenRoot(dir)
+	if err != nil {
+		return err
+	}
+	defer r.Close()
+	return r.WriteFile(name, data, perm)
+}
+
+func ReadFileInRoot(dir, name string) ([]byte, error) {
+	r, err := os.OpenRoot(dir)
+	if err != nil {
+		return nil, err
+	}
+	defer r.Close()
+	return r.ReadFile(name)
+}
+
+func RemoveInRoot(dir, name string) error {
+	r, err := os.OpenRoot(dir)
+	if err != nil {
+		return err
+	}
+	defer r.Close()
+	return r.Remove(name)
+}
+
+func RemoveAllInRoot(dir, name string) error {
+	r, err := os.OpenRoot(dir)
+	if err != nil {
+		return err
+	}
+	defer r.Close()
+	return r.RemoveAll(name)
+}
+
+func MkdirInRoot(dir, name string, perm os.FileMode) error {
+	r, err := os.OpenRoot(dir)
+	if err != nil {
+		return err
+	}
+	defer r.Close()
+	return r.Mkdir(name, perm)
+}
+
+func MkdirAllInRoot(dir, name string, perm os.FileMode) error {
+	r, err := os.OpenRoot(dir)
+	if err != nil {
+		return err
+	}
+	defer r.Close()
+	return r.MkdirAll(name, perm)
+}
+
+func StatInRoot(dir, name string) (os.FileInfo, error) {
+	r, err := os.OpenRoot(dir)
+	if err != nil {
+		return nil, err
+	}
+	defer r.Close()
+	return r.Stat(name)
+}
+
+func RenameInRoot(dir string, oldName string, newName string) error {
+	r, err := os.OpenRoot(dir)
+	if err != nil {
+		return err
+	}
+	defer r.Close()
+	return r.Rename(oldName, newName)
 }

@@ -17,6 +17,13 @@ var (
 	emptyMeta    = H{}
 )
 
+func IsEmptyRoute(route *Route) bool {
+	if route == nil || route == defaultRoute {
+		return true
+	}
+	return route.IsZero()
+}
+
 type (
 	Router struct {
 		tree   *node
@@ -452,7 +459,7 @@ END:
 }
 
 func (r *Route) apply(e *Echo) *Route {
-	handler := e.ValidHandler(r.handler)
+	handler := e.WrapHandler(r.handler)
 	middleware := r.middleware
 	if len(r.Name) == 0 {
 		if hn, ok := handler.(Name); ok {
@@ -475,7 +482,7 @@ func (r *Route) apply(e *Echo) *Route {
 	}
 	for i := len(middleware) - 1; i >= 0; i-- {
 		m := middleware[i]
-		mw := e.ValidMiddleware(m)
+		mw := e.WrapMiddleware(m)
 		handler = mw.Handle(handler)
 	}
 	r.Handler = handler

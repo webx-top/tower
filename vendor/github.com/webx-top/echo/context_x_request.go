@@ -5,7 +5,6 @@ import (
 	"io"
 	"mime/multipart"
 	"os"
-	"path/filepath"
 	"strconv"
 	"strings"
 
@@ -154,16 +153,85 @@ func (c *XContext) Query(name string, defaults ...string) (value string) {
 	return
 }
 
+func (c *XContext) QueryAny(name string, other ...string) (value string) {
+	u := c.request.URL()
+	value = u.QueryValue(name)
+	if len(value) > 0 {
+		return
+	}
+	for _, name := range other {
+		value = u.QueryValue(name)
+		if len(value) > 0 {
+			return
+		}
+	}
+	return
+}
+
+func (c *XContext) QueryLast(name string, defaults ...string) (value string) {
+	value = c.request.URL().QueryLastValue(name)
+	if len(value) == 0 && len(defaults) > 0 {
+		return defaults[0]
+	}
+	return
+}
+
+func (c *XContext) QueryAnyLast(name string, other ...string) (value string) {
+	u := c.request.URL()
+	value = u.QueryLastValue(name)
+	if len(value) > 0 {
+		return
+	}
+	for _, name := range other {
+		value = u.QueryLastValue(name)
+		if len(value) > 0 {
+			return
+		}
+	}
+	return
+}
+
 func (c *XContext) Queryx(name string, defaults ...string) param.String {
 	return param.String(c.Query(name, defaults...))
+}
+
+func (c *XContext) QueryLastx(name string, defaults ...string) param.String {
+	return param.String(c.QueryLast(name, defaults...))
+}
+
+func (c *XContext) QueryAnyx(name string, other ...string) param.String {
+	return param.String(c.QueryAny(name, other...))
+}
+
+func (c *XContext) QueryAnyLastx(name string, other ...string) param.String {
+	return param.String(c.QueryAnyLast(name, other...))
 }
 
 func (c *XContext) QueryValues(name string) []string {
 	return c.request.URL().QueryValues(name)
 }
 
+func (c *XContext) QueryAnyValues(name string, other ...string) []string {
+	u := c.request.URL()
+	values := u.QueryValues(name)
+	if len(values) > 0 {
+		return values
+	}
+	for _, name := range other {
+		values = u.QueryValues(name)
+		if len(values) > 0 {
+			return values
+		}
+	}
+	return values
+}
+
 func (c *XContext) QueryxValues(name string) param.StringSlice {
 	return param.StringSlice(c.request.URL().QueryValues(name))
+}
+
+func (c *XContext) QueryAnyxValues(name string, other ...string) param.StringSlice {
+	return param.StringSlice(c.QueryAnyValues(name, other...))
 }
 
 func (c *XContext) Queries() map[string][]string {
@@ -179,16 +247,83 @@ func (c *XContext) Form(name string, defaults ...string) (value string) {
 	return
 }
 
+func (c *XContext) FormAny(name string, other ...string) (value string) {
+	value = c.request.FormValue(name)
+	if len(value) > 0 {
+		return
+	}
+	for _, name := range other {
+		value = c.request.FormValue(name)
+		if len(value) > 0 {
+			return
+		}
+	}
+	return
+}
+
+func (c *XContext) FormLast(name string, defaults ...string) (value string) {
+	value = c.request.FormLastValue(name)
+	if len(value) == 0 && len(defaults) > 0 {
+		return defaults[0]
+	}
+	return
+}
+
+func (c *XContext) FormAnyLast(name string, other ...string) (value string) {
+	value = c.request.FormLastValue(name)
+	if len(value) > 0 {
+		return
+	}
+	for _, name := range other {
+		value = c.request.FormLastValue(name)
+		if len(value) > 0 {
+			return
+		}
+	}
+	return
+}
+
 func (c *XContext) Formx(name string, defaults ...string) param.String {
 	return param.String(c.Form(name, defaults...))
+}
+
+func (c *XContext) FormLastx(name string, defaults ...string) param.String {
+	return param.String(c.FormLast(name, defaults...))
+}
+
+func (c *XContext) FormAnyx(name string, other ...string) param.String {
+	return param.String(c.FormAny(name, other...))
+}
+
+func (c *XContext) FormAnyLastx(name string, other ...string) param.String {
+	return param.String(c.FormAnyLast(name, other...))
 }
 
 func (c *XContext) FormValues(name string) []string {
 	return c.request.Form().Gets(name)
 }
 
+func (c *XContext) FormAnyValues(name string, other ...string) []string {
+	f := c.request.Form()
+	values := f.Gets(name)
+	if len(values) > 0 {
+		return values
+	}
+	for _, name := range other {
+		values = f.Gets(name)
+		if len(values) > 0 {
+			return values
+		}
+	}
+	return values
+}
+
 func (c *XContext) FormxValues(name string) param.StringSlice {
 	return param.StringSlice(c.request.Form().Gets(name))
+}
+
+func (c *XContext) FormAnyxValues(name string, other ...string) param.StringSlice {
+	return param.StringSlice(c.FormAnyValues(name, other...))
 }
 
 func (c *XContext) Forms() map[string][]string {
@@ -506,7 +641,9 @@ func (c *XContext) SaveUploadedFile(fieldName string, saveAbsPath string, saveFi
 			return fileHdr, err
 		}
 	}
-	fileDst, err := os.Create(filepath.Join(saveAbsPath, fileName))
+
+	var fileDst *os.File
+	fileDst, err = CreateInRoot(saveAbsPath, fileName)
 	if err != nil {
 		return fileHdr, err
 	}

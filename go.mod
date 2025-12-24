@@ -1,19 +1,20 @@
 module github.com/webx-top/tower
 
-go 1.24.5
+go 1.25.1
 
 require (
 	github.com/admpub/confl v0.2.4
 	github.com/admpub/fsnotify v1.7.1
 	github.com/admpub/log v1.4.0
 	github.com/admpub/rundelay v0.0.3
-	github.com/stretchr/testify v1.10.0
-	github.com/webx-top/com v1.4.0
+	github.com/stretchr/testify v1.11.1
+	github.com/webx-top/com v1.4.1
 	github.com/webx-top/reverseproxy v0.0.2
 )
 
 require (
 	github.com/admpub/color v1.8.1 // indirect
+	github.com/admpub/dateparse v0.0.0-20250903020633-d86d3f2a4cfd // indirect
 	github.com/admpub/decimal v1.3.2 // indirect
 	github.com/admpub/events v1.3.6 // indirect
 	github.com/admpub/fasthttp v0.0.7 // indirect
@@ -30,9 +31,11 @@ require (
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/francoispqt/gojay v1.2.13 // indirect
 	github.com/goccy/go-json v0.10.5 // indirect
-	github.com/hashicorp/go-version v1.7.0 // indirect
+	github.com/gosimple/slug v1.15.0 // indirect
+	github.com/gosimple/unidecode v1.0.1 // indirect
+	github.com/hashicorp/go-version v1.8.0 // indirect
 	github.com/json-iterator/go v1.1.12 // indirect
-	github.com/klauspost/compress v1.18.0 // indirect
+	github.com/klauspost/compress v1.18.2 // indirect
 	github.com/kr/text v0.2.0 // indirect
 	github.com/mattn/go-colorable v0.1.14 // indirect
 	github.com/mattn/go-isatty v0.0.20 // indirect
@@ -45,15 +48,15 @@ require (
 	github.com/valyala/bytebufferpool v1.0.0 // indirect
 	github.com/webx-top/captcha v0.1.0 // indirect
 	github.com/webx-top/codec v0.3.0 // indirect
-	github.com/webx-top/echo v1.18.0 // indirect
+	github.com/webx-top/echo v1.22.19 // indirect
 	github.com/webx-top/poolx v0.0.0-20210912044716-5cfa2d58e380 // indirect
 	github.com/webx-top/tagfast v0.0.1 // indirect
 	github.com/webx-top/validation v0.0.3 // indirect
-	golang.org/x/crypto v0.41.0 // indirect
-	golang.org/x/net v0.43.0 // indirect
-	golang.org/x/sync v0.16.0 // indirect
-	golang.org/x/sys v0.35.0 // indirect
-	golang.org/x/text v0.28.0 // indirect
+	golang.org/x/crypto v0.46.0 // indirect
+	golang.org/x/net v0.48.0 // indirect
+	golang.org/x/sync v0.19.0 // indirect
+	golang.org/x/sys v0.39.0 // indirect
+	golang.org/x/text v0.32.0 // indirect
 	gopkg.in/check.v1 v1.0.0-20201130134442-10cb98267c6c // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )

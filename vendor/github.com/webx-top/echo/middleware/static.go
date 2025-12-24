@@ -4,7 +4,6 @@ import (
 	"html/template"
 	"net/http"
 	"os"
-	"path"
 	"path/filepath"
 	"strings"
 	"time"
@@ -25,9 +24,9 @@ var ListDirTemplate = `<!doctype html>
     </head>
     <body>
 		<ul id="fileList">
-		{{range $k, $d := .dirs}}
+		{{- range $k, $d := .dirs -}}
 		<li><a href="{{$d.Name}}{{if $d.IsDir}}/{{end}}" style="color: {{if $d.IsDir}}#e91e63{{else}}#212121{{end}};">{{$d.Name}}{{if $d.IsDir}}/{{end}}</a></li>
-		{{end}}
+		{{- end -}}
 		</ul>
 	</body>
 </html>`
@@ -207,6 +206,7 @@ func (s *StaticOptions) Middleware() echo.MiddlewareFunc {
 				return next.Handle(c)
 			}
 			file := c.Request().URL().Path()
+			file = echo.CleanPath(file)
 			sz := len(file)
 			if sz < length {
 				return next.Handle(c)
@@ -221,7 +221,6 @@ func (s *StaticOptions) Middleware() echo.MiddlewareFunc {
 					return next.Handle(c)
 				}
 				file = file[length:]
-				file = path.Clean(file)
 				if len(s.TrimPrefix) > 0 {
 					file = strings.TrimPrefix(file, s.TrimPrefix)
 				}

@@ -540,7 +540,8 @@ func (a *App) Build() (err error) {
 		}
 		args := []string{"build"}
 		args = append(args, a.BuildParams...)
-		args = append(args, []string{"-o", a.BinFile(), a.MainFile}...)
+		binFile := a.BinFile()
+		args = append(args, []string{"-o", binFile, a.MainFile}...)
 		cmd := exec.CommandContext(a.ctx, "go", args...)
 		var b bytes.Buffer
 		cmd.Stderr = &b
@@ -548,6 +549,9 @@ func (a *App) Build() (err error) {
 		cmd.Env = append(os.Environ(), a.Env...)
 		err := cmd.Run()
 		out := b.String()
+		if com.FileExists(binFile) {
+			log.ForceCreateSymlink(binFile, filepath.Dir(binFile)+string(filepath.Separator)+BinPrefix+`latest`)
+		}
 		return out, err
 	}
 	out, err := build()
